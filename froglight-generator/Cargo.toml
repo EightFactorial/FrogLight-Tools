@@ -1,0 +1,13 @@
+[package]
+name = "froglight-generator"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+authors = ["EightFactorial"]
+homepage = "https://github.com/EightFactorial/FrogLight-Tools"
+repository = "https://github.com/EightFactorial/FrogLight-Tools"
+readme = "README.md"
+
+[dependencies]
+
+[features]
