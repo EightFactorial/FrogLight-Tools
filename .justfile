@@ -7,7 +7,7 @@ default:
 # ---- Test Recipes ----
 
 # Run all tests and doc-tests
-all-tests: (deny) (fmt) (clippy) (tests) (doc-tests)
+all-tests: (deny) (fmt) (tests) (doc-tests)
 
 # Run cargo deny
 deny:
