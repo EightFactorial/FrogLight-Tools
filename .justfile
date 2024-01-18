@@ -7,7 +7,7 @@ default:
 # ---- Test Recipes ----
 
 # Run all tests and doc-tests
-all-tests: (deny) (fmt) (tests) (doc-tests)
+all-tests: (deny) (fmt) (test) (doc-test)
 
 # Run cargo deny
 deny:
@@ -22,11 +22,11 @@ clippy:
   cargo clippy --workspace
 
 # Run all tests
-tests: (fetch-nextest)
+test: (fetch-nextest)
   cargo nextest run --workspace
 
 # Run all doc-tests
-doc-tests:
+doc-test:
   cargo test --doc --workspace
 
 # ---- Tool Recipes ----
