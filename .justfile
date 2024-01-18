@@ -7,7 +7,15 @@ default:
 # ---- Test Recipes ----
 
 # Run all tests and doc-tests
-all-tests: (tests) (doc-tests)
+all-tests: (deny) (clippy) (tests) (doc-tests)
+
+# Run cargo deny
+deny:
+  cargo deny check
+
+# Run clippy
+clippy:
+  cargo clippy --workspace
 
 # Run all tests
 tests: (fetch-nextest)
@@ -16,6 +24,12 @@ tests: (fetch-nextest)
 # Run all doc-tests
 doc-tests:
   cargo test --doc --workspace
+
+# ---- Tool Recipes ----
+
+# Re-run `just` without the `tools` argument
+tools args="": (fetch-tools)
+  @just {{args}}
 
 # ---- Fetch Recipes ----
 
@@ -29,9 +43,3 @@ fetch-tools:
 fetch-nextest:
   @-cargo nextest --version > /dev/null 2>&1
   @if [ $? -ne 0 ]; then cargo install nextest; fi
-
-# ---- Tool Recipes ----
-
-# Re-run `just` without the `tools` argument
-tools args="": (fetch-tools)
-  @just {{args}}
