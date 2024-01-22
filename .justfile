@@ -6,23 +6,14 @@ default:
 
 # ---- Test Recipes ----
 
+# Run all tests and all tool tests
+all-tests: (update) (deny) (fmt) (test)
+
 # Run all tests and doc-tests
-all-tests: (deny) (fmt) (test) (doc-test)
-
-# Run cargo deny
-deny:
-  cargo deny check
-
-# Run cargo fmt
-fmt:
-  cargo fmt --all
-
-# Run clippy
-clippy:
-  cargo clippy --workspace
+test: (nextest) (doc-test) 
 
 # Run all tests
-test: (fetch-nextest)
+nextest: (fetch-nextest)
   cargo nextest run --workspace
 
 # Run all doc-tests
@@ -31,16 +22,27 @@ doc-test:
 
 # ---- Tool Recipes ----
 
+# Run cargo deny
+deny:
+  cargo deny check
+
+# Run cargo update
+update:
+  cargo update
+
+# Run clippy
+clippy:
+  cargo clippy --workspace
+
+# Run cargo fmt
+fmt:
+  cargo fmt --all
+
 # Re-run `just` without the `tools` argument
-tools args="": (fetch-tools)
+tools args="":
   @just {{args}}
 
 # ---- Fetch Recipes ----
-
-# Fetch `froglight-tools` submodule if not present
-[private]
-fetch-tools:
-  @if [ ! -f tools/.justfile ]; then git submodule update; fi
 
 # Fetch `nextest` if not present
 [private]
