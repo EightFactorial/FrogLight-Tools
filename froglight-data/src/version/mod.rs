@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use regex::Regex;
 use serde::{Deserialize, Deserializer};
 
@@ -5,7 +7,33 @@ use crate::VersionManifest;
 
 /// A representation of a version number.
 ///
-/// This is incomplete, and only contains the data we need.
+/// Version numbers can't be compared directly, as snapshots
+/// follow a different naming scheme than release versions.
+///
+/// Instead, a [`VersionManifest`] can be used with [`Version::lt_man`],
+/// [`Version::le_man`], [`Version::gt_man`], and [`Version::ge_man`] to compare
+/// release order.
+///
+/// # Examples
+/// ```rust
+/// use froglight_data::Version;
+///
+/// let version = Version::new_rel(1, 20, 0);
+/// assert_eq!(version.to_string(), "1.20.0");
+/// assert_eq!(version.to_short_string(), "1.20");
+///
+/// let version = Version::new_rel(1, 20, 1);
+/// assert_eq!(version.to_string(), "1.20.1");
+///
+/// let version = Version::new_rc(1, 20, 1, 1);
+/// assert_eq!(version.to_string(), "1.20.1-rc1");
+///
+/// let version = Version::new_pre(1, 20, 2, 3);
+/// assert_eq!(version.to_string(), "1.20.2-pre3");
+///
+/// let version = Version::new_snapshot("20w45b");
+/// assert_eq!(version.to_string(), "20w45b");
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Version {
     /// A release version, such as 1.20.0
@@ -70,6 +98,55 @@ impl Version {
             Some(Self::Release(version.clone()))
         } else {
             None
+        }
+    }
+
+    /// Convert the [`Version`] to a [`String`].
+    ///
+    /// This will remove the patch version if it is 0.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use froglight_data::Version;
+    ///
+    /// let version = Version::new_rel(1, 20, 0);
+    /// assert_eq!(version.to_string(), "1.20.0");
+    /// assert_eq!(version.to_short_string(), "1.20");
+    ///
+    /// let version = Version::new_rel(1, 20, 1);
+    /// assert_eq!(version.to_string(), "1.20.1");
+    /// assert_eq!(version.to_short_string(), "1.20.1");
+    ///
+    /// let version = Version::new_rc(1, 20, 0, 1);
+    /// assert_eq!(version.to_string(), "1.20.0-rc1");
+    /// assert_eq!(version.to_short_string(), "1.20-rc1");
+    ///
+    /// let version = Version::new_pre(1, 20, 0, 1);
+    /// assert_eq!(version.to_string(), "1.20.0-pre1");
+    /// assert_eq!(version.to_short_string(), "1.20-pre1");
+    ///
+    /// let version = Version::new_snapshot("20w45b");
+    /// assert_eq!(version.to_string(), "20w45b");
+    /// ```
+    #[must_use]
+    #[allow(clippy::missing_panics_doc)]
+    pub fn to_short_string(&self) -> String {
+        match self {
+            Self::Release(version)
+            | Self::PreRelease(version)
+            | Self::ReleaseCandidate(version) => {
+                let re = Regex::new(r"\d+\.\d+\.0.*").unwrap();
+                if re.is_match(&version.to_string()) {
+                    if version.pre.is_empty() {
+                        format!("{}.{}", version.major, version.minor)
+                    } else {
+                        format!("{}.{}-{}", version.major, version.minor, version.pre)
+                    }
+                } else {
+                    version.to_string()
+                }
+            }
+            Self::Snapshot(version) | Self::Other(version) => version.clone(),
         }
     }
 
@@ -151,12 +228,23 @@ impl<'de> Deserialize<'de> for Version {
             }
         } else {
             // This should catch `20w45a`, `20w45b`, etc
-            let re = Regex::new(r"(\d+)(w)(\d+)([a-z])").unwrap();
-            if let Some(cap) = re.captures(&string).and_then(|c| c.get(0)) {
-                Ok(Self::new_snapshot(cap.as_str()))
+            let re = Regex::new(r"\d+w\d+[a-z]").unwrap();
+            if re.is_match(&string) {
+                Ok(Self::Snapshot(string))
             } else {
                 Ok(Self::Other(string))
             }
+        }
+    }
+}
+
+impl Display for Version {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Release(version)
+            | Self::PreRelease(version)
+            | Self::ReleaseCandidate(version) => version.fmt(f),
+            Self::Snapshot(version) | Self::Other(version) => version.fmt(f),
         }
     }
 }
