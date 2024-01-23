@@ -1,13 +1,35 @@
 [package]
 name = "froglight-extractor"
-version = "0.1.0"
-edition = "2021"
-license = "MIT OR Apache-2.0"
-authors = ["EightFactorial"]
-homepage = "https://github.com/EightFactorial/FrogLight-Tools"
-repository = "https://github.com/EightFactorial/FrogLight-Tools"
-readme = "README.md"
+
+[package.version]
+workspace = true
+[package.edition]
+workspace = true
+[package.license]
+workspace = true
+[package.authors]
+workspace = true
+[package.homepage]
+workspace = true
+[package.repository]
+workspace = true
+[package.readme]
+workspace = true
+
+[lints]
+workspace = true
 
 [dependencies]
+clap = { version = "4.4.18", features = ["derive"], optional = true }
+froglight-data = { version = "0.1.0", path = "../froglight-data" }
 
 [features]
+default = []
+
+# Enable to include crates required for the cli binary
+binary = ["dep:clap"]
+
+[[bin]]
+name = "froglight-extractor"
+path = "src/cli/main.rs"
+required-features = ["binary"]

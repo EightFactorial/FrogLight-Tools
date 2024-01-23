@@ -1,16 +1,31 @@
 [package]
 name = "froglight-data"
-version = "0.1.0"
-edition = "2021"
-license = "MIT OR Apache-2.0"
-authors = ["EightFactorial"]
-homepage = "https://github.com/EightFactorial/FrogLight-Tools"
-repository = "https://github.com/EightFactorial/FrogLight-Tools"
-readme = "README.md"
+
+[package.version]
+workspace = true
+[package.edition]
+workspace = true
+[package.license]
+workspace = true
+[package.authors]
+workspace = true
+[package.homepage]
+workspace = true
+[package.repository]
+workspace = true
+[package.readme]
+workspace = true
+
+[lints]
+workspace = true
 
 [dependencies]
+chrono = { version = "0.4.32", features = ["serde"] }
+regex = "1.10.3"
 semver = { version = "1.0.21", features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
+
+[dev-dependencies]
 serde_json = { workspace = true }
 
 [features]
