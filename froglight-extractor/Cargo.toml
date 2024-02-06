@@ -19,6 +19,9 @@ workspace = true
 [lints]
 workspace = true
 
+[dev-dependencies]
+proptest = { workspace = true }
+
 [dependencies]
 clap = { workspace = true, features = ["derive"], optional = true }
 froglight-data = { version = "0.1.0", path = "../froglight-data" }
