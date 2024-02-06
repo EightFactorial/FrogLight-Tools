@@ -60,7 +60,7 @@ impl Version {
     #[allow(clippy::missing_panics_doc)]
     pub fn new_rc(major: u64, minor: u64, patch: u64, rc: u64) -> Self {
         let mut sversion = semver::Version::new(major, minor, patch);
-        sversion.pre = semver::Prerelease::new(format!("rc{}", rc).as_str()).unwrap();
+        sversion.pre = semver::Prerelease::new(format!("rc{rc}").as_str()).unwrap();
         Self::ReleaseCandidate(sversion)
     }
 
@@ -69,7 +69,7 @@ impl Version {
     #[allow(clippy::missing_panics_doc)]
     pub fn new_pre(major: u64, minor: u64, patch: u64, pre: u64) -> Self {
         let mut sversion = semver::Version::new(major, minor, patch);
-        sversion.pre = semver::Prerelease::new(format!("pre{}", pre).as_str()).unwrap();
+        sversion.pre = semver::Prerelease::new(format!("pre{pre}").as_str()).unwrap();
         Self::PreRelease(sversion)
     }
 
