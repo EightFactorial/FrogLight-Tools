@@ -5,14 +5,12 @@ on:
     branches:
       - main
     paths:
-      - "src/**.rs"
-      - "crates/**.rs"
+      - "**.rs"
   push:
     branches:
       - main
     paths:
-      - "src/**.rs"
-      - "crates/**.rs"
+      - "**.rs"
       - ".github/workflows/clippy.yml"
 
 env:
