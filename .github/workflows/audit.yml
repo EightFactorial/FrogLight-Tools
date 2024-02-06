@@ -1,0 +1,41 @@
+name: Security Audit
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "deny.toml"
+      - "Cargo.lock"
+  push:
+    branches:
+      - main
+    paths:
+      - "deny.toml"
+      - "Cargo.lock"
+      - ".github/workflows/audit.yml"
+
+env:
+  CARGO_TERM_COLOR: always
+  CLICOLOR: 1
+
+jobs:
+  cargo_deny:
+    name: Cargo Deny
+    runs-on: ubuntu-latest
+    steps:
+      # Get the nightly toolchain
+      - name: Toolchain
+        uses: dtolnay/rust-toolchain@nightly
+      # Install the deny tool
+      - name: Install Deny
+        uses: taiki-e/install-action@e17a4e247d4a36441181d7758c499d97e1e006bd # v2
+        with:
+          tool: cargo-deny
+      # Checkout the repository
+      - name: Checkout
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+      # Run the deny tool
+      - name: Run Deny
+        run: cargo deny check
