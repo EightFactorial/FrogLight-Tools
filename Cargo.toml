@@ -1,6 +1,10 @@
 [workspace]
 resolver = "2"
-members = ["froglight-data", "froglight-extractor", "froglight-generator"]
+members = [
+    "crates/froglight-data",
+    "crates/froglight-extractor",
+    "crates/froglight-generator",
+]
 
 [workspace.package]
 version = "0.1.0"
