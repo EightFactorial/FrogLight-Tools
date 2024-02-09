@@ -16,10 +16,19 @@ repository = "https://github.com/EightFactorial/FrogLight-Tools"
 readme = "README.md"
 
 [workspace.dependencies]
+anyhow = "1.0.79"
 clap = "4.5.0"
+derive_more = "0.99.17"
+hashbrown = "0.14.3"
 proptest = "1.4.0"
+reqwest = { version = "0.11.24", default-features = false }
 serde = "1.0.196"
 serde_json = "1.0.113"
+strum = "0.26"
+strum_macros = "0.26"
+tokio = "1.36.0"
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
 toml = "0.8.10"
 
 [workspace.lints.rust]

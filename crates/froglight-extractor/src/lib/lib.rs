@@ -1,3 +1,3 @@
 #![doc = include_str!("../../README.md")]
 
-fn main() {}
+pub mod modules;

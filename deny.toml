@@ -15,16 +15,25 @@ allow = [
     #    "MIT-0",
     "Apache-2.0",
     "BSD-3-Clause",
-    #    "ISC",
+    "ISC",
     #    "Zlib",
     #    "0BSD",
     #    "BSD-2-Clause",
     #    "CC0-1.0",
+    "MPL-2.0",
+    "OpenSSL",
 ]
 
 [[licenses.exceptions]]
 name = "unicode-ident"
 allow = ["Unicode-DFS-2016"]
+
+[[licenses.clarify]]
+name = "ring"
+expression = "MIT AND ISC AND OpenSSL"
+[[licenses.clarify.license-files]]
+path = "LICENSE"
+hash = 3171872035
 
 [sources]
 unknown-git = "deny"
