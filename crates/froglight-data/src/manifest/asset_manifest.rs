@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use hashbrown::HashMap;
 use serde::Deserialize;
 
 /// Information about the assets for a specific version of Minecraft.

@@ -82,9 +82,67 @@ impl Version {
     pub fn new_other(s: impl AsRef<str>) -> Self { Self::Other(s.as_ref().into()) }
 
     /// Try to create a new [`Version`] from a string.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use froglight_data::Version;
+    ///
+    /// let version = Version::from_string("1.20.0").unwrap();
+    /// assert_eq!(version, Version::new_rel(1, 20, 0));
+    ///
+    /// let version = Version::from_string("1.20.0-rc1").unwrap();
+    /// assert_eq!(version, Version::new_rc(1, 20, 0, 1));
+    /// ```
+    ///
+    /// # Panics
+    /// - Panics if the string is not a valid version.
     #[must_use]
-    pub fn try_from_string(version: &str) -> Option<Self> {
-        Self::try_from_semver(&semver::Version::parse(version).ok()?)
+    pub fn from_string(string: &str) -> Option<Self> {
+        if let Ok(sversion) = semver::Version::parse(string) {
+            // This should catch most versions
+            // Does not work on version without a patch, such as `1.20`
+            if let Some(version) = Self::try_from_semver(&sversion) {
+                Some(version)
+            } else {
+                Some(Self::Other(sversion.to_string()))
+            }
+        } else if string.split('.').count() == 2 {
+            // This should catch `1.20`, `1.20-rc1`, etc
+
+            let mut index = string.len();
+            if let Some(pos) = string.find('-') {
+                index = pos;
+            }
+
+            // Split the string into the version and the pre information
+            let (version, pre) = string.split_at(index);
+
+            // Parse the version
+            let mut split = version.split('.');
+            let major = split.next().unwrap().parse::<u64>();
+            let minor = split.next().unwrap().parse::<u64>();
+
+            let (Ok(major), Ok(minor)) = (major, minor) else {
+                return Some(Self::Other(string.to_owned()));
+            };
+
+            // Determine release type
+            if let Some(pre) = pre.strip_prefix("-rc") {
+                Some(Self::new_rc(major, minor, 0, pre.parse().unwrap()))
+            } else if let Some(pre) = pre.strip_prefix("-pre") {
+                Some(Self::new_pre(major, minor, 0, pre.parse().unwrap()))
+            } else {
+                Some(Self::new_rel(major, minor, 0))
+            }
+        } else {
+            // This should catch `20w45a`, `20w45b`, etc
+            let re = Regex::new(r"\d+w\d+[a-z]").unwrap();
+            if re.is_match(string) {
+                Some(Self::Snapshot(string.to_owned()))
+            } else {
+                Some(Self::Other(string.to_owned()))
+            }
+        }
     }
 
     /// Try to create a new [`Version`] from a [`semver::Version`].
@@ -193,48 +251,7 @@ impl<'de> Deserialize<'de> for Version {
         D: Deserializer<'de>,
     {
         let string = String::deserialize(deserializer)?;
-
-        if let Ok(sversion) = semver::Version::parse(&string) {
-            // This should catch most versions
-            // Does not work on version without a patch, such as `1.20`
-            if let Some(version) = Self::try_from_semver(&sversion) {
-                Ok(version)
-            } else {
-                Ok(Self::Other(sversion.to_string()))
-            }
-        } else if string.split('.').count() == 2 {
-            // This should catch `1.20`, `1.20-rc1`, etc
-
-            let mut index = string.len();
-            if let Some(pos) = string.find('-') {
-                index = pos;
-            }
-
-            // Split the string into the version and the pre information
-            let (version, pre) = string.split_at(index);
-
-            // Parse the version
-            let mut split = version.split('.');
-            let major = split.next().unwrap().parse::<u64>().unwrap();
-            let minor = split.next().unwrap().parse::<u64>().unwrap();
-
-            // Determine release type
-            if let Some(pre) = pre.strip_prefix("-rc") {
-                Ok(Self::new_rc(major, minor, 0, pre.parse().unwrap()))
-            } else if let Some(pre) = pre.strip_prefix("-pre") {
-                Ok(Self::new_pre(major, minor, 0, pre.parse().unwrap()))
-            } else {
-                Ok(Self::new_rel(major, minor, 0))
-            }
-        } else {
-            // This should catch `20w45a`, `20w45b`, etc
-            let re = Regex::new(r"\d+w\d+[a-z]").unwrap();
-            if re.is_match(&string) {
-                Ok(Self::Snapshot(string))
-            } else {
-                Ok(Self::Other(string))
-            }
-        }
+        Self::from_string(&string).ok_or_else(|| serde::de::Error::custom("Invalid version"))
     }
 }
 

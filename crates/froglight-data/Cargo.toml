@@ -25,9 +25,11 @@ serde_json = { workspace = true }
 
 [dependencies]
 chrono = { version = "0.4.33", features = ["serde"] }
+hashbrown = { workspace = true, features = ["serde"] }
 regex = "1.10.3"
 semver = { version = "1.0.21", features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
 
 
 [features]
+default = []

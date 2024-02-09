@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 
@@ -22,6 +24,12 @@ pub struct ManifestLatest {
     pub snapshot: Version,
 }
 
+impl Display for ManifestLatest {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Release: {}, Snapshot: {}", self.release, self.snapshot)
+    }
+}
+
 /// Information for a specific version of Minecraft.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct ManifestVersion {
@@ -34,6 +42,12 @@ pub struct ManifestVersion {
     pub url: String,
     /// The release time.
     pub time: DateTime<Utc>,
+}
+
+impl Display for ManifestVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} ({})", self.id, self.kind)
+    }
 }
 
 #[test]
