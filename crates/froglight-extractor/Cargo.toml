@@ -28,7 +28,7 @@ proptest = { workspace = true }
 
 [dependencies]
 async_zip = { version = "0.0.16", features = ["full"] }
-anyhow = { workspace = true, optional = true }
+anyhow = { workspace = true }
 cafebabe = { workspace = true, optional = true }
 clap = { workspace = true, features = ["derive"], optional = true }
 froglight-data = { version = "0.1.0", path = "../froglight-data" }
@@ -57,4 +57,4 @@ required-features = ["binary"]
 default = []
 
 # Enable to include crates required for the cli binary
-binary = ["dep:anyhow", "dep:cafebabe", "dep:clap", "dep:tracing-subscriber"]
+binary = ["dep:cafebabe", "dep:clap", "dep:tracing-subscriber"]
