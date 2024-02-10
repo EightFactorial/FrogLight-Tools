@@ -6,6 +6,8 @@ use froglight_extractor::manifest;
 use tracing::{debug, error, trace, warn};
 use tracing_subscriber::{fmt::SubscriberBuilder, EnvFilter};
 
+mod classmap;
+
 mod commands;
 use commands::{Command, SubCommand};
 
@@ -38,25 +40,30 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // Execute the subcommand.
-    let result = match &command.subcommand {
-        SubCommand::Extract(_) => commands::extract::extract(&command, &manifest).await,
+    match &command.subcommand {
+        SubCommand::Extract(_) => {
+            // Extract the data.
+            let result = commands::extract::extract(&command, &manifest).await;
+
+            // Handle the result.
+            if let Some(output) = command.output {
+                // Write the result to the output file.
+                serde_json::to_writer_pretty(
+                    std::fs::File::create(output).expect("Failed to create output file"),
+                    &result,
+                )
+                .expect("Failed to write output to file");
+            } else {
+                // Write the result to stdout.
+                serde_json::to_writer_pretty(std::io::stdout(), &result)
+                    .expect("Failed to write output");
+            }
+
+            Ok(())
+        }
         SubCommand::Search(_) => commands::search::search(&command, &manifest).await,
         SubCommand::Print(_) => commands::print::print(&command, &manifest).await,
-    };
-
-    // Handle the result.
-    if let Some(output) = command.output {
-        // Write the result to the output file.
-        serde_json::to_writer_pretty(
-            std::fs::File::create(output).expect("Failed to create output file"),
-            &result,
-        )
-        .expect("Failed to write output to file");
-    } else {
-        serde_json::to_writer_pretty(std::io::stdout(), &result).expect("Failed to write output");
     }
-
-    return Ok(());
 }
 
 /// Setup logging.
