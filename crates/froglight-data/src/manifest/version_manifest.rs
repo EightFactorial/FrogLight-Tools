@@ -15,6 +15,14 @@ pub struct VersionManifest {
     pub versions: Vec<ManifestVersion>,
 }
 
+impl VersionManifest {
+    /// Get the [`ManifestVersion`] for a specific [`Version`].
+    #[must_use]
+    pub fn get(&self, version: &Version) -> Option<&ManifestVersion> {
+        self.versions.iter().find(|v| &v.id == version)
+    }
+}
+
 /// The latest versions of Minecraft.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct ManifestLatest {

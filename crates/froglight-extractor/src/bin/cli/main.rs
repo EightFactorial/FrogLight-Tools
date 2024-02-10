@@ -2,13 +2,12 @@
 
 use clap::Parser;
 use froglight_data::Version;
+use froglight_extractor::manifest;
 use tracing::{debug, error, trace, warn};
 use tracing_subscriber::{fmt::SubscriberBuilder, EnvFilter};
 
 mod commands;
 use commands::{Command, SubCommand};
-
-mod manifest;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -21,12 +20,13 @@ async fn main() -> anyhow::Result<()> {
         trace!("Parsed Command: {command:?}");
     }
 
+    // Warn if the version is not a release version.
     if !matches!(command.version, Version::Release(_)) {
         warn!("Version `{}` is not a release version, this may cause issues!", command.version);
     }
 
     // Load or refresh the version manifest.
-    let manifest = manifest::version_manifest(&command).await;
+    let manifest = manifest::version_manifest(&command.cache, command.refresh).await;
     debug!("ManifestLatest: {}", manifest.latest);
 
     // Check for requested version in the manifest.
