@@ -11,7 +11,7 @@ pub(super) mod print;
 pub(super) mod search;
 
 #[derive(Debug, Clone, PartialEq, Eq, Parser)]
-pub(crate) struct Command {
+pub(crate) struct ExtractCommand {
     /// Disable/enable logging.
     ///
     /// By default, logging is enabled.
@@ -41,7 +41,7 @@ pub(crate) struct Command {
 
     /// The subcommand to run.
     #[command(subcommand)]
-    pub(crate) subcommand: SubCommand,
+    pub(crate) subcommand: ExtractSubCommand,
 
     /// An optional output file to write the result to.
     ///
@@ -51,7 +51,7 @@ pub(crate) struct Command {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Subcommand)]
-pub(crate) enum SubCommand {
+pub(crate) enum ExtractSubCommand {
     /// Extract data from the version.
     Extract(ExtractArgs),
     /// Search for data in the version.

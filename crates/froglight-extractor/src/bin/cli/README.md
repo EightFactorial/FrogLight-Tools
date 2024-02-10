@@ -6,14 +6,11 @@ A simple cli tool to extract data from a Minecraft jar file.
 
 See `--help` for more information
 
-From the `FrogLight` repository, you can run the tool with the following command:
+From the `FrogLight` repository, you can run this tool using the `just` recipe.
 
-```sh
-just tools extract
-```
 For example, to extract all supported data from the jar file, you can run:
 ```sh
-just tools extract 1.20.2
+just tools extract 1.20.2 extract
 ```
 To search for all classes that contain the word "Block", you can run:
 ```sh

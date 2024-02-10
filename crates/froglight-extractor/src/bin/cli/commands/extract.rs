@@ -3,10 +3,13 @@ use froglight_extractor::{classmap::ClassMap, modules::ExtractModule};
 use strum::IntoEnumIterator;
 use tracing::{error, info};
 
-use super::{Command, SubCommand};
+use super::{ExtractCommand, ExtractSubCommand};
 
-pub(crate) async fn extract(command: &Command, manifest: &VersionManifest) -> anyhow::Result<()> {
-    let SubCommand::Extract(args) = &command.subcommand else { unreachable!() };
+pub(crate) async fn extract(
+    command: &ExtractCommand,
+    manifest: &VersionManifest,
+) -> anyhow::Result<()> {
+    let ExtractSubCommand::Extract(args) = &command.subcommand else { unreachable!() };
 
     // Get the modules to run
     let mut modules = args.modules.clone();
@@ -19,7 +22,8 @@ pub(crate) async fn extract(command: &Command, manifest: &VersionManifest) -> an
     info!("Modules: {modules:?}");
 
     // Create the classmap
-    let classmap = ClassMap::new(&command.version, manifest, &command.cache, command.refresh).await;
+    let classmap =
+        ClassMap::new(&command.version, manifest, &command.cache, command.refresh).await?;
 
     // Run the modules
     let mut json = serde_json::Value::default();

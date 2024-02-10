@@ -9,10 +9,10 @@ const MAPPER_FILE: &str = "tiny-remapper.jar";
 
 /// Get the `TinyRemapper` from the cache or download it from the server
 ///
-/// # Panics
+/// # Errors
 /// - If the `TinyRemapper` fails to download
 /// - If the `TinyRemapper` fails to write to the cache
-pub async fn get_mapper(cache: &Path, refresh: bool) -> PathBuf {
+pub async fn get_mapper(cache: &Path, refresh: bool) -> anyhow::Result<PathBuf> {
     let mut mapper_path = cache.join("froglight");
     mapper_path.push(MAPPER_FILE);
 
@@ -20,16 +20,14 @@ pub async fn get_mapper(cache: &Path, refresh: bool) -> PathBuf {
     if refresh || !mapper_path.exists() {
         // Download the mapper
         let url = MAPPER_URL.replace("{MAP_VER}", MAPPER_VERSION);
-        let response = reqwest::get(&url).await.expect("Failed to download TinyRemapper");
+        let response = reqwest::get(&url).await?;
 
         // Save the mapper to the cache
-        let bytes = response.bytes().await.expect("Failed to read TinyRemapper response");
-        tokio::fs::write(&mapper_path, &bytes)
-            .await
-            .expect("Failed to write TinyRemapper to cache");
+        let bytes = response.bytes().await?;
+        tokio::fs::write(&mapper_path, &bytes).await?;
     }
 
-    mapper_path
+    Ok(mapper_path)
 }
 
 /// The URL for the mappings
@@ -42,17 +40,21 @@ const MAPPINGS_FILE: &str = "mappings.tiny";
 
 /// Get the mappings from the cache or download them from the server
 ///
-/// # Panics
+/// # Errors
 /// - If the mappings fail to download
 /// - If the mappings fail to write to the cache
-pub async fn get_mappings(version: &Version, cache: &Path, refresh: bool) -> PathBuf {
+pub async fn get_mappings(
+    version: &Version,
+    cache: &Path,
+    refresh: bool,
+) -> anyhow::Result<PathBuf> {
     let mut mappings_path = cache.join("froglight");
     mappings_path.push(version.to_short_string());
 
     // Create the cache directory if it doesn't exist
     if !mappings_path.exists() {
         debug!("Creating version cache directory: {}", mappings_path.display());
-        tokio::fs::create_dir_all(&mappings_path).await.expect("Failed to create cache directory");
+        tokio::fs::create_dir_all(&mappings_path).await?;
     }
 
     mappings_path.push(MAPPINGS_FILE);
@@ -62,38 +64,37 @@ pub async fn get_mappings(version: &Version, cache: &Path, refresh: bool) -> Pat
     // Check if the mappings are already downloaded
     if refresh || !mappings_path.exists() {
         // Get the latest build of the mappings
-        let latest = get_latest_build(version, cache, refresh).await;
+        let latest = get_latest_build(version, cache, refresh).await?;
 
         // Download the mappings
         let url = MAPPINGS_URL.replace("{BUILD_VER}", &latest);
-        let response = reqwest::get(&url).await.expect("Failed to download mappings");
+        let response = reqwest::get(&url).await?;
 
         // Open the mappings file as a zip
-        let bytes = response.bytes().await.expect("Failed to read mappings response").to_vec();
-        let zip = async_zip::base::read::mem::ZipFileReader::new(bytes)
-            .await
-            .expect("Failed to read mappings zip");
+        let bytes = response.bytes().await?.to_vec();
+        let zip = async_zip::base::read::mem::ZipFileReader::new(bytes).await?;
 
         // Get the mappings file from the zip
-        let file_index = zip
-            .file()
-            .entries()
-            .iter()
-            .position(|entry| entry.filename().as_str().unwrap() == MAPPINGS_JAR_FILE_PATH)
-            .expect("Failed to find mappings file");
-        let mut entry =
-            zip.reader_with_entry(file_index).await.expect("Failed to read mappings entry");
+        let file_index = zip.file().entries().iter().position(|entry| {
+            if let Ok(name) = entry.filename().as_str() {
+                name == MAPPINGS_JAR_FILE_PATH
+            } else {
+                false
+            }
+        });
+        let Some(file_index) = file_index else {
+            anyhow::bail!("Mappings file not found in the jar");
+        };
+        let mut entry = zip.reader_with_entry(file_index).await?;
 
         // Save the mappings to the cache
         let mut content = Vec::new();
-        entry.read_to_end_checked(&mut content).await.expect("Failed to read mappings content");
+        entry.read_to_end_checked(&mut content).await?;
 
-        tokio::fs::write(&mappings_path, &content)
-            .await
-            .expect("Failed to write mappings to cache");
+        tokio::fs::write(&mappings_path, &content).await?;
     }
 
-    mappings_path
+    Ok(mappings_path)
 }
 
 /// The URL for the mappings directory
@@ -102,7 +103,11 @@ const MAPPINGS_DIRECTORY_URL: &str = "https://maven.fabricmc.net/net/fabricmc/ya
 const MAPPINGS_DIRECTORY_FILE: &str = "mappings_directory.txt";
 
 // Find the latest build of the mappings
-async fn get_latest_build(version: &Version, cache: &Path, refresh: bool) -> String {
+async fn get_latest_build(
+    version: &Version,
+    cache: &Path,
+    refresh: bool,
+) -> anyhow::Result<String> {
     let mut directory_path = cache.join("froglight");
     directory_path.push(MAPPINGS_DIRECTORY_FILE);
 
@@ -114,22 +119,16 @@ async fn get_latest_build(version: &Version, cache: &Path, refresh: bool) -> Str
         debug!("MappingsDirectory URL: {}", MAPPINGS_DIRECTORY_URL);
 
         // Download the mappings directory
-        let response = reqwest::get(MAPPINGS_DIRECTORY_URL)
-            .await
-            .expect("Failed to download mappings directory");
+        let response = reqwest::get(MAPPINGS_DIRECTORY_URL).await?;
 
-        let content = response.text().await.expect("Failed to read mappings directory response");
-        tokio::fs::write(&directory_path, &content)
-            .await
-            .expect("Failed to write mappings directory to cache");
+        let content = response.text().await?;
+        tokio::fs::write(&directory_path, &content).await?;
 
         directory = content;
     } else {
         debug!("Loading mappings directory from cache");
 
-        directory = tokio::fs::read_to_string(&directory_path)
-            .await
-            .expect("Failed to read mappings directory from cache");
+        directory = tokio::fs::read_to_string(&directory_path).await?;
     }
 
     let mut builds = Vec::new();
@@ -150,5 +149,9 @@ async fn get_latest_build(version: &Version, cache: &Path, refresh: bool) -> Str
     builds.sort();
     debug!("Builds: {:?}", builds);
 
-    builds.pop().expect("No builds found")
+    if let Some(build) = builds.pop() {
+        Ok(build)
+    } else {
+        anyhow::bail!("No builds found for Version `{}`", version.to_short_string());
+    }
 }

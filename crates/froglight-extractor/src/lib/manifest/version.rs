@@ -8,23 +8,23 @@ const MANIFEST_FILE: &str = "version_manifest_v2.json";
 
 /// Load the version manifest from the cache or download it from the server
 ///
-/// # Panics
+/// # Errors
 /// - If the cache directory cannot be created
 /// - If the version manifest fails to download
 /// - If the version manifest fails to write to the cache
 /// - If the version manifest fails to parse
-pub async fn version_manifest(cache: &Path, refresh: bool) -> VersionManifest {
+pub async fn version_manifest(cache: &Path, refresh: bool) -> anyhow::Result<VersionManifest> {
     let mut manifest_path = cache.join("froglight");
 
     // Create the cache directory if it doesn't exist
     if !manifest_path.exists() {
-        tokio::fs::create_dir_all(&manifest_path).await.expect("Failed to create cache directory");
+        tokio::fs::create_dir_all(&manifest_path).await?;
     }
 
     manifest_path.push(MANIFEST_FILE);
     debug!("VersionManifest Path: {}", manifest_path.display());
 
-    let mut manifest = None;
+    let mut manifest: Option<VersionManifest> = None;
 
     // Try to read the manifest from the cache
     if !refresh && manifest_path.exists() {
@@ -47,25 +47,20 @@ pub async fn version_manifest(cache: &Path, refresh: bool) -> VersionManifest {
         info!("Downloading VersionManifest...");
         debug!("VersionManifest URL: {}", MANIFEST_URL);
 
-        // Download the manifest
-        let response = match reqwest::get(MANIFEST_URL).await {
-            Err(err) => panic!("Failed to download VersionManifest: `{err}`"),
-            Ok(response) => response.bytes().await.expect("Failed to read response"),
-        };
-
-        // Save the manifest to the cache
-        if let Err(err) = tokio::fs::write(&manifest_path, &response).await {
-            panic!("Failed to write manifest to cache: `{err}`");
-        } else {
-            debug!("Saved VersionManifest to cache");
-        }
+        // Download the manifest and save it to the cache
+        let response = reqwest::get(MANIFEST_URL).await?.bytes().await?;
+        tokio::fs::write(&manifest_path, &response).await?;
 
         // Parse the manifest
-        match serde_json::from_slice(&response) {
-            Err(err) => panic!("Failed to parse VersionManifest: `{err}`"),
-            Ok(res) => manifest = Some(res),
+        if let Ok(res) = serde_json::from_slice(&response) {
+            debug!("Saved VersionManifest to cache");
+            manifest = Some(res);
         }
     }
 
-    manifest.unwrap()
+    if let Some(manifest) = manifest {
+        Ok(manifest)
+    } else {
+        anyhow::bail!("Failed to load VersionManifest");
+    }
 }

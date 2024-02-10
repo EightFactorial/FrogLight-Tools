@@ -40,8 +40,12 @@ fmt:
 
 # Run the froglight-extractor with the given command and arguments
 # Uses the ./target (./target/froglight) directory as the cache
-extract version command="extract" arg0="" arg1="" arg2="" arg3="":
-  cargo run --package froglight-extractor --features=binary --release -- --cache ../target --version {{version}} {{command}} {{arg0}} {{arg1}} {{arg2}} {{arg3}}
+extract version arg0="" arg1="" arg2="" arg3="":
+  cargo run --package froglight-extractor --features=binary --release -- --cache ../target --version {{version}} {{arg0}} {{arg1}} {{arg2}} {{arg3}}
+
+# Run the froglight-generator to generate code dynamically
+generate arg0="" arg1="" arg2="" arg3="":
+  cargo run --package froglight-generator --release -- --dir ../ --config generator.toml {{arg0}} {{arg1}} {{arg2}} {{arg3}}
 
 # Re-run `just` without the `tools` argument
 tools args="":

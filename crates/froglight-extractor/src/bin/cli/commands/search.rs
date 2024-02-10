@@ -2,12 +2,16 @@ use froglight_data::VersionManifest;
 use froglight_extractor::classmap::ClassMap;
 use tokio::io::AsyncWriteExt;
 
-use super::{Command, SubCommand};
+use super::{ExtractCommand, ExtractSubCommand};
 
-pub(crate) async fn search(command: &Command, manifest: &VersionManifest) -> anyhow::Result<()> {
-    let SubCommand::Search(args) = &command.subcommand else { unreachable!() };
+pub(crate) async fn search(
+    command: &ExtractCommand,
+    manifest: &VersionManifest,
+) -> anyhow::Result<()> {
+    let ExtractSubCommand::Search(args) = &command.subcommand else { unreachable!() };
 
-    let classmap = ClassMap::new(&command.version, manifest, &command.cache, command.refresh).await;
+    let classmap =
+        ClassMap::new(&command.version, manifest, &command.cache, command.refresh).await?;
     let mut filtered_map = ClassMap::empty();
 
     for (key, value) in classmap.into_iter() {

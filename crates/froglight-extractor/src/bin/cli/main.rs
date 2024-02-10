@@ -1,4 +1,4 @@
-#![doc = include_str!("../../../README.md")]
+#![doc = include_str!("README.md")]
 
 use clap::Parser;
 use froglight_data::Version;
@@ -7,12 +7,12 @@ use tracing::{error, trace, warn};
 use tracing_subscriber::{fmt::SubscriberBuilder, EnvFilter};
 
 mod commands;
-use commands::{Command, SubCommand};
+use commands::{ExtractCommand, ExtractSubCommand};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Parse the command line arguments.
-    let command = Command::parse();
+    let command = ExtractCommand::parse();
 
     // Setup logging if the verbose flag is set.
     if command.verbose {
@@ -26,7 +26,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // Load or refresh the version manifest.
-    let manifest = manifest::version_manifest(&command.cache, command.refresh).await;
+    let manifest = manifest::version_manifest(&command.cache, command.refresh).await?;
     trace!("ManifestLatest: {}", manifest.latest);
 
     // Check for requested version in the manifest.
@@ -39,9 +39,9 @@ async fn main() -> anyhow::Result<()> {
 
     // Execute the subcommand.
     match &command.subcommand {
-        SubCommand::Extract(_) => commands::extract::extract(&command, &manifest).await,
-        SubCommand::Search(_) => commands::search::search(&command, &manifest).await,
-        SubCommand::Print(_) => commands::print::print(&command, &manifest).await,
+        ExtractSubCommand::Extract(_) => commands::extract::extract(&command, &manifest).await,
+        ExtractSubCommand::Search(_) => commands::search::search(&command, &manifest).await,
+        ExtractSubCommand::Print(_) => commands::print::print(&command, &manifest).await,
     }
 }
 

@@ -3,10 +3,13 @@ use froglight_data::VersionManifest;
 use froglight_extractor::jar;
 use tokio::io::AsyncWriteExt;
 
-use super::{Command, SubCommand};
+use super::{ExtractCommand, ExtractSubCommand};
 
-pub(crate) async fn print(command: &Command, manifest: &VersionManifest) -> anyhow::Result<()> {
-    let SubCommand::Print(args) = &command.subcommand else { unreachable!() };
+pub(crate) async fn print(
+    command: &ExtractCommand,
+    manifest: &VersionManifest,
+) -> anyhow::Result<()> {
+    let ExtractSubCommand::Print(args) = &command.subcommand else { unreachable!() };
 
     if !std::path::Path::new(&args.class)
         .extension()
@@ -17,7 +20,7 @@ pub(crate) async fn print(command: &Command, manifest: &VersionManifest) -> anyh
 
     // Load the jar file
     let jar_path =
-        jar::get_mapped_jar(&command.version, manifest, &command.cache, command.refresh).await;
+        jar::get_mapped_jar(&command.version, manifest, &command.cache, command.refresh).await?;
     let jar = ZipFileReader::new(jar_path).await?;
 
     // Search for the class

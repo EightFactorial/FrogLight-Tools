@@ -5,7 +5,7 @@ use tracing::{debug, error, info};
 
 /// Load the release manifest from the cache or download it from the server
 ///
-/// # Panics
+/// # Errors
 /// - If the cache directory cannot be created
 /// - If the release manifest fails to download
 /// - If the release manifest fails to write to the cache
@@ -14,20 +14,20 @@ pub async fn release_manifest(
     version: &ManifestVersion,
     cache: &Path,
     refresh: bool,
-) -> ReleaseManifest {
+) -> anyhow::Result<ReleaseManifest> {
     let mut manifest_path = cache.join("froglight");
     manifest_path.push(&version.id.to_short_string());
 
     // Create the cache directory if it doesn't exist
     if !manifest_path.exists() {
-        tokio::fs::create_dir_all(&manifest_path).await.expect("Failed to create cache directory");
+        tokio::fs::create_dir_all(&manifest_path).await?;
     }
 
     manifest_path.push(&format!("{}.json", version.id.to_short_string()));
 
     debug!("ReleaseManifest Path: {}", manifest_path.display());
 
-    let mut manifest = None;
+    let mut manifest: Option<ReleaseManifest> = None;
 
     // Try to read the manifest from the cache
     if !refresh && manifest_path.exists() {
@@ -50,25 +50,20 @@ pub async fn release_manifest(
         info!("Downloading ReleaseManifest...");
         debug!("ReleaseManifest URL: {}", version.url);
 
-        // Download the manifest
-        let response = match reqwest::get(&version.url).await {
-            Err(err) => panic!("Failed to download ReleaseManifest: `{err}`"),
-            Ok(response) => response.bytes().await.expect("Failed to read response"),
-        };
-
-        // Save the manifest to the cache
-        if let Err(err) = tokio::fs::write(&manifest_path, &response).await {
-            panic!("Failed to write manifest to cache: `{err}`");
-        } else {
-            debug!("Saved ReleaseManifest to cache");
-        }
+        // Download the manifest and save it to the cache
+        let response = reqwest::get(&version.url).await?.bytes().await?;
+        tokio::fs::write(&manifest_path, &response).await?;
 
         // Parse the manifest
-        match serde_json::from_slice(&response) {
-            Err(err) => panic!("Failed to parse ReleaseManifest: `{err}`"),
-            Ok(res) => manifest = Some(res),
+        if let Ok(res) = serde_json::from_slice(&response) {
+            debug!("Saved ReleaseManifest to cache");
+            manifest = Some(res);
         }
     }
 
-    manifest.unwrap()
+    if let Some(manifest) = manifest {
+        Ok(manifest)
+    } else {
+        anyhow::bail!("Failed to load ReleaseManifest");
+    }
 }

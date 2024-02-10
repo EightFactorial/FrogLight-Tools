@@ -36,16 +36,16 @@ impl ParsedJar {
 impl ClassMap {
     /// Create a new class map from the given command and manifest.
     ///
-    /// # Panics
-    /// - If files cannot be read or downloaded.
+    /// # Errors
+    /// - If files cannot be read or downloaded
     pub async fn new(
         version: &Version,
         manifest: &VersionManifest,
         cache: &Path,
         refresh: bool,
-    ) -> Self {
-        let jar_path = jar::get_mapped_jar(version, manifest, cache, refresh).await;
-        let jar = ZipFileReader::new(jar_path).await.expect("Failed to read jar file");
+    ) -> anyhow::Result<Self> {
+        let jar_path = jar::get_mapped_jar(version, manifest, cache, refresh).await?;
+        let jar = ZipFileReader::new(jar_path).await?;
 
         // This creates a hashmap that's a bit too big, but it's better to overestimate
         // than underestimate
@@ -53,8 +53,7 @@ impl ClassMap {
         let mut classes = HashMap::with_capacity(file_count);
 
         for file_index in 0..file_count {
-            let mut entry =
-                jar.reader_with_entry(file_index).await.expect("Failed to read jar file");
+            let mut entry = jar.reader_with_entry(file_index).await?;
 
             // Skip non-class files
             let Ok(filename) = entry.entry().filename().as_str() else {
@@ -69,7 +68,7 @@ impl ClassMap {
 
             // Parse the class file
             let mut data = Vec::new();
-            entry.read_to_end_checked(&mut data).await.expect("Failed to read class file");
+            entry.read_to_end_checked(&mut data).await?;
 
             // Insert successfully parsed classes into the map
             //
@@ -85,7 +84,7 @@ impl ClassMap {
 
         debug!("Parsed {} classes", classes.len());
 
-        Self { classes }
+        Ok(Self { classes })
     }
 
     /// Create an empty class map.
