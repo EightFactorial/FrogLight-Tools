@@ -38,6 +38,11 @@ clippy:
 fmt:
   cargo fmt --all
 
+# Run the froglight-extractor with the given command and arguments
+# Uses the ./target (./target/froglight) directory as the cache
+extract version command="extract" arg0="" arg1="" arg2="" arg3="":
+  cargo run --package froglight-extractor --features=binary --release -- --cache ../target --version {{version}} {{command}} {{arg0}} {{arg1}} {{arg2}} {{arg3}}
+
 # Re-run `just` without the `tools` argument
 tools args="":
   @just {{args}}

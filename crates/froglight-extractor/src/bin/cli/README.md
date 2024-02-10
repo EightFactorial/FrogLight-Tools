@@ -6,13 +6,19 @@ A simple cli tool to extract data from a Minecraft jar file.
 
 See `--help` for more information
 
-> [!Tip]
-> If you are running this from the cargo workspace, you can use the following command to run the tool:
->
-> ```sh
-> # Replace { args } with the arguments you want to pass to the tool
-> cargo run --package froglight-extractor --features=binary -- { args }
-> ```
+From the `FrogLight` repository, you can run the tool with the following command:
+
+```sh
+just tools extract
+```
+For example, to extract all supported data from the jar file, you can run:
+```sh
+just tools extract 1.20.2
+```
+To search for all classes that contain the word "Block", you can run:
+```sh
+just tools extract 1.20.2 search Block
+```
 
 ## Examples
 
@@ -38,3 +44,11 @@ froglight-extractor --cache ./target --version 1.20.1 search Block
 # Search for all classes that contain the word "Air" and open the result in a text editor
 froglight-extractor --cache ./target --version 1.20.1 search Air | subl -
 ```
+
+> [!Note]
+> If you are running this from the cargo workspace, you can use the following command to run the tool:
+>
+> ```sh
+> # Replace { args } with the arguments you want to pass to the tool
+> cargo run --package froglight-extractor --features=binary -- { args }
+> ```
