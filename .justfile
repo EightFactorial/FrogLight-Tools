@@ -45,7 +45,7 @@ extract version arg0="" arg1="" arg2="" arg3="":
 
 # Run the froglight-generator to generate code dynamically
 generate arg0="" arg1="" arg2="" arg3="":
-  cargo run --package froglight-generator --release -- --dir ../ --config generator.toml {{arg0}} {{arg1}} {{arg2}} {{arg3}}
+  cargo run --package froglight-generator --release -- --dir ../ {{arg0}} {{arg1}} {{arg2}} {{arg3}}
 
 # Re-run `just` without the `tools` argument
 tools args="":

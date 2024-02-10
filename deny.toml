@@ -50,6 +50,12 @@ workspace-default-features = "allow"
 [[bans.skip]]
 name = "bitflags"
 version = "1.3.2"
+[[bans.skip]]
+name = "regex-automata"
+version = "0.1.10"
+[[bans.skip]]
+name = "regex-syntax"
+version = "0.6.29"
 
 # Other
 [[bans.skip]]

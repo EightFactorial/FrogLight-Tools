@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use froglight_data::Version;
-use tracing::{debug, info};
+use tracing::{debug, info, trace};
 
 const MAPPER_VERSION: &str = "0.9.0";
 const MAPPER_URL: &str = "https://maven.fabricmc.net/net/fabricmc/tiny-remapper/{MAP_VER}/tiny-remapper-{MAP_VER}-fat.jar";
@@ -59,7 +59,7 @@ pub async fn get_mappings(
 
     mappings_path.push(MAPPINGS_FILE);
 
-    debug!("MappingsPath: {}", mappings_path.display());
+    trace!("MappingsPath: {}", mappings_path.display());
 
     // Check if the mappings are already downloaded
     if refresh || !mappings_path.exists() {
@@ -116,7 +116,7 @@ async fn get_latest_build(
     // Check if the mappings directory is already downloaded
     if refresh || !directory_path.exists() {
         info!("Downloading mappings directory...");
-        debug!("MappingsDirectory URL: {}", MAPPINGS_DIRECTORY_URL);
+        trace!("MappingsDirectory URL: {}", MAPPINGS_DIRECTORY_URL);
 
         // Download the mappings directory
         let response = reqwest::get(MAPPINGS_DIRECTORY_URL).await?;
@@ -126,7 +126,7 @@ async fn get_latest_build(
 
         directory = content;
     } else {
-        debug!("Loading mappings directory from cache");
+        trace!("Loading mappings directory from cache");
 
         directory = tokio::fs::read_to_string(&directory_path).await?;
     }
@@ -147,9 +147,9 @@ async fn get_latest_build(
 
     // Sort the builds and get the latest
     builds.sort();
-    debug!("Builds: {:?}", builds);
 
     if let Some(build) = builds.pop() {
+        debug!("Using mappings build: `{build}`");
         Ok(build)
     } else {
         anyhow::bail!("No builds found for Version `{}`", version.to_short_string());

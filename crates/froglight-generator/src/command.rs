@@ -13,6 +13,6 @@ pub(crate) struct GeneratorArgs {
     /// The path to the generator config file
     ///
     /// By default, this is "generator.toml" in the root directory
-    #[arg(short = 'c', long = "config")]
+    #[arg(short = 'c', long = "config", default_value = "generator.toml")]
     pub(crate) config: PathBuf,
 }

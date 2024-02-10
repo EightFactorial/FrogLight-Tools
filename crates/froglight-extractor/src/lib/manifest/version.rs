@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use froglight_data::VersionManifest;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, trace};
 
 const MANIFEST_URL: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 const MANIFEST_FILE: &str = "version_manifest_v2.json";
@@ -22,7 +22,7 @@ pub async fn version_manifest(cache: &Path, refresh: bool) -> anyhow::Result<Ver
     }
 
     manifest_path.push(MANIFEST_FILE);
-    debug!("VersionManifest Path: {}", manifest_path.display());
+    trace!("VersionManifest Path: {}", manifest_path.display());
 
     let mut manifest: Option<VersionManifest> = None;
 
@@ -35,7 +35,7 @@ pub async fn version_manifest(cache: &Path, refresh: bool) -> anyhow::Result<Ver
             Ok(contents) => match serde_json::from_str(&contents) {
                 Err(err) => error!("Failed to parse manifest from cache: `{err}`"),
                 Ok(res) => {
-                    debug!("Loaded VersionManifest from cache");
+                    trace!("Loaded VersionManifest from cache");
                     manifest = Some(res);
                 }
             },
@@ -45,7 +45,7 @@ pub async fn version_manifest(cache: &Path, refresh: bool) -> anyhow::Result<Ver
     // Download the manifest from the server and save it to the cache
     if manifest.is_none() {
         info!("Downloading VersionManifest...");
-        debug!("VersionManifest URL: {}", MANIFEST_URL);
+        trace!("VersionManifest URL: {}", MANIFEST_URL);
 
         // Download the manifest and save it to the cache
         let response = reqwest::get(MANIFEST_URL).await?.bytes().await?;

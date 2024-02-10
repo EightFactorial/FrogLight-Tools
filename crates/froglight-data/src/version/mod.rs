@@ -34,7 +34,7 @@ use crate::VersionManifest;
 /// let version = Version::new_snapshot("20w45b");
 /// assert_eq!(version.to_string(), "20w45b");
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Version {
     /// A release version, such as 1.20.0
     Release(semver::Version),

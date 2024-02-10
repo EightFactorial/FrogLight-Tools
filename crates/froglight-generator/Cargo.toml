@@ -28,14 +28,24 @@ proptest = { workspace = true }
 
 [dependencies]
 anyhow = { workspace = true }
+cargo_metadata = "0.18.1"
 clap = { workspace = true, features = ["derive"] }
 froglight-data = { version = "0.1.0", path = "../froglight-data" }
 froglight-extractor = { version = "0.1.0", path = "../froglight-extractor" }
+hashbrown = { workspace = true }
+prettyplease = { version = "0.2.16", features = ["verbatim"] }
+proc-macro2 = { version = "1.0.78", features = ["nightly"] }
+quote = "1.0.35"
 reqwest = { workspace = true, features = ["rustls-tls"] }
-serde = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
+syn = { version = "2.0.48", features = ["extra-traits", "full"] }
 tokio = { workspace = true, features = ["full"] }
 toml = "0.8.10"
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 
 [features]
 default = []

@@ -6,7 +6,7 @@ use async_zip::tokio::read::fs::ZipFileReader;
 use cafebabe::ClassFile;
 use froglight_data::{Version, VersionManifest};
 use hashbrown::HashMap;
-use tracing::{debug, warn};
+use tracing::{trace, warn};
 
 use crate::jar;
 
@@ -47,12 +47,10 @@ impl ClassMap {
         let jar_path = jar::get_mapped_jar(version, manifest, cache, refresh).await?;
         let jar = ZipFileReader::new(jar_path).await?;
 
-        // This creates a hashmap that's a bit too big, but it's better to overestimate
-        // than underestimate
-        let file_count = jar.file().entries().len();
-        let mut classes = HashMap::with_capacity(file_count);
+        // It's a bit large, but no versions should have more than 10,000 classes
+        let mut classes = HashMap::with_capacity(10_000);
 
-        for file_index in 0..file_count {
+        for file_index in 0..jar.file().entries().len() {
             let mut entry = jar.reader_with_entry(file_index).await?;
 
             // Skip non-class files
@@ -70,7 +68,7 @@ impl ClassMap {
             let mut data = Vec::new();
             entry.read_to_end_checked(&mut data).await?;
 
-            // Insert successfully parsed classes into the map
+            // Insert successfully parsable classes into the map
             //
             // Because parsed classes don't own their data, we can just insert the data
             // directly into the map and then parse it again when we need it
@@ -82,7 +80,7 @@ impl ClassMap {
             }
         }
 
-        debug!("Parsed {} classes", classes.len());
+        trace!("Parsed {} classes", classes.len());
 
         Ok(Self { classes })
     }

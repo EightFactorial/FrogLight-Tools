@@ -4,7 +4,7 @@ use std::{
 };
 
 use froglight_data::{Version, VersionManifest};
-use tracing::{debug, info};
+use tracing::{debug, info, trace};
 
 use crate::manifest;
 
@@ -52,7 +52,7 @@ pub async fn get_jar(
 
     jar_path.push("client.jar");
 
-    debug!("JarPath: {}", jar_path.display());
+    trace!("JarPath: {}", jar_path.display());
 
     // Check if the jar is already downloaded
     if refresh || !jar_path.exists() {
@@ -62,7 +62,7 @@ pub async fn get_jar(
         let release = manifest::release_manifest(version, cache, refresh).await?;
 
         info!("Downloading client.jar...");
-        debug!("ClientJar URL: {}", release.downloads.client.url);
+        trace!("ClientJar URL: {}", release.downloads.client.url);
 
         // Download the jar
         let response = reqwest::get(&release.downloads.client.url).await?;
