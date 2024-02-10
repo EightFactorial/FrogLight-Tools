@@ -1,12 +1,13 @@
 use froglight_data::VersionManifest;
+use froglight_extractor::classmap::ClassMap;
+use tokio::io::AsyncWriteExt;
 
 use super::{Command, SubCommand};
-use crate::classmap::ClassMap;
 
 pub(crate) async fn search(command: &Command, manifest: &VersionManifest) -> anyhow::Result<()> {
     let SubCommand::Search(args) = &command.subcommand else { unreachable!() };
 
-    let classmap = ClassMap::new(command, manifest).await;
+    let classmap = ClassMap::new(&command.version, manifest, &command.cache, command.refresh).await;
     let mut filtered_map = ClassMap::empty();
 
     for (key, value) in classmap.into_iter() {
@@ -39,19 +40,13 @@ pub(crate) async fn search(command: &Command, manifest: &VersionManifest) -> any
         }
     }
 
-    match &command.output {
-        Some(path) => {
-            // Write the result to the output file
-            serde_json::to_writer_pretty(
-                std::fs::File::create(path).expect("Failed to create output file"),
-                &format!("{filtered_map:#?}"),
-            )
-            .expect("Failed to write output to file");
-        }
-        None => {
-            // Write the result to stdout
-            println!("{filtered_map:#?}");
-        }
+    // Return the class information
+    if let Some(output) = &command.output {
+        // Write the result to the output file.
+        tokio::fs::write(output, format!("{filtered_map:#?}")).await?;
+    } else {
+        // Write the result to stdout.
+        tokio::io::stdout().write_all(format!("{filtered_map:#?}").as_bytes()).await?;
     }
 
     Ok(())

@@ -1,32 +1,50 @@
+//! A map of classes to their parsed representations.
+
+use std::path::Path;
+
 use async_zip::tokio::read::fs::ZipFileReader;
 use cafebabe::ClassFile;
-use froglight_data::VersionManifest;
-use froglight_extractor::jar;
+use froglight_data::{Version, VersionManifest};
 use hashbrown::HashMap;
 use tracing::{debug, warn};
 
-use crate::commands::Command;
+use crate::jar;
 
+/// A map of classes to their parsed representations.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ClassMap {
+pub struct ClassMap {
     classes: HashMap<String, ParsedJar>,
 }
 
+/// A parsed jar file.
+///
+/// This is a wrapper around the raw data of a jar file
+/// that can be parsed into a [`ClassFile`].
 #[derive(Clone, PartialEq, Eq, Hash)]
-pub(crate) struct ParsedJar {
+pub struct ParsedJar {
     data: Vec<u8>,
 }
 
 impl ParsedJar {
-    pub(crate) fn parse(&self) -> ClassFile<'_> { cafebabe::parse_class(&self.data).unwrap() }
+    /// Parse the jar file into a [`ClassFile`].
+    #[allow(clippy::missing_panics_doc)]
+    #[must_use]
+    pub fn parse(&self) -> ClassFile<'_> { cafebabe::parse_class(&self.data).unwrap() }
 }
 
 #[allow(dead_code)]
 impl ClassMap {
     /// Create a new class map from the given command and manifest.
-    pub(crate) async fn new(command: &Command, manifest: &VersionManifest) -> Self {
-        let jar_path =
-            jar::get_mapped_jar(&command.version, manifest, &command.cache, command.refresh).await;
+    ///
+    /// # Panics
+    /// - If files cannot be read or downloaded.
+    pub async fn new(
+        version: &Version,
+        manifest: &VersionManifest,
+        cache: &Path,
+        refresh: bool,
+    ) -> Self {
+        let jar_path = jar::get_mapped_jar(version, manifest, cache, refresh).await;
         let jar = ZipFileReader::new(jar_path).await.expect("Failed to read jar file");
 
         // This creates a hashmap that's a bit too big, but it's better to overestimate
@@ -71,23 +89,30 @@ impl ClassMap {
     }
 
     /// Create an empty class map.
-    pub(crate) fn empty() -> Self { Self { classes: HashMap::new() } }
+    #[must_use]
+    pub fn empty() -> Self { Self { classes: HashMap::new() } }
 
     /// Iterate over the classes in the map.
-    pub(crate) fn iter(&self) -> impl Iterator<Item = (&String, &ParsedJar)> { self.classes.iter() }
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &ParsedJar)> { self.classes.iter() }
 
     /// Iterate over the classes in the map.
-    pub(crate) fn into_iter(self) -> impl Iterator<Item = (String, ParsedJar)> {
-        self.classes.into_iter()
-    }
+    #[allow(clippy::should_implement_trait)]
+    pub fn into_iter(self) -> impl Iterator<Item = (String, ParsedJar)> { self.classes.into_iter() }
 
     /// Get a class from the map.
-    pub(crate) fn get(&self, key: &str) -> Option<&ParsedJar> { self.classes.get(key) }
+    #[must_use]
+    pub fn get(&self, key: &str) -> Option<&ParsedJar> { self.classes.get(key) }
 
     /// Insert a class into the map.
-    pub(crate) fn insert(&mut self, key: String, value: ParsedJar) {
-        self.classes.insert(key, value);
-    }
+    pub fn insert(&mut self, key: String, value: ParsedJar) { self.classes.insert(key, value); }
+
+    /// Get the number of classes in the map.
+    #[must_use]
+    pub fn len(&self) -> usize { self.classes.len() }
+
+    /// Check if the map is empty.
+    #[must_use]
+    pub fn is_empty(&self) -> bool { self.classes.is_empty() }
 }
 
 impl std::fmt::Debug for ParsedJar {

@@ -1,7 +1,7 @@
 use async_zip::tokio::read::fs::ZipFileReader;
 use froglight_data::VersionManifest;
 use froglight_extractor::jar;
-use tracing::error;
+use tokio::io::AsyncWriteExt;
 
 use super::{Command, SubCommand};
 
@@ -12,44 +12,35 @@ pub(crate) async fn print(command: &Command, manifest: &VersionManifest) -> anyh
         .extension()
         .map_or(false, |ext| ext.eq_ignore_ascii_case("class"))
     {
-        let msg = format!("Invalid class file: `{}`, must have a `.class` extension", args.class);
-        error!(msg);
-        anyhow::bail!(msg);
+        anyhow::bail!("Invalid class file: `{}`, must have a `.class` extension", args.class);
     }
 
     // Load the jar file
     let jar_path =
         jar::get_mapped_jar(&command.version, manifest, &command.cache, command.refresh).await;
-    let jar = ZipFileReader::new(jar_path).await.expect("Failed to read jar file");
+    let jar = ZipFileReader::new(jar_path).await?;
 
     // Search for the class
     let file_count = jar.file().entries().len();
     for file_index in 0..file_count {
-        let mut entry = jar.reader_with_entry(file_index).await.expect("Failed to read jar file");
+        let mut entry = jar.reader_with_entry(file_index).await?;
 
         if let Ok(str) = entry.entry().filename().as_str() {
             if args.class == str {
                 // Read the class data
                 let mut data = Vec::new();
-                entry.read_to_end_checked(&mut data).await.expect("Failed to read class file");
+                entry.read_to_end_checked(&mut data).await?;
 
                 // Parse the class file
-                let classfile = cafebabe::parse_class(&data).expect("Failed to parse class file");
+                let classfile = cafebabe::parse_class(&data)?;
 
                 // Return the class information
-                match &command.output {
-                    Some(path) => {
-                        // Write the result to the output file
-                        serde_json::to_writer_pretty(
-                            std::fs::File::create(path).expect("Failed to create output file"),
-                            &format!("{classfile:#?}"),
-                        )
-                        .expect("Failed to write output to file");
-                    }
-                    None => {
-                        // Write the result to stdout
-                        println!("{classfile:#?}");
-                    }
+                if let Some(output) = &command.output {
+                    // Write the result to the output file.
+                    tokio::fs::write(output, format!("{classfile:#?}")).await?;
+                } else {
+                    // Write the result to stdout.
+                    tokio::io::stdout().write_all(format!("{classfile:#?}").as_bytes()).await?;
                 }
 
                 return Ok(());
@@ -57,7 +48,5 @@ pub(crate) async fn print(command: &Command, manifest: &VersionManifest) -> anyh
         }
     }
 
-    let msg = format!("Class `{}` not found in jar", args.class);
-    error!(msg);
-    anyhow::bail!(msg);
+    anyhow::bail!("Class `{}` not found in jar", args.class);
 }

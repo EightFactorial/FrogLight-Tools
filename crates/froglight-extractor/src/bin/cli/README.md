@@ -21,7 +21,7 @@ See `--help` for more information
 froglight-extractor --cache ./target --version 1.20 extract
 
 # Extract all supported data and save it to a file
-froglight-extractor --cache ./target --version 1.20 extract --output ./output.json
+froglight-extractor --cache ./target --version 1.20 --output ./output.json extract 
 
 # Extract only the block states from the jar file
 froglight-extractor --cache ./target --version 1.20.4-rc1 extract --module block-states
@@ -30,7 +30,7 @@ froglight-extractor --cache ./target --version 1.20.4-rc1 extract --module block
 froglight-extractor --cache ./target --version 1.20.2 print net/minecraft/block/Block.class
 
 # Print the data of a specific class and save it to a file
-froglight-extractor --cache ./target --version 1.20.2 print net/minecraft/block/Block.class --output ./output.json
+froglight-extractor --cache ./target --version 1.20.2 --output ./output.json print net/minecraft/block/Block.class
 
 # Search for all classes that contain the word "Block" (case sensitive)
 froglight-extractor --cache ./target --version 1.20.1 search Block
