@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use cargo_metadata::Metadata as Workspace;
 use froglight_data::Version;
-use froglight_extractor::classmap::ClassMap;
+use froglight_extractor::{classmap::ClassMap, modules::ExtractModule};
 use hashbrown::HashMap;
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
@@ -31,13 +31,21 @@ pub(super) async fn run(
     let manifest = froglight_extractor::manifest::version_manifest(target, false).await?;
 
     // Collect data for all versions
-    let mut version_data: HashMap<Version, ClassMap> =
+    let mut version_data: HashMap<Version, (ClassMap, serde_json::Value)> =
         HashMap::with_capacity(config.versions.len());
     for version in &config.versions {
         debug!("Gathering data for: {} ({})", version.version, version.jar_version);
 
+        // Create a classmap
         let classmap = ClassMap::new(&version.jar_version, &manifest, target, false).await?;
-        version_data.insert(version.version.clone(), classmap);
+
+        // Extract data for all modules
+        let mut extracted = serde_json::Value::default();
+        for module in ExtractModule::iter() {
+            module.extract(&version.jar_version, &classmap, target, &mut extracted).await?;
+        }
+
+        version_data.insert(version.version.clone(), (classmap, extracted));
     }
 
     // Bundle all data to make it easier to pass around
@@ -61,16 +69,6 @@ pub(super) async fn run(
 
     info!("Done!");
 
-    // Run `cargo fmt` to format the generated code
-    tokio::process::Command::new("cargo")
-        .arg("fmt")
-        .arg("--all")
-        .arg("--manifest-path")
-        .arg(bundle.args.directory.join("Cargo.toml"))
-        .spawn()?
-        .wait()
-        .await?;
-
     Ok(())
 }
 
@@ -81,7 +79,6 @@ enum GeneratorModule {
 }
 
 impl GeneratorModule {
-    #[allow(clippy::unused_async)]
     async fn generate(self, bundle: Arc<DataBundle>) -> anyhow::Result<()> {
         match self {
             Self::Network(module) => module.generate(bundle).await,

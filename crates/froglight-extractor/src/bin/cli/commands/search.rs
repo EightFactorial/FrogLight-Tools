@@ -27,12 +27,16 @@ pub(crate) async fn search(
         // Check if the class name contains the query
         if class.this_class.contains(&args.query) {
             filtered_map.insert(key, value);
+            continue;
         } else if let Some(super_class) = class.super_class {
             // Check if the super class contains the query
             if super_class.contains(&args.query) {
                 filtered_map.insert(key, value);
+                continue;
             }
-        } else if class.interfaces.iter().any(|interface| interface.contains(&args.query)) {
+        }
+
+        if class.interfaces.iter().any(|interface| interface.contains(&args.query)) {
             // Check if any of the interfaces contain the query
             filtered_map.insert(key, value);
         } else if class.fields.iter().any(|field| field.name.contains(&args.query)) {

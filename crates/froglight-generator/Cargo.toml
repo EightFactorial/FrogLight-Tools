@@ -30,6 +30,7 @@ proptest = { workspace = true }
 anyhow = { workspace = true }
 cargo_metadata = "0.18.1"
 clap = { workspace = true, features = ["derive"] }
+convert_case = { workspace = true }
 froglight-data = { version = "0.1.0", path = "../froglight-data" }
 froglight-extractor = { version = "0.1.0", path = "../froglight-extractor" }
 hashbrown = { workspace = true }

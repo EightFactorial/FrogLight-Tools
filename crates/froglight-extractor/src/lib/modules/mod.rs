@@ -12,6 +12,9 @@ pub use info::InfoModule;
 mod debug;
 pub use debug::DebugModule;
 
+mod protocol;
+pub use protocol::ProtocolModule;
+
 use crate::classmap::ClassMap;
 
 /// A module to use for extracting data.
@@ -34,6 +37,7 @@ use crate::classmap::ClassMap;
 pub enum ExtractModule {
     Debug(DebugModule),
     Info(InfoModule),
+    Protocol(ProtocolModule),
 }
 
 impl ExtractModule {
@@ -49,6 +53,7 @@ impl ExtractModule {
         match self {
             Self::Debug(module) => module.extract(version, classmap, cache, output).await,
             Self::Info(module) => module.extract(version, classmap, cache, output).await,
+            Self::Protocol(module) => module.extract(version, classmap, cache, output).await,
         }
     }
 }

@@ -1,10 +1,11 @@
-use std::path::Path;
+use std::{io::Write, path::Path, process::Stdio};
 
 use cargo_metadata::Metadata as Workspace;
 use froglight_data::Version;
 use froglight_extractor::classmap::ClassMap;
 use hashbrown::HashMap;
 use proc_macro2::{Ident, Span};
+use syn::File;
 
 use crate::{command::GeneratorArgs, config::GeneratorConfig};
 
@@ -24,7 +25,7 @@ pub(super) struct DataBundle {
     pub(super) args: GeneratorArgs,
     pub(super) config: GeneratorConfig,
     pub(super) workspace: Workspace,
-    pub(super) version_data: HashMap<Version, ClassMap>,
+    pub(super) version_data: HashMap<Version, (ClassMap, serde_json::Value)>,
 }
 
 impl DataBundle {
@@ -32,7 +33,7 @@ impl DataBundle {
         args: GeneratorArgs,
         config: GeneratorConfig,
         workspace: Workspace,
-        version_data: HashMap<Version, ClassMap>,
+        version_data: HashMap<Version, (ClassMap, serde_json::Value)>,
     ) -> Self {
         Self { args, config, workspace, version_data }
     }
@@ -46,6 +47,30 @@ pub(super) fn package_path<'a>(name: &str, workspace: &'a Workspace) -> anyhow::
         })?;
 
     Ok(package.manifest_path.parent().unwrap().as_std_path())
+}
+
+/// Write a syn File to the path, formatting it with rustfmt.
+///
+/// Uses `prettyplease` to generate code and `rustfmt` to format it.
+pub(super) fn write_formatted(file: &File, path: &Path, data: &DataBundle) -> anyhow::Result<()> {
+    // Unparse the syn File
+    let unparsed = prettyplease::unparse(file);
+
+    // Create a rustfmt process
+    let mut fmt = std::process::Command::new("rustfmt")
+        .current_dir(data.workspace.workspace_root.as_std_path())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .spawn()?;
+    // Write the unparsed file to rustfmt's stdin
+    fmt.stdin.as_mut().unwrap().write_all(unparsed.as_bytes())?;
+
+    // Write formatted result to the file
+    let result = fmt.wait_with_output()?;
+    let mut file = std::fs::File::create(path)?;
+    file.write_all(result.stdout.as_slice())?;
+
+    Ok(())
 }
 
 /// Generate a module name for the given version.
