@@ -30,9 +30,8 @@ pub(super) fn compare_methods<'a>(
     let reader_fields = resolve_reader(class, reader);
     let writer_fields = resolve_writer(class, writer);
 
-    // If no fields were found, or
+    // If no fields were found or if any of the fields are unnamed,
     if (reader_fields.is_empty() && writer_fields.is_empty())
-        // If any of the fields are unnamed, and
         || (reader_fields.iter().any(|(name, _)| name.is_none())
             || writer_fields.iter().any(|(name, _)| name.is_none()))
     {
