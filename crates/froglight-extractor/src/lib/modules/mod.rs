@@ -6,11 +6,14 @@ use froglight_data::Version;
 use serde::{Deserialize, Serialize};
 use strum_macros::{EnumIter, EnumString};
 
-mod info;
-pub use info::InfoModule;
+mod assets;
+pub use assets::AssetModule;
 
 mod debug;
 pub use debug::DebugModule;
+
+mod info;
+pub use info::InfoModule;
 
 mod protocol;
 pub use protocol::ProtocolModule;
@@ -33,10 +36,12 @@ use crate::classmap::ClassMap;
     EnumIter,
 )]
 #[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
 #[allow(missing_docs)]
 pub enum ExtractModule {
     Debug(DebugModule),
     Info(InfoModule),
+    Assets(AssetModule),
     Protocol(ProtocolModule),
 }
 
@@ -51,6 +56,7 @@ impl ExtractModule {
         output: &mut serde_json::Value,
     ) -> anyhow::Result<()> {
         match self {
+            Self::Assets(module) => module.extract(version, classmap, cache, output).await,
             Self::Debug(module) => module.extract(version, classmap, cache, output).await,
             Self::Info(module) => module.extract(version, classmap, cache, output).await,
             Self::Protocol(module) => module.extract(version, classmap, cache, output).await,

@@ -15,6 +15,11 @@ pub(crate) async fn extract(
     let mut modules = args.modules.clone();
     if modules.is_empty() {
         modules = ExtractModule::iter().collect();
+
+        // Absolutely **do not** extract assets by default.
+        // This downloads a lot of data from Mojang's servers,
+        // and should only be done manually.
+        modules.retain(|m| !matches!(m, ExtractModule::Assets(_)));
     } else {
         // TODO: Add dependency resolution.
         modules.sort();

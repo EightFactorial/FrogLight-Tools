@@ -3,6 +3,7 @@ use std::path::Path;
 use hashbrown::HashMap;
 use proc_macro2::{Ident, Span, TokenStream};
 use syn::{parse_quote, File, Item};
+use tracing::info;
 
 use super::structures::ProtocolState;
 use crate::{
@@ -44,6 +45,16 @@ pub(super) fn generate(
 
         // Generate the module
         super::states::generate(&name, &state, version, &path, bundle)?;
+    }
+
+    let path = path.join("mod.rs");
+    if path.exists() {
+        // Trim the path to the last two directories
+        let path = path.display().to_string();
+        let count = path.chars().filter(|c| *c == '/').count();
+        let trimmed = path.split('/').skip(count - 2).collect::<Vec<&str>>().join("/");
+        info!("Skipping `{trimmed}` as it already exists");
+        return Ok(());
     }
 
     // Generate `version/{VERSION}/mod.rs`
@@ -107,7 +118,7 @@ pub(super) fn generate(
             attrs: vec![syn::parse_quote!(#![doc = #mod_doc])],
             items: module_items,
         },
-        &path.join("mod.rs"),
+        &path,
         bundle,
     )
 }

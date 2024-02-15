@@ -30,6 +30,11 @@ impl ParsedJar {
     #[allow(clippy::missing_panics_doc)]
     #[must_use]
     pub fn parse(&self) -> ClassFile<'_> { cafebabe::parse_class(&self.data).unwrap() }
+
+    /// Parse the jar file into a mutable [`ClassFile`].
+    #[allow(clippy::missing_panics_doc)]
+    #[must_use]
+    pub fn parse_mut(&mut self) -> ClassFile<'_> { cafebabe::parse_class(&self.data).unwrap() }
 }
 
 #[allow(dead_code)]
@@ -98,7 +103,15 @@ impl ClassMap {
 
     /// Get a class from the map.
     #[must_use]
-    pub fn get(&self, key: &str) -> Option<&ParsedJar> { self.classes.get(key) }
+    pub fn get<'a>(&'a self, key: &str) -> Option<ClassFile<'a>> {
+        self.classes.get(key).map(ParsedJar::parse)
+    }
+
+    /// Get a mutable class from the map.
+    #[must_use]
+    pub fn get_mut<'a>(&'a mut self, key: &str) -> Option<ClassFile<'a>> {
+        self.classes.get_mut(key).map(ParsedJar::parse_mut)
+    }
 
     /// Insert a class into the map.
     pub fn insert(&mut self, key: String, value: ParsedJar) { self.classes.insert(key, value); }

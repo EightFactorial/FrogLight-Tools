@@ -3,6 +3,7 @@ use std::path::Path;
 use convert_case::{Case, Casing};
 use proc_macro2::{Ident, Span, TokenStream};
 use syn::{parse_quote, File, Item};
+use tracing::info;
 
 use super::structures::ProtocolState;
 use crate::{
@@ -28,6 +29,16 @@ pub(super) fn generate(
     // Generate `version/{VERSION}/{STATE}/{PACKET}.rs` modules
     generate_packet_files(&state.clientbound, &mut packet_modules, path, bundle)?;
     generate_packet_files(&state.serverbound, &mut packet_modules, path, bundle)?;
+
+    let path = path.join("mod.rs");
+    if path.exists() {
+        // Trim the path to the last three directories
+        let path = path.display().to_string();
+        let count = path.chars().filter(|c| *c == '/').count();
+        let trimmed = path.split('/').skip(count - 3).collect::<Vec<&str>>().join("/");
+        info!("Skipping `{trimmed}` as it already exists");
+        return Ok(());
+    }
 
     // Generate `version/{VERSION}/{STATE}/mod.rs`
     //
@@ -72,7 +83,7 @@ pub(super) fn generate(
             attrs: vec![parse_quote!(#![doc = #mod_doc]), parse_quote!(#![allow(missing_docs)])],
             items: module_items,
         },
-        &path.join("mod.rs"),
+        &path,
         bundle,
     )
 }

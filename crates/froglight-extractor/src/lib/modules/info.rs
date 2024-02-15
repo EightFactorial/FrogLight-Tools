@@ -4,7 +4,7 @@ use async_zip::tokio::read::fs::ZipFileReader;
 use froglight_data::Version;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tracing::debug;
+use tracing::trace;
 
 use super::Extract;
 use crate::classmap::ClassMap;
@@ -28,7 +28,7 @@ impl Extract for InfoModule {
         jar_path.push(version.to_short_string());
         jar_path.push("client_mapped.jar");
 
-        debug!("Reading version.json from {jar_path:?}");
+        trace!("Reading version.json from {jar_path:?}");
 
         let jar = ZipFileReader::new(jar_path).await?;
         let file_count = jar.file().entries().len();
