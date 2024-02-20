@@ -25,7 +25,7 @@ derive_more = "0.99.17"
 hashbrown = "0.14.3"
 proptest = "1.4.0"
 reqwest = { version = "0.11.24", default-features = false }
-serde = "1.0.196"
+serde = "1.0.197"
 serde_json = "1.0.113"
 strum = "0.26"
 strum_macros = "0.26"
