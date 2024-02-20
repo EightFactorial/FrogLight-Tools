@@ -33,7 +33,7 @@ impl Generate for ProtocolModule {
 
         // Generate the {VERSION} modules
         for version in &bundle.config.versions {
-            let ident = module_name(&version.version);
+            let ident = module_name(&version.base_version);
             let path = path.join(&ident.to_string());
 
             // Create the {VERSION} directory

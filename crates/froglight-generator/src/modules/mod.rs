@@ -34,18 +34,18 @@ pub(super) async fn run(
     let mut version_data: HashMap<Version, (ClassMap, serde_json::Value)> =
         HashMap::with_capacity(config.versions.len());
     for version in &config.versions {
-        debug!("Gathering data for: {} ({})", version.version, version.jar_version);
+        debug!("Gathering data for: {} ({})", version.base_version, version.jar_version);
 
         // Create a classmap
         let classmap = ClassMap::new(&version.jar_version, &manifest, target, false).await?;
 
         // Extract data for all modules
         let mut extracted = serde_json::Value::default();
-        for module in ExtractModule::iter() {
+        for module in ExtractModule::iter().filter(|m| !matches!(m, ExtractModule::Assets(_))) {
             module.extract(&version.jar_version, &classmap, target, &mut extracted).await?;
         }
 
-        version_data.insert(version.version.clone(), (classmap, extracted));
+        version_data.insert(version.base_version.clone(), (classmap, extracted));
     }
 
     // Bundle all data to make it easier to pass around

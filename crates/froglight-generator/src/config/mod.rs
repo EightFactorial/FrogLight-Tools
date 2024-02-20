@@ -28,10 +28,8 @@ impl GeneratorConfig {
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub(crate) struct SupportedVersion {
-    // The version of the game
-    pub(crate) version: Version,
-    // The jar to use for the version
+    // The base version of the game
+    pub(crate) base_version: Version,
+    // The jar to use for extracting the game data
     pub(crate) jar_version: Version,
-    // The protocol version
-    pub(crate) protocol: i32,
 }

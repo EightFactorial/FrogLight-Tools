@@ -16,15 +16,14 @@ pub(super) fn generate(
     path: &Path,
     bundle: &DataBundle,
 ) -> anyhow::Result<()> {
-    let protocol = version.protocol;
-
     // Store `pub mod {STATE};` items for the `mod.rs`
     let mut state_modules = Vec::new();
 
     // Get a list of states
-    let Some((_, data)) = bundle.version_data.get(&version.version) else {
-        anyhow::bail!("No data found for version {}", version.version);
+    let Some((_, data)) = bundle.version_data.get(&version.base_version) else {
+        anyhow::bail!("No data found for version {}", version.base_version);
     };
+    let protocol = data["version"]["protocol_version"].as_i64().unwrap();
     let states: HashMap<String, ProtocolState> =
         serde_json::from_value(data["protocol"]["states"].clone())?;
 
@@ -61,11 +60,11 @@ pub(super) fn generate(
     //
 
     // Create the documentation for the mod.rs file
-    let mut mod_doc = if version.version == version.jar_version {
-        MOD_DOC_SINGLE.replace("{VERSION}", &version.version.to_string())
+    let mut mod_doc = if version.base_version == version.jar_version {
+        MOD_DOC_SINGLE.replace("{VERSION}", &version.base_version.to_string())
     } else {
         MOD_DOC_RANGE
-            .replace("{MIN_VERSION}", &version.version.to_string())
+            .replace("{MIN_VERSION}", &version.base_version.to_string())
             .replace("{MAX_VERSION}", &version.jar_version.to_string())
     }
     .replace("{PROTOCOL}", &protocol.to_string());
@@ -87,17 +86,17 @@ pub(super) fn generate(
     module_items.append(&mut state_modules);
 
     // Create the version struct docs
-    let struct_doc = if version.version == version.jar_version {
-        STRUCT_DOC_SINGLE.replace("{VERSION}", &version.version.to_string())
+    let struct_doc = if version.base_version == version.jar_version {
+        STRUCT_DOC_SINGLE.replace("{VERSION}", &version.base_version.to_string())
     } else {
         STRUCT_DOC_RANGE
-            .replace("{MIN_VERSION}", &version.version.to_string())
+            .replace("{MIN_VERSION}", &version.base_version.to_string())
             .replace("{MAX_VERSION}", &version.jar_version.to_string())
     }
     .replace("{PROTOCOL}", &protocol.to_string());
 
     // Create the version struct
-    let struct_ident = struct_name(&version.version);
+    let struct_ident = struct_name(&version.base_version);
     module_items.push(parse_quote!(
         #[doc = #struct_doc]
         #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Reflect)]

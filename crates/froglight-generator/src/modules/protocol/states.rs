@@ -20,7 +20,7 @@ pub(super) fn generate(
 ) -> anyhow::Result<()> {
     let state_name = name.to_case(Case::Pascal);
     let _state_ident = Ident::new(&state_name, Span::call_site());
-    let _version_ident = struct_name(&version.version);
+    let _version_ident = struct_name(&version.base_version);
 
     // Store `mod {PACKET};` and `pub use {PACKET}::{PACKET};`
     // items for the `mod.rs`
@@ -72,8 +72,9 @@ pub(super) fn generate(
     // generate_enum(&serverbound_ident, &state.serverbound, &mut module_items);
 
     // Get the documentation for the mod.rs file
-    let mut mod_doc =
-        MOD_DOC.replace("{STATE}", &state_name).replace("{VERSION}", &version.version.to_string());
+    let mut mod_doc = MOD_DOC
+        .replace("{STATE}", &state_name)
+        .replace("{VERSION}", &version.base_version.to_string());
     mod_doc.push_str(&format!("{GIT_HASH}`"));
 
     // Write the mod.rs file
