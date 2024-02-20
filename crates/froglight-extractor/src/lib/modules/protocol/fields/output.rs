@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::BTreeMap};
+use std::borrow::Cow;
 
 use cafebabe::{
     attributes::AttributeData,
@@ -14,7 +14,7 @@ use tracing::{error, warn};
 #[serde(rename_all = "lowercase")]
 pub(crate) enum Output<'a> {
     Unnamed(Vec<OutputType>),
-    Named(BTreeMap<Cow<'a, str>, OutputType>),
+    Named(Vec<(Cow<'a, str>, OutputType)>),
 }
 
 /// An output type.

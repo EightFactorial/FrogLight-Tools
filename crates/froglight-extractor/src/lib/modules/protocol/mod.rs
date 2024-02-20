@@ -33,7 +33,10 @@ impl Extract for ProtocolModule {
         // Get state and packet information
         let states = packets::get_states(&class);
         let packets = packets::get_packets(&class, &states)?;
-        output["protocol"]["states"] = serde_json::to_value(&packets)?;
+
+        for (name, state) in &packets {
+            output["protocol"]["states"][name.to_string()] = serde_json::to_value(state)?;
+        }
 
         // Get packet field information
         let fields = fields::get_fields(&packets, classmap);

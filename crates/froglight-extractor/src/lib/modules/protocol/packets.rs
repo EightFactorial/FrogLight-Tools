@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::BTreeMap};
+use std::borrow::Cow;
 
 use cafebabe::{
     attributes::AttributeData,
@@ -35,7 +35,7 @@ pub(super) struct ProtocolState<'a> {
 pub(super) fn get_packets<'a>(
     class: &'a ClassFile,
     states: &[Cow<'_, str>],
-) -> anyhow::Result<BTreeMap<Cow<'a, str>, ProtocolState<'a>>> {
+) -> anyhow::Result<Vec<(Cow<'a, str>, ProtocolState<'a>)>> {
     let Some(clinit) = class.methods.iter().find(|m| m.name == "<clinit>") else {
         anyhow::bail!("Could not find <clinit>");
     };
@@ -49,7 +49,7 @@ pub(super) fn get_packets<'a>(
         anyhow::bail!("Code attribute has no bytecode");
     };
 
-    let mut btreemap = BTreeMap::new();
+    let mut vec = Vec::new();
 
     let mut state_name = None;
     let mut state_data = ProtocolState::default();
@@ -90,12 +90,12 @@ pub(super) fn get_packets<'a>(
                         anyhow::bail!("Found <init> without state name");
                     };
 
-                    btreemap.insert(state_name, std::mem::take(&mut state_data));
+                    vec.push((state_name, std::mem::take(&mut state_data)));
                 }
             }
             _ => {}
         }
     }
 
-    Ok(btreemap)
+    Ok(vec)
 }

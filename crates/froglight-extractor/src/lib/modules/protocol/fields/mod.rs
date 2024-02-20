@@ -15,11 +15,11 @@
 //! the packet makes to the `PacketByteBuf` and use that to determine the fields
 //! of the packet.
 
-use std::{borrow::Cow, collections::BTreeMap};
+use std::borrow::Cow;
 
 use tracing::error;
 
-use self::output::Output;
+use self::output::{Output, OutputType};
 use super::packets::ProtocolState;
 use crate::classmap::ClassMap;
 
@@ -30,12 +30,12 @@ mod resolve;
 mod output;
 
 pub(super) fn get_fields<'a>(
-    states: &'a BTreeMap<Cow<'_, str>, ProtocolState<'_>>,
+    states: &'a [(Cow<'_, str>, ProtocolState<'_>)],
     classmap: &'a ClassMap,
 ) -> serde_json::Value {
     let mut value = serde_json::Value::default();
 
-    for packets in states.values() {
+    for (_name, packets) in states {
         for packet in packets.clientbound.iter().chain(packets.serverbound.iter()) {
             // Skip the `BundleS2CPacket` as it's a special case
             if packet == "net/minecraft/network/packet/s2c/play/BundleS2CPacket" {
@@ -52,24 +52,32 @@ pub(super) fn get_fields<'a>(
                 (Some(reader), Some(writer)) => {
                     let result = resolve::compare_methods(&class, reader, writer, classmap);
 
-                    let packet: &str = packet;
-                    value[packet] = serde_json::to_value(result).unwrap();
+                    match result {
+                        Output::Unnamed(fields) => {
+                            add_unnamed(packet, &fields, &mut value);
+                        }
+                        Output::Named(fields) => {
+                            add_named(packet, &fields, &mut value);
+                        }
+                    }
                 }
                 // If we only have a reader, resolve it
                 (Some(reader), None) => {
                     let result = resolve::resolve_reader(&class, reader);
-                    let result = Output::Unnamed(result.into_iter().map(|(_, ty)| ty).collect());
-
-                    let packet: &str = packet;
-                    value[packet] = serde_json::to_value(result).unwrap();
+                    add_unnamed(
+                        packet,
+                        &result.into_iter().map(|(_, ty)| ty).collect::<Vec<_>>(),
+                        &mut value,
+                    );
                 }
                 // If we only have a writer, resolve it
                 (None, Some(writer)) => {
                     let result = resolve::resolve_writer(&class, writer);
-                    let result = Output::Unnamed(result.into_iter().map(|(_, ty)| ty).collect());
-
-                    let packet: &str = packet;
-                    value[packet] = serde_json::to_value(result).unwrap();
+                    add_unnamed(
+                        packet,
+                        &result.into_iter().map(|(_, ty)| ty).collect::<Vec<_>>(),
+                        &mut value,
+                    );
                 }
                 // If we have neither, log an error
                 (None, None) => {
@@ -80,4 +88,18 @@ pub(super) fn get_fields<'a>(
     }
 
     value
+}
+
+fn add_unnamed(name: &str, fields: &[OutputType], value: &mut serde_json::Value) {
+    value[name.to_string()] = serde_json::to_value(fields).unwrap();
+}
+
+fn add_named<'a>(
+    name: &'a str,
+    fields: &[(Cow<'a, str>, OutputType)],
+    value: &mut serde_json::Value,
+) {
+    for (field_name, field) in fields {
+        value[name.to_string()][field_name.to_string()] = serde_json::to_value(field).unwrap();
+    }
 }
