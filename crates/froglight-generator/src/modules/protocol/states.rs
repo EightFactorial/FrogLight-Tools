@@ -1,6 +1,7 @@
 use std::{fs::OpenOptions, io::Write, path::Path};
 
 use convert_case::{Case, Casing};
+use froglight_data::Version;
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::quote;
 use syn::{parse_quote, File, Item};
@@ -39,6 +40,7 @@ pub(super) fn generate(
         &state.clientbound,
         &mut file_items,
         &mut clientbound_idents,
+        &version.base_version,
         path,
         bundle,
     )?;
@@ -49,6 +51,7 @@ pub(super) fn generate(
         &state.serverbound,
         &mut file_items,
         &mut serverbound_idents,
+        &version.base_version,
         path,
         bundle,
     )?;
@@ -131,6 +134,7 @@ fn generate_packet_files(
     packets: &[String],
     packet_modules: &mut Vec<Item>,
     packet_idents: &mut Vec<Ident>,
+    version: &Version,
     path: &Path,
     bundle: &DataBundle,
 ) -> anyhow::Result<()> {
@@ -144,7 +148,13 @@ fn generate_packet_files(
 
         // Generate the packet file
         packet_file_name.push_str(".rs");
-        super::packets::generate(&packet_name, &path.join(&packet_file_name), bundle)?;
+        super::packets::generate(
+            packet,
+            &packet_name,
+            version,
+            &path.join(&packet_file_name),
+            bundle,
+        )?;
 
         // Add modules and imports to the `mod.rs`
         packet_modules.push(parse_quote!(mod #packet_mod;));
