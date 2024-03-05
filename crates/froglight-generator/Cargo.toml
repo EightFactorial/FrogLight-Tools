@@ -34,6 +34,7 @@ convert_case = { workspace = true }
 froglight-data = { version = "0.1.0", path = "../froglight-data" }
 froglight-extractor = { version = "0.1.0", path = "../froglight-extractor" }
 hashbrown = { workspace = true }
+itertools = "0.12.1"
 prettyplease = { version = "0.2.16", features = ["verbatim"] }
 proc-macro2 = { version = "1.0.78", features = ["nightly"] }
 quote = "1.0.35"

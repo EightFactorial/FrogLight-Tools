@@ -2,6 +2,7 @@ use std::path::Path;
 
 use convert_case::{Case, Casing};
 use proc_macro2::{Ident, Span, TokenStream};
+use quote::quote;
 use syn::{parse_quote, File, Item};
 use tracing::info;
 
@@ -19,16 +20,39 @@ pub(super) fn generate(
     bundle: &DataBundle,
 ) -> anyhow::Result<()> {
     let state_name = name.to_case(Case::Pascal);
-    let _state_ident = Ident::new(&state_name, Span::call_site());
-    let _version_ident = struct_name(&version.base_version);
+    let state_ident = Ident::new(&state_name, Span::call_site());
+    let version_ident = struct_name(&version.base_version);
 
     // Store `mod {PACKET};` and `pub use {PACKET}::{PACKET};`
     // items for the `mod.rs`
-    let mut packet_modules = Vec::new();
+    let mut file_items = vec![
+        Item::Verbatim(TokenStream::new()),
+        parse_quote!(
+            use froglight_macros::frog_state;
+        ),
+        Item::Verbatim(TokenStream::new()),
+    ];
 
     // Generate `version/{VERSION}/{STATE}/{PACKET}.rs` modules
-    generate_packet_files(&state.clientbound, &mut packet_modules, path, bundle)?;
-    generate_packet_files(&state.serverbound, &mut packet_modules, path, bundle)?;
+    let mut clientbound_idents = Vec::new();
+    generate_packet_files(
+        &state.clientbound,
+        &mut file_items,
+        &mut clientbound_idents,
+        path,
+        bundle,
+    )?;
+    let clientbound_tokens = generate_macro_state(&clientbound_idents);
+
+    let mut serverbound_idents = Vec::new();
+    generate_packet_files(
+        &state.serverbound,
+        &mut file_items,
+        &mut serverbound_idents,
+        path,
+        bundle,
+    )?;
+    let serverbound_tokens = generate_macro_state(&serverbound_idents);
 
     let path = path.join("mod.rs");
     if path.exists() {
@@ -43,33 +67,19 @@ pub(super) fn generate(
     // Generate `version/{VERSION}/{STATE}/mod.rs`
     //
 
-    let mut module_items = vec![
-        Item::Verbatim(TokenStream::new()),
-        // parse_quote!(
-        //     use crate::{traits::State, states::#state_ident};
-        // ),
-        // parse_quote!(
-        //     use super::#version_ident;
-        // ),
-        Item::Verbatim(TokenStream::new()),
-    ];
-    module_items.append(&mut packet_modules);
-
-    // Get the PacketEnum names
-    let _clientbound_ident = Ident::new(&format!("{}Clientbound", state_name), Span::call_site());
-    let _serverbound_ident = Ident::new(&format!("{}Serverbound", state_name), Span::call_site());
-
-    // Implement the `State<{VERSION}>` trait for {STATE}
-    // module_items.push(parse_quote!(
-    //     impl State<#version_ident> for #state_ident {
-    //         type ClientboundPacket = #clientbound_ident;
-    //         type ServerboundPacket = #serverbound_ident;
-    //     }
-    // ));
-
-    // Generate PacketEnums
-    // generate_enum(&clientbound_ident, &state.clientbound, &mut module_items);
-    // generate_enum(&serverbound_ident, &state.serverbound, &mut module_items);
+    // Create the `frog_state!` macro
+    file_items.push(Item::Macro(syn::parse_quote! {
+        frog_state! {
+            #state_ident,
+            #version_ident,
+            Clientbound {
+                #clientbound_tokens
+            },
+            Serverbound {
+                #serverbound_tokens
+            },
+        }
+    }));
 
     // Get the documentation for the mod.rs file
     let mut mod_doc = MOD_DOC
@@ -82,7 +92,7 @@ pub(super) fn generate(
         &File {
             shebang: None,
             attrs: vec![parse_quote!(#![doc = #mod_doc]), parse_quote!(#![allow(missing_docs)])],
-            items: module_items,
+            items: file_items,
         },
         &path,
         bundle,
@@ -95,12 +105,15 @@ pub(super) fn generate(
 fn generate_packet_files(
     packets: &[String],
     packet_modules: &mut Vec<Item>,
+    packet_idents: &mut Vec<Ident>,
     path: &Path,
     bundle: &DataBundle,
 ) -> anyhow::Result<()> {
     for packet in packets {
         // Get the packet name and module name
         let packet_name = packet.split('/').last().unwrap().replace('$', "");
+        packet_idents.push(Ident::new(&packet_name, Span::call_site()));
+
         let mut packet_file_name = packet_name.to_lowercase();
         let packet_mod = Ident::new(&packet_file_name, Span::call_site());
 
@@ -117,6 +130,18 @@ fn generate_packet_files(
     }
 
     Ok(())
+}
+
+/// Generate a direction for the `frog_state!` macro
+fn generate_macro_state(packet_idents: &[Ident]) -> TokenStream {
+    let mut tokens = TokenStream::new();
+
+    for (index, ident) in packet_idents.iter().enumerate() {
+        let index = u32::try_from(index).unwrap();
+        tokens.extend(quote!(#index => #ident,));
+    }
+
+    tokens
 }
 
 // fn generate_enum(ident: &Ident, packets: &[String], module_items: &mut

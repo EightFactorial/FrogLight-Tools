@@ -23,7 +23,10 @@ pub(super) fn generate(
     let Some((_, data)) = bundle.version_data.get(&version.base_version) else {
         anyhow::bail!("No data found for version {}", version.base_version);
     };
+
     let protocol = data["version"]["protocol_version"].as_i64().unwrap();
+    let protocol = i32::try_from(protocol).unwrap();
+
     let states: HashMap<String, ProtocolState> =
         serde_json::from_value(data["protocol"]["states"].clone())?;
 
@@ -74,9 +77,6 @@ pub(super) fn generate(
     let mut module_items = vec![
         Item::Verbatim(TokenStream::new()),
         parse_quote!(
-            use bevy_reflect::Reflect;
-        ),
-        parse_quote!(
             use crate::traits::Version;
         ),
         Item::Verbatim(TokenStream::new()),
@@ -95,13 +95,18 @@ pub(super) fn generate(
     }
     .replace("{PROTOCOL}", &protocol.to_string());
 
+    module_items.push(Item::Verbatim(TokenStream::new()));
+
     // Create the version struct
     let struct_ident = struct_name(&version.base_version);
     module_items.push(parse_quote!(
         #[doc = #struct_doc]
-        #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Reflect)]
+        #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+        #[cfg_attr(feature = "reflect", derive(bevy_reflect::Reflect))]
         pub struct #struct_ident;
     ));
+
+    module_items.push(Item::Verbatim(TokenStream::new()));
 
     // Implement the Version trait
     module_items.push(parse_quote!(

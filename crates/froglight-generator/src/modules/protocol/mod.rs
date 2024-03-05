@@ -38,7 +38,7 @@ impl Generate for ProtocolModule {
 
             // Create the {VERSION} directory
             if !path.exists() {
-                tokio::task::spawn_local(tokio::fs::create_dir_all(path.clone()));
+                tokio::task::spawn(tokio::fs::create_dir_all(path.clone()));
             }
 
             // Add an import to the `mod.rs`
