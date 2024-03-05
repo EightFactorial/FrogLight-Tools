@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{fs::OpenOptions, io::Write, path::Path};
 
 use convert_case::{Case, Casing};
 use proc_macro2::{Ident, Span, TokenStream};
@@ -67,20 +67,6 @@ pub(super) fn generate(
     // Generate `version/{VERSION}/{STATE}/mod.rs`
     //
 
-    // Create the `frog_state!` macro
-    file_items.push(Item::Macro(syn::parse_quote! {
-        frog_state! {
-            #state_ident,
-            #version_ident,
-            Clientbound {
-                #clientbound_tokens
-            },
-            Serverbound {
-                #serverbound_tokens
-            },
-        }
-    }));
-
     // Get the documentation for the mod.rs file
     let mut mod_doc = MOD_DOC
         .replace("{STATE}", &state_name)
@@ -96,7 +82,46 @@ pub(super) fn generate(
         },
         &path,
         bundle,
-    )
+    )?;
+
+    // Output the `frog_state!` macro with manual formatting
+    let mut options = OpenOptions::new().append(true).open(path).unwrap();
+
+    options.write_all("\nfrog_state! {\n\t".as_bytes())?;
+
+    options.write_all(state_ident.to_string().as_bytes())?;
+    options.write_all(",\n\t".as_bytes())?;
+
+    options.write_all(version_ident.to_string().as_bytes())?;
+    options.write_all(",\n\t".as_bytes())?;
+
+    if !clientbound_tokens.is_empty() {
+        options.write_all("Clientbound {\n\t\t".as_bytes())?;
+        options.write_all(
+            clientbound_tokens
+                .to_string()
+                .replace(" ,", ",\n\t\t")
+                .replace("\t ", "\t")
+                .trim_end_matches("\n\t\t")
+                .as_bytes(),
+        )?;
+        options.write_all("\n\t},\n\t".as_bytes())?;
+    }
+
+    if !serverbound_tokens.is_empty() {
+        options.write_all("Serverbound {\n\t\t".as_bytes())?;
+        options.write_all(
+            serverbound_tokens
+                .to_string()
+                .replace(" ,", ",\n\t\t")
+                .replace("\t ", "\t")
+                .trim_end_matches("\n\t\t")
+                .as_bytes(),
+        )?;
+        options.write_all("\n\t},\n}\n".as_bytes())?;
+    }
+
+    Ok(())
 }
 
 /// Generate the packet files for a state
