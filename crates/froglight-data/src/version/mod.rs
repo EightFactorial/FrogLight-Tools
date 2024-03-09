@@ -208,6 +208,72 @@ impl Version {
         }
     }
 
+    /// This method is used to determine if a version is less than another.
+    ///
+    /// Requires both versions to be of the same type.
+    ///
+    /// Only works for [`Version::Release`], [`Version::ReleaseCandidate`], and
+    /// [`Version::PreRelease`].
+    #[must_use]
+    pub fn try_lt(&self, other: &Self) -> Option<bool> {
+        match (self, other) {
+            (Version::Release(a), Version::Release(b))
+            | (Version::ReleaseCandidate(a), Version::ReleaseCandidate(b))
+            | (Version::PreRelease(a), Version::PreRelease(b)) => Some(a < b),
+            _ => None,
+        }
+    }
+
+    /// This method is used to determine if a version is less than or equal to
+    /// another.
+    ///
+    /// Requires both versions to be of the same type.
+    ///
+    /// Only works for [`Version::Release`], [`Version::ReleaseCandidate`], and
+    /// [`Version::PreRelease`].
+    #[must_use]
+    pub fn try_le(&self, other: &Self) -> Option<bool> {
+        match (self, other) {
+            (Version::Release(a), Version::Release(b))
+            | (Version::ReleaseCandidate(a), Version::ReleaseCandidate(b))
+            | (Version::PreRelease(a), Version::PreRelease(b)) => Some(a <= b),
+            _ => None,
+        }
+    }
+
+    /// This method is used to determine if a version is greater than another.
+    ///
+    /// Requires both versions to be of the same type.
+    ///
+    /// Only works for [`Version::Release`], [`Version::ReleaseCandidate`], and
+    /// [`Version::PreRelease`].
+    #[must_use]
+    pub fn try_gt(&self, other: &Self) -> Option<bool> {
+        match (self, other) {
+            (Version::Release(a), Version::Release(b))
+            | (Version::ReleaseCandidate(a), Version::ReleaseCandidate(b))
+            | (Version::PreRelease(a), Version::PreRelease(b)) => Some(a > b),
+            _ => None,
+        }
+    }
+
+    /// This method is used to determine if a version is greater than or equal
+    /// to another.
+    ///
+    /// Requires both versions to be of the same type.
+    ///
+    /// Only works for [`Version::Release`], [`Version::ReleaseCandidate`], and
+    /// [`Version::PreRelease`].
+    #[must_use]
+    pub fn try_ge(&self, other: &Self) -> Option<bool> {
+        match (self, other) {
+            (Version::Release(a), Version::Release(b))
+            | (Version::ReleaseCandidate(a), Version::ReleaseCandidate(b))
+            | (Version::PreRelease(a), Version::PreRelease(b)) => Some(a >= b),
+            _ => None,
+        }
+    }
+
     /// This method is used to determine if a version is less than an another
     /// version.
     ///
@@ -215,7 +281,12 @@ impl Version {
     ///
     /// Returns `true` if `self` is less than `other`.
     #[must_use]
-    pub fn lt_man(&self, _other: &Self, _manifest: &VersionManifest) -> bool { todo!() }
+    #[allow(clippy::missing_panics_doc)]
+    pub fn lt_man(&self, other: &Self, manifest: &VersionManifest) -> bool {
+        let self_index = manifest.versions.iter().position(|v| &v.id == self).unwrap();
+        let other_index = manifest.versions.iter().position(|v| &v.id == other).unwrap();
+        self_index < other_index
+    }
 
     /// This method is used to determine if a version is less than or equal to
     /// another version.
@@ -224,7 +295,12 @@ impl Version {
     ///
     /// Returns `true` if `self` is less than or equal to `other`.
     #[must_use]
-    pub fn le_man(&self, _other: &Self, _manifest: &VersionManifest) -> bool { todo!() }
+    #[allow(clippy::missing_panics_doc)]
+    pub fn le_man(&self, other: &Self, manifest: &VersionManifest) -> bool {
+        let self_index = manifest.versions.iter().position(|v| &v.id == self).unwrap();
+        let other_index = manifest.versions.iter().position(|v| &v.id == other).unwrap();
+        self_index <= other_index
+    }
 
     /// This method is used to determine if a version is greater than an another
     /// version.
@@ -233,7 +309,12 @@ impl Version {
     ///
     /// Returns `true` if `self` is greater than `other`.
     #[must_use]
-    pub fn gt_man(&self, _other: &Self, _manifest: &VersionManifest) -> bool { todo!() }
+    #[allow(clippy::missing_panics_doc)]
+    pub fn gt_man(&self, other: &Self, manifest: &VersionManifest) -> bool {
+        let self_index = manifest.versions.iter().position(|v| &v.id == self).unwrap();
+        let other_index = manifest.versions.iter().position(|v| &v.id == other).unwrap();
+        self_index > other_index
+    }
 
     /// This method is used to determine if a version is greater than or equal
     /// to another version.
@@ -242,7 +323,12 @@ impl Version {
     ///
     /// Returns `true` if `self` is greater than or equal to `other`.
     #[must_use]
-    pub fn ge_man(&self, _other: &Self, _manifest: &VersionManifest) -> bool { todo!() }
+    #[allow(clippy::missing_panics_doc)]
+    pub fn ge_man(&self, other: &Self, manifest: &VersionManifest) -> bool {
+        let self_index = manifest.versions.iter().position(|v| &v.id == self).unwrap();
+        let other_index = manifest.versions.iter().position(|v| &v.id == other).unwrap();
+        self_index >= other_index
+    }
 }
 
 impl<'de> Deserialize<'de> for Version {

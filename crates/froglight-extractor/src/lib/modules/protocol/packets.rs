@@ -1,13 +1,14 @@
 use std::borrow::Cow;
 
 use cafebabe::{
-    attributes::AttributeData,
     bytecode::Opcode,
     constant_pool::{LiteralConstant, Loadable, MemberRef, NameAndType},
     descriptor::{FieldType, Ty},
     ClassFile,
 };
 use serde::Serialize;
+
+use crate::modules::code_or_bail;
 
 /// Get all of the possible protocol states.
 pub(super) fn get_states<'a>(class: &'a ClassFile) -> Vec<Cow<'a, str>> {
@@ -36,18 +37,7 @@ pub(super) fn get_packets<'a>(
     class: &'a ClassFile,
     states: &[Cow<'_, str>],
 ) -> anyhow::Result<Vec<(Cow<'a, str>, ProtocolState<'a>)>> {
-    let Some(clinit) = class.methods.iter().find(|m| m.name == "<clinit>") else {
-        anyhow::bail!("Could not find <clinit>");
-    };
-    let Some(code) = clinit.attributes.iter().find(|a| a.name == "Code") else {
-        anyhow::bail!("Could not find Code attribute");
-    };
-    let AttributeData::Code(code) = &code.data else {
-        unreachable!("Code attribute is not a Code attribute")
-    };
-    let Some(code) = code.bytecode.as_ref() else {
-        anyhow::bail!("Code attribute has no bytecode");
-    };
+    let code = code_or_bail(class, "<clinit>")?;
 
     let mut vec = Vec::new();
 
