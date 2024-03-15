@@ -20,6 +20,15 @@ pub(super) fn generate(
     path: &Path,
     bundle: &DataBundle,
 ) -> anyhow::Result<()> {
+    if path.join("mod.rs").exists() {
+        // Trim the path to the last three directories
+        let path = path.display().to_string();
+        let count = path.chars().filter(|c| *c == '/').count();
+        let trimmed = path.split('/').skip(count - 3).collect::<Vec<&str>>().join("/");
+        info!("Skipping `{trimmed}` as it already exists");
+        return Ok(());
+    }
+
     let state_name = name.to_case(Case::Pascal);
     let state_ident = Ident::new(&state_name, Span::call_site());
     let version_ident = struct_name(&version.base_version);
@@ -57,18 +66,9 @@ pub(super) fn generate(
     )?;
     let serverbound_tokens = generate_macro_state(&serverbound_idents);
 
-    let path = path.join("mod.rs");
-    if path.exists() {
-        // Trim the path to the last three directories
-        let path = path.display().to_string();
-        let count = path.chars().filter(|c| *c == '/').count();
-        let trimmed = path.split('/').skip(count - 3).collect::<Vec<&str>>().join("/");
-        info!("Skipping `{trimmed}` as it already exists");
-        return Ok(());
-    }
-
     // Generate `version/{VERSION}/{STATE}/mod.rs`
     //
+    let path = path.join("mod.rs");
 
     // Get the documentation for the mod.rs file
     let mut mod_doc = MOD_DOC
