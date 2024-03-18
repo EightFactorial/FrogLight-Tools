@@ -491,7 +491,7 @@ fn parse_insns<'a>(
     block
 }
 
-#[allow(clippy::struct_excessive_bools, clippy::struct_field_names)]
+#[allow(clippy::struct_field_names)]
 #[derive(Debug, Clone)]
 struct Block<'a> {
     name: Cow<'a, str>,
