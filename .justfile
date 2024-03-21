@@ -4,6 +4,10 @@
 default:
   @just --list
 
+# Clean build artifacts
+clean:
+  cargo clean
+
 # ---- Test Recipes ----
 
 # Run all tests and all tool tests
