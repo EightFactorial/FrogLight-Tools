@@ -26,7 +26,7 @@ hashbrown = "0.14.3"
 proptest = "1.4.0"
 reqwest = { version = "0.12.2", default-features = false }
 serde = "1.0.197"
-serde_json = "1.0.114"
+serde_json = "1.0.115"
 strum = "0.26"
 strum_macros = "0.26"
 tokio = "1.37.0"
