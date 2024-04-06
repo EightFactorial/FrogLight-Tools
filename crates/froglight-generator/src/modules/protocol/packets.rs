@@ -55,14 +55,7 @@ pub(super) fn generate(
     };
 
     // Get packet struct attributes
-    let mut attrs = get_derives(&packet_fields);
-    attrs.extend(
-        syn::parse2::<AttrWrapper>(
-            quote! { #[cfg_attr(feature = "reflect", derive(bevy_reflect::Reflect))] },
-        )
-        .unwrap()
-        .into_inner(),
-    );
+    let attrs = get_derives(&packet_fields);
 
     // Manually create the packet struct
     items.push(Item::Struct(ItemStruct {
