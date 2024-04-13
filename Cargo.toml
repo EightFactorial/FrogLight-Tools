@@ -3,9 +3,7 @@ resolver = "2"
 members = [
     "crates/froglight-definitions",
     "crates/froglight-extract",
-    "crates/froglight-extract-modules",
     "crates/froglight-generate",
-    "crates/froglight-generate-modules",
 ]
 
 [workspace.package]
@@ -18,19 +16,14 @@ repository = "https://github.com/EightFactorial/FrogLight-Tools"
 readme = "README.md"
 
 [workspace.dependencies]
-async_zip = "0.0.17"
 anyhow = "1.0.82"
 cafebabe = "0.6.1"
-clap = "4.5.4"
-convert_case = "0.6.0"
 hashbrown = "0.14.3"
 proptest = "1.4.0"
 reqwest = { version = "0.12.3", default-features = false }
 serde = "1.0.197"
 serde_json = "1.0.115"
-tokio = "1.37.0"
 tracing = "0.1.40"
-tracing-subscriber = "0.3.18"
 
 [workspace.lints.rust]
 missing_docs = "warn"

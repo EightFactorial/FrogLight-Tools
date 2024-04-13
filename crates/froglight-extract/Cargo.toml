@@ -16,5 +16,10 @@ rustdoc-args = ["--cfg", "docsrs"]
 workspace = true
 
 [dependencies]
+anyhow = { workspace = true }
+cafebabe = { workspace = true }
 froglight-definitions = { version = "0.1.0", path = "../froglight-definitions" }
-froglight-extract-modules = { version = "0.1.0", path = "../froglight-extract-modules" }
+hashbrown = { workspace = true, features = ["serde"] }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
+tracing = { workspace = true }
