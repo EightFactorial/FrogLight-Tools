@@ -4,6 +4,8 @@ use regex::Regex;
 
 use crate::MinecraftVersion;
 
+// -----------------------------------------------------------------------------
+
 /// The [`Regex`] for [`MinecraftVersion::Release`].
 static RELEASE_REGEX: OnceLock<Regex> = OnceLock::new();
 /// The string for [`RELEASE_REGEX`].
@@ -28,6 +30,8 @@ pub(crate) fn parse_release(ver: &str) -> Option<MinecraftVersion> {
 
     Some(MinecraftVersion::new_release(major, minor, patch))
 }
+
+// -----------------------------------------------------------------------------
 
 /// The [`Regex`] for [`MinecraftVersion::ReleaseCandidate`].
 static RELEASE_CANDIDATE_REGEX: OnceLock<Regex> = OnceLock::new();
@@ -55,6 +59,8 @@ pub(crate) fn parse_release_candidate(ver: &str) -> Option<MinecraftVersion> {
     Some(MinecraftVersion::new_release_candidate(major, minor, patch, rc).unwrap())
 }
 
+// -----------------------------------------------------------------------------
+
 /// The [`Regex`] for [`MinecraftVersion::PreRelease`].
 static PRE_RELEASE_REGEX: OnceLock<Regex> = OnceLock::new();
 /// The string for [`PRE_RELEASE_REGEX`].
@@ -80,6 +86,8 @@ pub(crate) fn parse_pre_release(ver: &str) -> Option<MinecraftVersion> {
     let pre = caps.get(PRE_RELEASE_REGEX_GROUPS[3])?.as_str().parse().ok()?;
     Some(MinecraftVersion::new_pre_release(major, minor, patch, pre).unwrap())
 }
+
+// -----------------------------------------------------------------------------
 
 /// The [`Regex`] for [`MinecraftVersion::Snapshot`].
 static SNAPSHOT_REGEX: OnceLock<Regex> = OnceLock::new();

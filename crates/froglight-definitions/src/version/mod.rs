@@ -182,22 +182,22 @@ impl MinecraftVersion {
     /// use froglight_definitions::MinecraftVersion;
     ///
     /// let version = MinecraftVersion::new_release_candidate(1, 20, 0, 2).unwrap();
-    /// assert_eq!(version.as_long_string(), "1.20.0-rc2");
+    /// assert_eq!(version.to_long_string(), "1.20.0-rc2");
     ///
     /// let version = MinecraftVersion::new_release(1, 20, 0);
-    /// assert_eq!(version.as_long_string(), "1.20.0");
+    /// assert_eq!(version.to_long_string(), "1.20.0");
     ///
     /// let version = MinecraftVersion::new_pre_release(1, 20, 4, 2).unwrap();
-    /// assert_eq!(version.as_long_string(), "1.20.4-pre2");
+    /// assert_eq!(version.to_long_string(), "1.20.4-pre2");
     ///
     /// let version = MinecraftVersion::new_release(1, 20, 4);
-    /// assert_eq!(version.as_long_string(), "1.20.4");
+    /// assert_eq!(version.to_long_string(), "1.20.4");
     ///
     /// let version = MinecraftVersion::new_snapshot(24, 3, 'b').unwrap();
-    /// assert_eq!(version.as_long_string(), "24w03b");
+    /// assert_eq!(version.to_long_string(), "24w03b");
     /// ```
     #[must_use]
-    pub fn as_long_string(&self) -> String { self.to_string() }
+    pub fn to_long_string(&self) -> String { self.to_string() }
 
     /// Returns the version as a short [`String`].
     ///
@@ -208,23 +208,23 @@ impl MinecraftVersion {
     /// use froglight_definitions::MinecraftVersion;
     ///
     /// let version = MinecraftVersion::new_release_candidate(1, 20, 0, 2).unwrap();
-    /// assert_eq!(version.as_short_string(), "1.20-rc2");
+    /// assert_eq!(version.to_short_string(), "1.20-rc2");
     ///
     /// let version = MinecraftVersion::new_release(1, 20, 0);
-    /// assert_eq!(version.as_short_string(), "1.20");
+    /// assert_eq!(version.to_short_string(), "1.20");
     ///
     /// let version = MinecraftVersion::new_pre_release(1, 20, 4, 2).unwrap();
-    /// assert_eq!(version.as_short_string(), "1.20.4-pre2");
+    /// assert_eq!(version.to_short_string(), "1.20.4-pre2");
     ///
     /// let version = MinecraftVersion::new_release(1, 20, 4);
-    /// assert_eq!(version.as_short_string(), "1.20.4");
+    /// assert_eq!(version.to_short_string(), "1.20.4");
     ///
     /// let version = MinecraftVersion::new_snapshot(24, 3, 'b').unwrap();
-    /// assert_eq!(version.as_short_string(), "24w03b");
+    /// assert_eq!(version.to_short_string(), "24w03b");
     /// ```
     #[must_use]
     #[allow(clippy::missing_panics_doc)]
-    pub fn as_short_string(&self) -> String {
+    pub fn to_short_string(&self) -> String {
         let mut string = self.to_string();
 
         if !matches!(self, Self::Snapshot(_) | Self::Other(_)) {

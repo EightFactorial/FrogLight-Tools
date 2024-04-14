@@ -15,9 +15,14 @@ rustdoc-args = ["--cfg", "docsrs"]
 [lints]
 workspace = true
 
+[build-dependencies]
+vergen = { workspace = true, features = ["build", "git", "gitoxide"] }
+
 [dependencies]
 anyhow = { workspace = true }
+async_zip = "0.0.17"
 cafebabe = { workspace = true }
+enum_dispatch = { workspace = true }
 froglight-definitions = { version = "0.1.0", path = "../froglight-definitions" }
 hashbrown = { workspace = true, features = ["serde"] }
 serde = { workspace = true }

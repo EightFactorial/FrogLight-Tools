@@ -1,7 +1,8 @@
-use crate::{MinecraftVersion, ReleasesManifest};
+use super::VersionManifest;
+use crate::MinecraftVersion;
 
 #[test]
-fn releases_deserialize() {
+fn version_manifest_deserialize() {
     let manifest: &str = r#"{
         "latest": {
             "release": "1.20.4",
@@ -26,7 +27,7 @@ fn releases_deserialize() {
             }
         ]
     }"#;
-    let manifest: ReleasesManifest = serde_json::from_str(manifest).unwrap();
+    let manifest: VersionManifest = serde_json::from_str(manifest).unwrap();
 
     let release = MinecraftVersion::new_release(1, 20, 4);
     let snapshot = MinecraftVersion::new_snapshot(24, 3, 'b').unwrap();

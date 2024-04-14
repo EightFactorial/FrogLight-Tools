@@ -15,12 +15,22 @@ rustdoc-args = ["--cfg", "docsrs"]
 [lints]
 workspace = true
 
+[build-dependencies]
+vergen = { workspace = true, features = ["build", "git", "gitoxide"] }
+
 [dependencies]
 anyhow = { workspace = true }
 cafebabe = { workspace = true }
+convert_case = { workspace = true }
+enum_dispatch = { workspace = true }
 froglight-definitions = { version = "0.1.0", path = "../froglight-definitions" }
 froglight-extract = { version = "0.1.0", path = "../froglight-extract" }
 hashbrown = { workspace = true, features = ["serde"] }
+prettyplease = { version = "0.2.17", features = ["verbatim"] }
+proc-macro2 = { version = "1.0.79", features = ["nightly"] }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
+quote = "1.0.36"
+syn = { version = "2.0.58", features = ["extra-traits", "full"] }
+tokio = { workspace = true }
 tracing = { workspace = true }

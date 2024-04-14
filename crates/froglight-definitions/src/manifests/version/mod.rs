@@ -9,16 +9,17 @@ use crate::MinecraftVersion;
 #[cfg(test)]
 mod tests;
 
-/// A manifest of all [`MinecraftVersions`](MinecraftVersion).
+/// Information about all released
+/// [`versions`](MinecraftVersion) of Minecraft.
 #[derive(Debug, Clone, Hash, Deserialize)]
-pub struct ReleasesManifest {
+pub struct VersionManifest {
     /// The latest versions.
-    pub latest: ReleasesLatest,
+    pub latest: VersionManifestLatest,
     /// All versions.
-    pub versions: Vec<ReleasesManifestEntry>,
+    pub versions: Vec<VersionManifestEntry>,
 }
 
-impl ReleasesManifest {
+impl VersionManifest {
     /// Get the latest [`MinecraftVersion::Release`].
     #[must_use]
     pub fn latest_release(&self) -> &MinecraftVersion { &self.latest.release }
@@ -53,18 +54,18 @@ impl ReleasesManifest {
 }
 
 /// The latest [`MinecraftVersions`](MinecraftVersion) in a
-/// [`ReleasesManifest`].
+/// [`VersionManifest`].
 #[derive(Debug, Clone, Hash, Deserialize)]
-pub struct ReleasesLatest {
+pub struct VersionManifestLatest {
     /// The latest release.
     pub release: MinecraftVersion,
     /// The latest snapshot.
     pub snapshot: MinecraftVersion,
 }
 
-/// A single entry in a [`ReleasesManifest`].
+/// A single entry in a [`VersionManifest`].
 #[derive(Debug, Clone, Hash, Deserialize)]
-pub struct ReleasesManifestEntry {
+pub struct VersionManifestEntry {
     /// The [`MinecraftVersion`].
     pub id: MinecraftVersion,
     /// The type of version.
