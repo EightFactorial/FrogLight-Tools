@@ -19,7 +19,7 @@ workspace = true
 proptest = { workspace = true }
 
 [dependencies]
-chrono = { version = "0.4.37", features = ["serde"] }
+chrono = { version = "0.4.38", features = ["serde"] }
 compact_str = { version = "0.7.1", features = ["serde"] }
 hashbrown = { workspace = true, features = ["serde"] }
 regex = "1.10.4"
