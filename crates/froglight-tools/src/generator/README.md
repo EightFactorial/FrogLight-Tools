@@ -1,1 +1,1 @@
-# FrogLight Generator
+# `FrogLight` Generator
