@@ -4,6 +4,7 @@ members = [
     "crates/froglight-definitions",
     "crates/froglight-extract",
     "crates/froglight-generate",
+    "crates/froglight-tools",
 ]
 
 [workspace.package]

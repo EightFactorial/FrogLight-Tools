@@ -31,3 +31,27 @@ pub trait ExtractModule {
     #[allow(async_fn_in_trait)]
     async fn extract<'a>(&'a self, data: ExtractBundle<'a>) -> anyhow::Result<()>;
 }
+
+/// Implement `FromStr` for `Modules` to allow parsing from a string.
+mod json_workaround {
+    use std::str::FromStr;
+
+    use serde::{Deserialize, Serialize};
+
+    use super::Modules;
+
+    #[derive(Serialize, Deserialize)]
+    struct ModuleWrapper {
+        module: Modules,
+    }
+
+    impl FromStr for Modules {
+        type Err = anyhow::Error;
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            match serde_json::from_str::<ModuleWrapper>(&format!("{{\"module\": \"{s}\"}}")) {
+                Ok(resolver) => Ok(resolver.module),
+                Err(err) => Err(anyhow::anyhow!("Failed to parse module: {err}")),
+            }
+        }
+    }
+}

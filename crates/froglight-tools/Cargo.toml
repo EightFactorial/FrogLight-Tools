@@ -18,13 +18,15 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 cargo_metadata = "0.18.1"
-clap = "4.5.4"
+clap = { version = "4.5.4", features = ["derive"] }
+clap-verbosity-flag = "2.2.0"
 froglight-definitions = { version = "0.1.0", path = "../froglight-definitions" }
 froglight-extract = { version = "0.1.0", path = "../froglight-extract" }
 froglight-generate = { version = "0.1.0", path = "../froglight-generate" }
 hashbrown = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
 toml = { version = "0.8.12", features = ["parse", "preserve_order"] }
+tracing = { workspace = true }
 tracing-subscriber = "0.3.18"
 
 [[bin]]

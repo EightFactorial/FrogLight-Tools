@@ -1,10 +1,11 @@
-use serde::{Deserialize, Serialize};
+use serde_unit_struct::{Deserialize_unit_struct, Serialize_unit_struct};
 
 use crate::{bundle::ExtractBundle, sources::ExtractModule};
 
 /// A placeholder module.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(
+    Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize_unit_struct, Deserialize_unit_struct,
+)]
 pub struct Placeholder;
 
 impl ExtractModule for Placeholder {

@@ -42,14 +42,15 @@ clippy:
 fmt:
   cargo fmt --all
 
-# Run the froglight-extractor with the given command and arguments
+# Run the minecraft data extractor
 # Uses the ./target (./target/froglight) directory as the cache
-extract version arg0="" arg1="" arg2="" arg3="":
-  cargo run --package froglight-extractor --features=binary --release -- --cache ../target --version {{version}} {{arg0}} {{arg1}} {{arg2}} {{arg3}}
+extract version arg0="" arg1="" arg2="" arg3="" arg4="" arg5="":
+  cargo run --package froglight-tools --bin extractor --release -- --cache ../target/froglight --version {{version}} {{arg0}} {{arg1}} {{arg2}} {{arg3}} {{arg4}} {{arg5}}
 
-# Run the froglight-generator to generate code dynamically
-generate arg0="" arg1="" arg2="" arg3="":
-  cargo run --package froglight-generator --release -- --dir ../ {{arg0}} {{arg1}} {{arg2}} {{arg3}}
+# Run the froglight code generator
+# Uses the ./target (./target/froglight) directory as the cache
+generate arg0="" arg1="" arg2="" arg3=""  arg4="" arg5="":
+  cargo run --package froglight-tools --bin generator --release -- --cache ../target/froglight --dir ../ {{arg0}} {{arg1}} {{arg2}} {{arg3}} {{arg4}} {{arg5}}
 
 # Re-run `just` without the `tools` argument
 tools args="":
