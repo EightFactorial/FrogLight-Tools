@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 mod modules;
 pub use modules::*;
 
-/// Bytecode modules
+/// Modules that parse Minecraft bytecode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[enum_dispatch(ExtractModule)]
 #[serde(untagged)]
