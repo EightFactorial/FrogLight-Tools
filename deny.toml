@@ -1,27 +1,21 @@
 [advisories]
 db-path = "~/.cargo/advisory-db"
 db-urls = ["https://github.com/rustsec/advisory-db"]
-vulnerability = "deny"
-unmaintained = "deny"
-yanked = "deny"
-notice = "deny"
+version = 2
 
 [licenses]
-default = "deny"
-copyleft = "warn"
-unlicensed = "deny"
 allow = [
     "MIT",
     #    "MIT-0",
     "Apache-2.0",
     "BSD-3-Clause",
-    "ISC",
+    #    "ISC",
     #    "Zlib",
     "0BSD",
     #    "BSD-2-Clause",
     #    "CC0-1.0",
-    "MPL-2.0",
-    "OpenSSL",
+    #    "MPL-2.0",
+    #    "OpenSSL",
 ]
 
 [[licenses.exceptions]]
@@ -47,20 +41,9 @@ multiple-versions = "warn"
 external-default-features = "allow"
 workspace-default-features = "allow"
 
+# Other
 [[bans.skip]]
 name = "bitflags"
-version = "1.3.2"
-[[bans.skip]]
-name = "heck"
-version = "0.4.1"
-[[bans.skip]]
-name = "regex-automata"
-version = "0.1.10"
-[[bans.skip]]
-name = "regex-syntax"
-version = "0.6.29"
-
-# Other
 [[bans.skip]]
 name = "redox_syscall"
 [[bans.skip]]
