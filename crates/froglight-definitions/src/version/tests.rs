@@ -5,7 +5,7 @@ use super::{regex, MinecraftVersion};
 proptest! {
     #[test]
     fn parse_release(major in 0u64.., minor in 0u64.., patch in proptest::option::of(0u64..)) {
-        let version = if let Some(patch) = patch { format!("{}.{}.{}", major, minor, patch) } else { format!("{}.{}", major, minor) };
+        let version = if let Some(patch) = patch { format!("{major}.{minor}.{patch}") } else { format!("{major}.{minor}") };
         let Some(MinecraftVersion::Release(release)) = regex::parse_release(&version) else {
             panic!("Failed to parse MinecraftVersion::Release -> `{version}`")
         };
@@ -17,7 +17,7 @@ proptest! {
 
     #[test]
     fn parse_release_candidate(major in 0u64.., minor in 0u64.., patch in proptest::option::of(0u64..), rc in 0u64..) {
-        let version = if let Some(patch) = patch { format!("{}.{}.{}-rc{}", major, minor, patch, rc) } else { format!("{}.{}-rc{}", major, minor, rc) };
+        let version = if let Some(patch) = patch { format!("{major}.{minor}.{patch}-rc{rc}") } else { format!("{major}.{minor}-rc{rc}") };
         let Some(MinecraftVersion::ReleaseCandidate(release_candidate)) = regex::parse_release_candidate(&version) else {
             panic!("Failed to parse MinecraftVersion::ReleaseCandidate -> `{version}`")
         };
@@ -30,7 +30,7 @@ proptest! {
 
     #[test]
     fn parse_pre_release(major in 0u64.., minor in 0u64.., patch in proptest::option::of(0u64..), pre in 0u64..) {
-        let version = if let Some(patch) = patch { format!("{}.{}.{}-pre{}", major, minor, patch, pre) } else { format!("{}.{}-pre{}", major, minor, pre) };
+        let version = if let Some(patch) = patch { format!("{major}.{minor}.{patch}-pre{pre}") } else { format!("{major}.{minor}-pre{pre}") };
         let Some(MinecraftVersion::PreRelease(pre_release)) = regex::parse_pre_release(&version) else {
             panic!("Failed to parse MinecraftVersion::PreRelease -> `{version}`")
         };
