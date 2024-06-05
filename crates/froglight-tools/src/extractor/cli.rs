@@ -11,11 +11,11 @@ pub(super) struct ExtractArguments {
     pub(super) verbose: Verbosity,
 
     /// The path to the cache directory
-    #[arg(short, long, default_value = "cache")]
+    #[arg(long, default_value = "cache")]
     pub(super) cache: PathBuf,
 
     /// The version to extract data from
-    #[arg(long = "version")]
+    #[arg(long)]
     pub(super) version: MinecraftVersion,
 
     /// The modules used to extract data

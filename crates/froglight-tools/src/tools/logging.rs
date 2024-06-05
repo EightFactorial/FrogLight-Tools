@@ -1,8 +1,10 @@
+//! Logging utilities.
+
 use clap_verbosity_flag::{Level as ClapLevel, Verbosity};
 use tracing::Level as TracingLevel;
 
-/// Setup `tracing` with the given verbosity.
-pub(super) fn setup(verbose: &Verbosity) {
+/// Setup [`tracing`] with the given [`Verbosity`].
+pub fn setup(verbose: &Verbosity) {
     let Some(clap_level) = verbose.log_level() else {
         // Logging disabled
         return;

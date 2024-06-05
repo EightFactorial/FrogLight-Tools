@@ -45,12 +45,12 @@ fmt:
 # Run the minecraft data extractor
 # Uses the ./target (./target/froglight) directory as the cache
 extract version arg0="" arg1="" arg2="" arg3="" arg4="" arg5="":
-  cargo run --package froglight-tools --bin extractor --release -- --cache ../target/froglight --version {{version}} {{arg0}} {{arg1}} {{arg2}} {{arg3}} {{arg4}} {{arg5}}
+  cargo run --package froglight-tools --bin extractor --release -- --cache ../target/cache --version {{version}} {{arg0}} {{arg1}} {{arg2}} {{arg3}} {{arg4}} {{arg5}}
 
 # Run the froglight code generator
 # Uses the ./target (./target/froglight) directory as the cache
 generate arg0="" arg1="" arg2="" arg3=""  arg4="" arg5="":
-  cargo run --package froglight-tools --bin generator --release -- --cache ../target/froglight --dir ../ {{arg0}} {{arg1}} {{arg2}} {{arg3}} {{arg4}} {{arg5}}
+  cargo run --package froglight-tools --bin generator --release -- --cache ../target/cache --config ../generator.toml --dir ../ {{arg0}} {{arg1}} {{arg2}} {{arg3}} {{arg4}} {{arg5}}
 
 # Re-run `just` without the `tools` argument
 tools args="":

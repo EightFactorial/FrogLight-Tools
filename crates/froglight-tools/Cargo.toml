@@ -24,8 +24,9 @@ froglight-definitions = { version = "0.1.0", path = "../froglight-definitions" }
 froglight-extract = { version = "0.1.0", path = "../froglight-extract" }
 froglight-generate = { version = "0.1.0", path = "../froglight-generate" }
 hashbrown = { workspace = true }
+serde = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
-toml = { version = "0.8.12", features = ["parse", "preserve_order"] }
+toml = { version = "0.8.14", features = ["parse", "preserve_order"] }
 tracing = { workspace = true }
 tracing-subscriber = "0.3.18"
 
@@ -36,3 +37,7 @@ path = "src/extractor/main.rs"
 [[bin]]
 name = "generator"
 path = "src/generator/main.rs"
+
+[lib]
+name = "froglight_tools"
+path = "src/tools/lib.rs"
