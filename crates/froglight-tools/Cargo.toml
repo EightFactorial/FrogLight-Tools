@@ -24,7 +24,10 @@ froglight-definitions = { version = "0.1.0", path = "../froglight-definitions" }
 froglight-extract = { version = "0.1.0", path = "../froglight-extract" }
 froglight-generate = { version = "0.1.0", path = "../froglight-generate" }
 hashbrown = { workspace = true }
+reqwest = { version = "0.12.4", features = ["rustls-tls", "json"] }
 serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = "1.0.61"
 tokio = { workspace = true, features = ["full"] }
 toml = { version = "0.8.14", features = ["parse", "preserve_order"] }
 tracing = { workspace = true }

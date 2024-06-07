@@ -1,16 +1,21 @@
 #![doc = include_str!("README.md")]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
+use std::sync::Arc;
+
 use anyhow::anyhow;
 use clap::Parser;
 use froglight_tools::logging;
-use tracing::{debug, error, info};
+use tokio::task::JoinSet;
+use tracing::{debug, error, info, warn};
 
 mod cli;
 use cli::GenerateArguments;
 
 mod config;
 use config::GenerateConfig;
+
+mod generate;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -21,6 +26,7 @@ async fn main() -> anyhow::Result<()> {
     debug!("Cache: \"{}\"", args.cache.display());
     debug!("Config: \"{}\"", args.config.display());
     debug!("Directory: \"{}\"", args.dir.display());
+    debug!("Refresh: {}", args.refresh);
     debug!("");
 
     // Make sure `dir` points to a valid project directory
@@ -33,6 +39,23 @@ async fn main() -> anyhow::Result<()> {
     }
     debug!("Project directory is valid!");
     debug!("");
+
+    // If `refresh` is set, delete the cache directory
+    if args.refresh {
+        warn!("Clearing cache directory: \"{}\"", args.cache.display());
+        match tokio::fs::remove_dir_all(&args.cache).await {
+            Ok(()) => {
+                debug!("Cache directory cleared!");
+                debug!("");
+            }
+            Err(err) => {
+                let error = format!("Failed to clear cache directory: {err}");
+
+                error!("{error}");
+                return Err(anyhow!(error));
+            }
+        }
+    }
 
     // Make sure `cache` points to a directory or create it
     if !args.cache.exists() {
@@ -76,6 +99,25 @@ async fn main() -> anyhow::Result<()> {
         }
     }?;
     debug!("Configuration: {:#?}", config.versions);
+
+    // Create a `Client` for downloading files
+    let client = reqwest::Client::new();
+
+    // Get the `VersionManifest`
+    let manifest =
+        Arc::new(froglight_tools::manifests::get_version_manifest(&args.cache, &client).await?);
+
+    // Generate all versions simultaneously
+    let mut joinset = JoinSet::new();
+    for version in config.versions {
+        joinset.spawn(generate::generate(
+            version,
+            manifest.clone(),
+            args.cache.clone(),
+            client.clone(),
+        ));
+    }
+    while joinset.join_next().await.is_some() {}
 
     Ok(())
 }

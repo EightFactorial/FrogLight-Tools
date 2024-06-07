@@ -10,7 +10,7 @@ mod tests;
 pub struct ReleaseManifest {
     /// Information about the assets for this version.
     #[serde(rename = "assetIndex")]
-    pub asset_index: ReleaseDownload,
+    pub asset_index: ReleaseItem,
     /// Downloads for the client and server JARs.
     pub downloads: ReleaseDownloads,
 }
@@ -18,23 +18,23 @@ pub struct ReleaseManifest {
 /// Downloads for the client and server JARs.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
 pub struct ReleaseDownloads {
-    /// The client JAR download.
-    pub client: ReleaseDownload,
+    /// The client JAR.
+    pub client: ReleaseItem,
     /// The client JAR mappings.
-    pub client_mappings: ReleaseDownload,
-    /// The server JAR download.
-    pub server: ReleaseDownload,
+    pub client_mappings: ReleaseItem,
+    /// The server JAR.
+    pub server: ReleaseItem,
     /// The server JAR mappings.
-    pub server_mappings: ReleaseDownload,
+    pub server_mappings: ReleaseItem,
 }
 
-/// Information about a specific download.
+/// Information about a specific item.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize)]
-pub struct ReleaseDownload {
-    /// The SHA-1 hash of the download.
+pub struct ReleaseItem {
+    /// The SHA-1 hash of the item.
     pub sha1: CompactString,
-    /// The size of the download in bytes.
+    /// The size of the item in bytes.
     pub size: u64,
-    /// The URL to download the file from.
+    /// The URL of the item.
     pub url: CompactString,
 }

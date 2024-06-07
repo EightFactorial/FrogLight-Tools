@@ -21,6 +21,19 @@ pub struct ExtractBundle<'a> {
     pub cache_dir: &'a Path,
 }
 
+impl<'a> ExtractBundle<'a> {
+    /// Create a new [`ExtractBundle`].
+    #[must_use]
+    pub fn new(
+        version: &'a MinecraftVersion,
+        output: &'a mut serde_json::Value,
+        cache_dir: &'a Path,
+        manifests: ManifestBundle<'a>,
+    ) -> Self {
+        Self { manifests, version, output, cache_dir }
+    }
+}
+
 /// A bundle of manifests.
 #[derive(Debug, Clone, Copy)]
 pub struct ManifestBundle<'a> {
@@ -30,4 +43,16 @@ pub struct ManifestBundle<'a> {
     pub release: &'a ReleaseManifest,
     /// The asset manifest.
     pub asset: &'a AssetManifest,
+}
+
+impl<'a> ManifestBundle<'a> {
+    /// Create a new [`ManifestBundle`].
+    #[must_use]
+    pub fn new(
+        version: &'a VersionManifest,
+        release: &'a ReleaseManifest,
+        asset: &'a AssetManifest,
+    ) -> Self {
+        Self { version, release, asset }
+    }
 }

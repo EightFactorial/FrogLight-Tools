@@ -19,6 +19,10 @@ pub(super) struct GenerateArguments {
     /// The path to the project directory
     #[arg(short, long)]
     pub(super) dir: PathBuf,
+
+    /// Clears the cache and redownloads all data
+    #[arg(short, long, action = clap::ArgAction::SetTrue)]
+    pub(super) refresh: bool,
     // The modules used to generate data
     // pub(super) modules: Vec<Modules>,
 }

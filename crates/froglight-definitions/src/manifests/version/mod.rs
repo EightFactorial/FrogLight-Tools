@@ -20,6 +20,9 @@ pub struct VersionManifest {
 }
 
 impl VersionManifest {
+    /// The URL to the [`VersionManifest`].
+    pub const URL: &'static str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
+
     /// Get the latest [`MinecraftVersion::Release`].
     #[must_use]
     pub fn latest_release(&self) -> &MinecraftVersion { &self.latest.release }
@@ -50,6 +53,14 @@ impl VersionManifest {
         let rhs = &self.versions.iter().find(|&x| rhs.is_same(&x.id))?.release_time;
         let lhs = &self.versions.iter().find(|&x| lhs.is_same(&x.id))?.release_time;
         Some(rhs.cmp(lhs))
+    }
+
+    /// Get a [`VersionManifestEntry`] by [`MinecraftVersion`].
+    ///
+    /// Returns `None` if the version is not found.
+    #[must_use]
+    pub fn get(&self, version: &MinecraftVersion) -> Option<&VersionManifestEntry> {
+        self.versions.iter().find(|&x| version.is_same(&x.id))
     }
 }
 
