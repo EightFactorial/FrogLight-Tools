@@ -9,13 +9,13 @@ allow = [
     #    "MIT-0",
     "Apache-2.0",
     "BSD-3-Clause",
-    #    "ISC",
+    "ISC",
     #    "Zlib",
     "0BSD",
     #    "BSD-2-Clause",
     #    "CC0-1.0",
-    #    "MPL-2.0",
-    #    "OpenSSL",
+    "MPL-2.0",
+    "OpenSSL",
 ]
 
 [[licenses.exceptions]]

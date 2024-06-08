@@ -104,15 +104,31 @@ async fn main() -> anyhow::Result<()> {
     let client = reqwest::Client::new();
 
     // Get the `VersionManifest`
-    let manifest =
+    let version_manifest =
         Arc::new(froglight_tools::manifests::get_version_manifest(&args.cache, &client).await?);
+
+    // Get the `YarnManifest`
+    let yarn_manifest =
+        Arc::new(froglight_tools::manifests::get_yarn_manifest(&args.cache, &client).await?);
+
+    // Download the `Enigma` JAR
+    let Some(enimga_path) =
+        froglight_tools::jar_tools::download_tinyremapper(&args.cache, &client).await
+    else {
+        let error = "Failed to download `Enigma` JAR";
+
+        error!("{error}");
+        return Err(anyhow!(error));
+    };
 
     // Generate all versions simultaneously
     let mut joinset = JoinSet::new();
     for version in config.versions {
         joinset.spawn(generate::generate(
             version,
-            manifest.clone(),
+            version_manifest.clone(),
+            yarn_manifest.clone(),
+            enimga_path.clone(),
             args.cache.clone(),
             client.clone(),
         ));

@@ -3,7 +3,7 @@
 use std::path::Path;
 
 use froglight_definitions::{
-    manifests::{AssetManifest, ReleaseManifest, VersionManifest},
+    manifests::{AssetManifest, ReleaseManifest, VersionManifest, YarnManifest},
     MinecraftVersion,
 };
 
@@ -39,6 +39,8 @@ impl<'a> ExtractBundle<'a> {
 pub struct ManifestBundle<'a> {
     /// The version manifest.
     pub version: &'a VersionManifest,
+    /// The yarn manifest.
+    pub yarn: &'a YarnManifest,
     /// The release manifest.
     pub release: &'a ReleaseManifest,
     /// The asset manifest.
@@ -50,9 +52,10 @@ impl<'a> ManifestBundle<'a> {
     #[must_use]
     pub fn new(
         version: &'a VersionManifest,
+        yarn: &'a YarnManifest,
         release: &'a ReleaseManifest,
         asset: &'a AssetManifest,
     ) -> Self {
-        Self { version, release, asset }
+        Self { version, yarn, release, asset }
     }
 }
