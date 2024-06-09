@@ -17,6 +17,7 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+async_zip = { version = "0.0.17", features = ["tokio", "tokio-fs"] }
 cargo_metadata = "0.18.1"
 clap = { version = "4.5.4", features = ["derive"] }
 clap-verbosity-flag = "2.2.0"

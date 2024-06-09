@@ -113,7 +113,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Download the `Enigma` JAR
     let Some(enimga_path) =
-        froglight_tools::jar_tools::download_tinyremapper(&args.cache, &client).await
+        froglight_tools::mappings::download_tinyremapper(&args.cache, &client).await
     else {
         let error = "Failed to download `Enigma` JAR";
 

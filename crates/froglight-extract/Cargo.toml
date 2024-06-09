@@ -20,7 +20,7 @@ vergen = { workspace = true, features = ["build", "git", "gitoxide"] }
 
 [dependencies]
 anyhow = { workspace = true }
-async_zip = "0.0.17"
+async_zip = { version = "0.0.17", features = ["full", "tokio", "tokio-fs"] }
 cafebabe = { workspace = true }
 enum_dispatch = { workspace = true }
 froglight-definitions = { version = "0.1.0", path = "../froglight-definitions" }
@@ -28,4 +28,5 @@ hashbrown = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 serde_unit_struct = "0.1.3"
+tokio = { workspace = true, features = ["io-std", "io-util"] }
 tracing = { workspace = true }

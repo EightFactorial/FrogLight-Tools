@@ -2,19 +2,25 @@
 
 use std::path::Path;
 
+use async_zip::tokio::read::fs::ZipFileReader;
 use froglight_definitions::{
     manifests::{AssetManifest, ReleaseManifest, VersionManifest, YarnManifest},
     MinecraftVersion,
 };
 
+use crate::bytecode::JarContainer;
+
 /// A bundle of data that is passed around between
 /// the various data extractor modules.
-#[derive(Debug)]
 pub struct ExtractBundle<'a> {
-    /// All the manifests.
-    pub manifests: ManifestBundle<'a>,
     /// The version of Minecraft that data is being extracted from.
     pub version: &'a MinecraftVersion,
+    /// All of the parsed class files.
+    pub jar_container: &'a JarContainer,
+    /// The ZIP file reader.
+    pub jar_reader: &'a ZipFileReader,
+    /// All the manifests.
+    pub manifests: ManifestBundle<'a>,
     /// The output JSON object that data is being written to.
     pub output: &'a mut serde_json::Value,
     /// The path to the cache directory.
@@ -26,11 +32,13 @@ impl<'a> ExtractBundle<'a> {
     #[must_use]
     pub fn new(
         version: &'a MinecraftVersion,
+        jar_container: &'a JarContainer,
+        jar_reader: &'a ZipFileReader,
+        manifests: ManifestBundle<'a>,
         output: &'a mut serde_json::Value,
         cache_dir: &'a Path,
-        manifests: ManifestBundle<'a>,
     ) -> Self {
-        Self { manifests, version, output, cache_dir }
+        Self { version, jar_container, jar_reader, manifests, output, cache_dir }
     }
 }
 

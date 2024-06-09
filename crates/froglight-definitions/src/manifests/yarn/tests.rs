@@ -88,11 +88,9 @@ fn version_manifest_deserialize() {
     assert!(v1_21_pre4.is_same(&manifest.versions.release.split().0));
 
     let v1_20_5_rc1 = MinecraftVersion::new_pre_release(1, 20, 5, 1).unwrap();
-    println!("{:?}", manifest.get_versions(&v1_20_5_rc1));
     assert_eq!(manifest.get_versions(&v1_20_5_rc1).len(), 4);
 
     let v1_20_5_rc2 = MinecraftVersion::new_pre_release(1, 20, 5, 2).unwrap();
-    println!("{:?}", manifest.get_versions(&v1_20_5_rc2));
     assert_eq!(manifest.get_versions(&v1_20_5_rc2).len(), 2);
 
     let v1_20_6 = MinecraftVersion::new_release(1, 20, 6);
