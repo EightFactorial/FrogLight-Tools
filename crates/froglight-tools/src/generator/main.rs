@@ -111,11 +111,11 @@ async fn main() -> anyhow::Result<()> {
     let yarn_manifest =
         Arc::new(froglight_tools::manifests::get_yarn_manifest(&args.cache, &client).await?);
 
-    // Download the `Enigma` JAR
-    let Some(enimga_path) =
-        froglight_tools::mappings::download_tinyremapper(&args.cache, &client).await
+    // Get `TinyRemapper`
+    let Some(remapper_path) =
+        froglight_tools::mappings::get_tinyremapper(&args.cache, &client).await
     else {
-        let error = "Failed to download `Enigma` JAR";
+        let error = "Failed to download `TinyRemapper` JAR";
 
         error!("{error}");
         return Err(anyhow!(error));
@@ -128,7 +128,7 @@ async fn main() -> anyhow::Result<()> {
             version,
             version_manifest.clone(),
             yarn_manifest.clone(),
-            enimga_path.clone(),
+            remapper_path.clone(),
             args.cache.clone(),
             client.clone(),
         ));

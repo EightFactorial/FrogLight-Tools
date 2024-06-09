@@ -8,6 +8,10 @@ pub(super) struct GenerateArguments {
     #[command(flatten)]
     pub(super) verbose: Verbosity,
 
+    /// Clears the cache and redownloads all data
+    #[arg(short, long, action = clap::ArgAction::SetTrue)]
+    pub(super) refresh: bool,
+
     /// The path to the cache directory
     #[arg(long, default_value = "cache")]
     pub(super) cache: PathBuf,
@@ -19,10 +23,6 @@ pub(super) struct GenerateArguments {
     /// The path to the project directory
     #[arg(short, long)]
     pub(super) dir: PathBuf,
-
-    /// Clears the cache and redownloads all data
-    #[arg(short, long, action = clap::ArgAction::SetTrue)]
-    pub(super) refresh: bool,
     // The modules used to generate data
     // pub(super) modules: Vec<Modules>,
 }

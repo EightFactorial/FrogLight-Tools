@@ -7,10 +7,12 @@ mod modules;
 pub use modules::*;
 
 /// Modules that parse Minecraft's built-in json generators.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[enum_dispatch(ExtractModule)]
 #[serde(untagged)]
 pub enum BuiltinJsonModule {
+    /// The `version.json` file
+    Version(Version),
     /// Blocks and block data
     Blocks(Blocks),
     /// Registries and registry data

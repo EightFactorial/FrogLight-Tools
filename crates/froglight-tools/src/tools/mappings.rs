@@ -1,4 +1,4 @@
-//! Functions for downloading and working with Enigma
+//! Functions for downloading and working with `TinyRemapper` and Yarn mappings.
 
 use std::path::{Path, PathBuf};
 
@@ -14,7 +14,7 @@ const REMAPPER_URL: &str =
     "https://maven.fabricmc.net/net/fabricmc/tiny-remapper/0.9.0/tiny-remapper-0.9.0-fat.jar";
 
 /// Download the `TinyRemapper` JAR, if it does not exist in the cache.
-pub async fn download_tinyremapper(cache: &Path, client: &Client) -> Option<PathBuf> {
+pub async fn get_tinyremapper(cache: &Path, client: &Client) -> Option<PathBuf> {
     let remapper_path = cache.join(REMAPPER_FILE_NAME);
     if remapper_path.exists() && remapper_path.is_file() {
         debug!("`TinyRemapper` already downloaded: \"{}\"", remapper_path.display());
@@ -42,7 +42,7 @@ const CLIENT_MAPPINGS_FILE_NAME: &str = "mappings/mappings.tiny";
 ///
 /// TODO: Use the `zip` crate to extract the mappings,
 /// otherwise this only works on linux machines with `unzip`.
-pub async fn download_yarn_mappings(
+pub async fn get_yarn_mappings(
     build: &YarnVersion,
     cache: &Path,
     client: &Client,

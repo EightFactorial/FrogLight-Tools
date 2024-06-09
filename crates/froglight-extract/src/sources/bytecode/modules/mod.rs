@@ -4,11 +4,21 @@ use crate::{bundle::ExtractBundle, sources::ExtractModule};
 
 /// A placeholder module.
 #[derive(
-    Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize_unit_struct, Deserialize_unit_struct,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize_unit_struct,
+    Deserialize_unit_struct,
 )]
 pub struct Placeholder;
 
 impl ExtractModule for Placeholder {
     /// Run the extraction process.
-    async fn extract<'a>(&'a self, _: ExtractBundle<'a>) -> anyhow::Result<()> { Ok(()) }
+    async fn extract<'a>(&self, _: &mut ExtractBundle<'a>) -> anyhow::Result<()> { Ok(()) }
 }

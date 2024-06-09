@@ -14,7 +14,7 @@ use bytecode::*;
 use crate::bundle::ExtractBundle;
 
 /// Modules that extract data from various sources.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[enum_dispatch(ExtractModule)]
 #[serde(untagged)]
 pub enum Modules {
@@ -29,7 +29,7 @@ pub enum Modules {
 pub trait ExtractModule {
     /// Run the extraction process.
     #[allow(async_fn_in_trait)]
-    async fn extract<'a>(&'a self, data: ExtractBundle<'a>) -> anyhow::Result<()>;
+    async fn extract<'a>(&self, data: &mut ExtractBundle<'a>) -> anyhow::Result<()>;
 }
 
 /// Implement `FromStr` for `Modules` to allow parsing from a string.

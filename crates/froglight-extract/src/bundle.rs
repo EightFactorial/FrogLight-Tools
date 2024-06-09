@@ -25,6 +25,8 @@ pub struct ExtractBundle<'a> {
     pub output: &'a mut serde_json::Value,
     /// The path to the cache directory.
     pub cache_dir: &'a Path,
+    /// The path to the json directory.
+    pub json_dir: &'a Path,
 }
 
 impl<'a> ExtractBundle<'a> {
@@ -37,8 +39,9 @@ impl<'a> ExtractBundle<'a> {
         manifests: ManifestBundle<'a>,
         output: &'a mut serde_json::Value,
         cache_dir: &'a Path,
+        json_dir: &'a Path,
     ) -> Self {
-        Self { version, jar_container, jar_reader, manifests, output, cache_dir }
+        Self { version, jar_container, jar_reader, manifests, output, cache_dir, json_dir }
     }
 }
 

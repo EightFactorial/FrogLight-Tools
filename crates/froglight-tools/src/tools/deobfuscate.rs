@@ -1,10 +1,10 @@
-//! Functions for downloading and working with Enigma
+//! Functions for downloading and working with JAR files.
 
 use std::path::{Path, PathBuf};
 
 use froglight_definitions::manifests::ReleaseDownloads;
 use reqwest::Client;
-use tokio::io::AsyncWriteExt;
+use tokio::{io::AsyncWriteExt, process::Command};
 use tracing::{debug, info};
 
 const CLIENT_FILE_NAME: &str = "client.jar";
@@ -53,7 +53,7 @@ pub async fn deobfuscate_client_jar(
     debug!("    Output: \"{}\"", mapped_path.display());
 
     info!("Mapping `Client` with `TinyRemapper`");
-    let command = tokio::process::Command::new("java")
+    let command = Command::new("java")
         .arg("-jar")
         // tinyremapper
         .arg(remapper)

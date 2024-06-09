@@ -1,46 +1,56 @@
-use std::{path::PathBuf, sync::Arc};
-
+use anyhow::anyhow;
 use async_zip::tokio::read::fs::ZipFileReader;
-use froglight_definitions::manifests::{VersionManifest, YarnManifest};
 use froglight_extract::{
     bundle::{ExtractBundle, ManifestBundle},
     bytecode::JarContainer,
+    sources::ExtractModule,
 };
-use reqwest::Client;
 use serde_json::{Map, Value};
 use tracing::{debug, error, info};
 
-use crate::config::GenerateVersion;
+use crate::cli::ExtractArguments;
 
-/// Generate code for a specific version.
+/// Extract data from the specified version.
 #[allow(clippy::too_many_lines)]
-pub(crate) async fn generate(
-    version: GenerateVersion,
-
-    version_manifest: Arc<VersionManifest>,
-    yarn_manifest: Arc<YarnManifest>,
-    remapper_path: PathBuf,
-
-    mut cache: PathBuf,
-    client: Client,
-) {
+pub(super) async fn extract(args: &ExtractArguments) -> anyhow::Result<Value> {
     // --- Prepare Files ---
 
-    // Get the version entry
-    let Some(version_entry) = version_manifest.get(&version.jar) else {
-        error!("Version not found: {}", version.jar);
-        error!("Try emptying the cache directory and trying again.");
-        return;
+    // Create a `Client` for downloading files
+    let client = reqwest::Client::new();
+
+    // Get the `VersionManifest`
+    let version_manifest =
+        froglight_tools::manifests::get_version_manifest(&args.cache, &client).await?;
+
+    // Get the `YarnManifest`
+    let yarn_manifest = froglight_tools::manifests::get_yarn_manifest(&args.cache, &client).await?;
+
+    // Get `TinyRemapper`
+    let Some(remapper_path) =
+        froglight_tools::mappings::get_tinyremapper(&args.cache, &client).await
+    else {
+        let error = "Failed to download `TinyRemapper` JAR";
+
+        error!("{error}");
+        return Err(anyhow!(error));
     };
-    info!("Found Version in Manifest: \"{}\"", version_entry.id);
+
+    // Get the version entry
+    let Some(version_entry) = version_manifest.get(&args.version) else {
+        error!("Version not found: {}", args.version);
+        error!("Try emptying the cache directory and trying again.");
+        return Err(anyhow!("Version not found in `VersionManifest`"));
+    };
+    info!("Found Version in Manifest: \"{}\"", args.version);
     debug!("Version Entry: {version_entry:#?}");
 
     // Append the version to the cache path
+    let mut cache = args.cache.clone();
     cache.push(version_entry.id.to_short_string());
     if !cache.exists() {
         if let Err(err) = tokio::fs::create_dir_all(&cache).await {
             error!("Failed to create cache directory: {err}");
-            return;
+            return Err(err.into());
         }
     }
 
@@ -55,7 +65,7 @@ pub(crate) async fn generate(
         Ok(manifest) => manifest,
         Err(err) => {
             error!("Failed to get `ReleaseManifest`: {err}");
-            return;
+            return Err(err.into());
         }
     };
     info!("Loaded Release Manifest for: \"{}\"", version_entry.id);
@@ -68,7 +78,7 @@ pub(crate) async fn generate(
             Ok(manifest) => manifest,
             Err(err) => {
                 error!("Failed to get `AssetManifest`: {err}");
-                return;
+                return Err(err.into());
             }
         };
     info!("Loaded Asset Manifest for: \"{}\"", version_entry.id);
@@ -83,9 +93,8 @@ pub(crate) async fn generate(
     .await
     else {
         error!("Failed to download `Client` JAR");
-        return;
+        return Err(anyhow!("Failed to download `Client` JAR"));
     };
-    debug!("`Client` JAR: \"{}\"", client_jar.display());
 
     // Download the `Server` JAR
     let Some(server_jar) =
@@ -93,16 +102,15 @@ pub(crate) async fn generate(
             .await
     else {
         error!("Failed to download `Server` JAR");
-        return;
+        return Err(anyhow!("Failed to download `Server` JAR"));
     };
-    debug!("`Server` JAR: \"{}\"", server_jar.display());
 
     // --- Deobfuscate Jar ---
 
     // Get the latest Yarn mappings for this version
     let Some(yarn_build) = yarn_manifest.get_latest(&version_entry.id) else {
         error!("No Yarn mappings found for: \"{}\"", version_entry.id);
-        return;
+        return Err(anyhow!("No Yarn mappings found"));
     };
     info!("Using Yarn: \"{yarn_build}\"");
 
@@ -110,7 +118,7 @@ pub(crate) async fn generate(
         froglight_tools::mappings::get_yarn_mappings(yarn_build, &cache, &client).await
     else {
         error!("Failed to download `Yarn` mappings");
-        return;
+        return Err(anyhow!("Failed to download `Yarn` mappings"));
     };
 
     // Get the deobfuscated `Client` JAR
@@ -123,7 +131,7 @@ pub(crate) async fn generate(
     .await
     else {
         error!("Failed to deobfuscate `Client` JAR");
-        return;
+        return Err(anyhow!("Failed to deobfuscate `Client` JAR"));
     };
 
     // Read and parse the deobfuscated `Client` JAR
@@ -132,62 +140,62 @@ pub(crate) async fn generate(
         Ok(reader) => reader,
         Err(err) => {
             error!("Failed to create ZIP reader: {err}");
-            return;
+            return Err(err.into());
         }
     };
     let jar_container = match JarContainer::new_tokio_fs(&jar_reader).await {
         Ok(jar) => jar,
         Err(err) => {
             error!("Failed to parse `Client` JAR: {err}");
-            return;
+            return Err(err);
         }
     };
     info!("Successfully parsed \"{}\" `Client` JAR", version_entry.id);
     debug!("\"{}\" parsed {} classes", version_entry.id, jar_container.len());
 
-    // --- Extract and Generate ---
+    // --- Extract  ---
 
     // Run the `Server` JAR generators
     info!("Running \"{}\" `Server` JAR generators ...", version_entry.id);
     let Some(json_path) = froglight_tools::json::generate_server_json(&server_jar, &cache).await
     else {
         error!("Failed to generate `Server` JSON");
-        return;
+        return Err(anyhow!("Failed to generate `Server` JSON"));
     };
     info!("Generated \"{}\" `Server` JSON files", version_entry.id);
 
     // Create a `Value` to store extracted data
     let mut extract_data = Value::Object(Map::new());
 
-    // Extract data from the `Client` JAR
-    {
-        // Create a `ManifestBundle`
-        let manifest_bundle = ManifestBundle::new(
-            &version_manifest,
-            &yarn_manifest,
-            &release_manifest,
-            &asset_manifest,
-        );
+    // Create a `ManifestBundle`
+    let manifest_bundle =
+        ManifestBundle::new(&version_manifest, &yarn_manifest, &release_manifest, &asset_manifest);
 
-        // Create an `ExtractBundle`
-        let _extract_bundle = ExtractBundle::new(
-            &version_entry.id,
-            &jar_container,
-            &jar_reader,
-            manifest_bundle,
-            &mut extract_data,
-            &cache,
-            &json_path,
-        );
+    // Create an `ExtractBundle`
+    let mut extract_bundle = ExtractBundle::new(
+        &version_entry.id,
+        &jar_container,
+        &jar_reader,
+        manifest_bundle,
+        &mut extract_data,
+        &cache,
+        &json_path,
+    );
 
-        // TODO: Iterate over the generate modules
-        // and find required extract modules
+    // Sort modules and extract data
+    let mut modules = args.modules.clone();
+    modules.sort();
+    modules.dedup();
 
-        // TODO: Run the required extract modules
+    info!("Extracting data for: \"{}\"", version_entry.id);
+    debug!("    Modules: {:?}", modules);
+    for module in modules {
+        if let Err(err) = module.extract(&mut extract_bundle).await {
+            error!("Error running `{module:?}`: {err}");
+        }
     }
+    info!("Done!");
 
-    // Generate code from the extracted data
-    {
-        // TODO: Generate code
-    }
+    // Return the extracted data
+    Ok(extract_data)
 }
