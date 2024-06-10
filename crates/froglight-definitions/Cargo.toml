@@ -23,7 +23,7 @@ quick-xml = { version = "0.31.0", features = ["serialize"] }
 chrono = { version = "0.4.38", features = ["serde"] }
 compact_str = { version = "0.7.1", features = ["serde"] }
 hashbrown = { workspace = true, features = ["serde"] }
-regex = "1.10.4"
-semver = { version = "1.0.22", features = ["serde"] }
+regex = "1.10.5"
+semver = { version = "1.0.23", features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["preserve_order"] }

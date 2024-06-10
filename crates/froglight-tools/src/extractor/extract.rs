@@ -3,7 +3,7 @@ use async_zip::tokio::read::fs::ZipFileReader;
 use froglight_extract::{
     bundle::{ExtractBundle, ManifestBundle},
     bytecode::JarContainer,
-    sources::ExtractModule,
+    sources::{ExtractModule, Modules},
 };
 use serde_json::{Map, Value};
 use tracing::{debug, error, info};
@@ -184,6 +184,9 @@ pub(super) async fn extract(args: &ExtractArguments) -> anyhow::Result<Value> {
 
     // Sort modules and extract data
     let mut modules = args.modules.clone();
+    if modules.is_empty() {
+        modules.extend(Modules::DEFAULT);
+    }
     modules.sort();
     modules.dedup();
 

@@ -22,10 +22,9 @@ pub struct Version;
 
 impl ExtractModule for Version {
     async fn extract<'a>(&self, data: &mut ExtractBundle<'a>) -> anyhow::Result<()> {
-        let reader = data.jar_reader;
-
         // Find the `version.json` entry in the JAR.
-        let Some((entry_index, _entry)) = reader
+        let Some((entry_index, _)) = data
+            .jar_reader
             .file()
             .entries()
             .iter()
@@ -36,7 +35,7 @@ impl ExtractModule for Version {
         };
 
         // Get the `version.json` entry and write it to a buffer.
-        let mut entry = reader.reader_with_entry(entry_index).await?;
+        let mut entry = data.jar_reader.reader_with_entry(entry_index).await?;
 
         let mut buffer = String::new();
         entry.read_to_string_checked(&mut buffer).await?;

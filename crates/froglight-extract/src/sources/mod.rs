@@ -24,6 +24,15 @@ pub enum Modules {
     Bytecode(BytecodeModule),
 }
 
+impl Modules {
+    /// Default modules to use when none are specified.
+    pub const DEFAULT: &'static [Modules] = &[
+        Modules::BuiltinJson(BuiltinJsonModule::Version(Version)),
+        Modules::BuiltinJson(BuiltinJsonModule::Blocks(Blocks)),
+        Modules::BuiltinJson(BuiltinJsonModule::Registries(Registries)),
+    ];
+}
+
 /// Trait for extracting data from a source.
 #[enum_dispatch]
 pub trait ExtractModule {

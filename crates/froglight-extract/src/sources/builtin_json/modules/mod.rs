@@ -1,5 +1,5 @@
 mod blocks;
-pub use blocks::Blocks;
+pub use blocks::{BlockData, BlockState, Blocks, BlocksReport};
 
 mod registries;
 pub use registries::Registries;
