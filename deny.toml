@@ -16,6 +16,7 @@ allow = [
     #    "CC0-1.0",
     "MPL-2.0",
     "OpenSSL",
+    "Unicode-3.0",
 ]
 
 [[licenses.exceptions]]

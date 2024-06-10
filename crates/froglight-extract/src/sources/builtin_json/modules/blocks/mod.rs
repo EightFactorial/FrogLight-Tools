@@ -30,7 +30,6 @@ impl ExtractModule for Blocks {
     }
 }
 
-#[allow(clippy::unused_async)]
 impl Blocks {
     /// Extract block states and state ids from `blocks.json`.
     async fn block_json(data: &mut ExtractBundle<'_>) -> anyhow::Result<()> {
@@ -77,6 +76,7 @@ impl Blocks {
         Ok(())
     }
 
-    /// Extract block properties and extra data from bytecode.
+    /// Extract block properties and data from bytecode.
+    #[allow(clippy::unused_async)]
     async fn block_bytecode(_data: &mut ExtractBundle<'_>) -> anyhow::Result<()> { Ok(()) }
 }

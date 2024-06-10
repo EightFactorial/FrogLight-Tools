@@ -44,7 +44,10 @@ impl JarContainer {
                     Ok(_) => {
                         //  Insert the class file into the map
                         if let Some(class_name) = class_name {
-                            classes.insert(class_name, ClassContainer(buffer));
+                            classes.insert(
+                                class_name.trim_end_matches(".class").to_string(),
+                                ClassContainer(buffer),
+                            );
                         }
                     }
                     Err(err) => {

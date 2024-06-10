@@ -30,6 +30,7 @@ impl Modules {
         Modules::BuiltinJson(BuiltinJsonModule::Version(Version)),
         Modules::BuiltinJson(BuiltinJsonModule::Blocks(Blocks)),
         Modules::BuiltinJson(BuiltinJsonModule::Registries(Registries)),
+        Modules::Bytecode(BytecodeModule::Packets(Packets)),
     ];
 }
 
