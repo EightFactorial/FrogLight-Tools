@@ -21,10 +21,17 @@ pub fn setup(verbose: &Verbosity) {
     // Configure the tracing subscriber
     match clap_level {
         ClapLevel::Error | ClapLevel::Warn | ClapLevel::Info => {
-            tracing_subscriber::fmt().with_max_level(trace_level).without_time().init();
+            tracing_subscriber::fmt()
+                .with_max_level(trace_level)
+                .with_writer(std::io::stderr)
+                .without_time()
+                .init();
         }
         ClapLevel::Debug | ClapLevel::Trace => {
-            tracing_subscriber::fmt().with_max_level(trace_level).init();
+            tracing_subscriber::fmt()
+                .with_max_level(trace_level)
+                .with_writer(std::io::stderr)
+                .init();
         }
     }
 }

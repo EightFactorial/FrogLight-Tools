@@ -29,12 +29,12 @@ pub struct Packets;
 impl ExtractModule for Packets {
     async fn extract<'a>(&self, data: &mut ExtractBundle<'a>) -> anyhow::Result<()> {
         // Check if the version is supported
-        let cmp = data.manifests.version.compare(data.version, &Self::MAX_UNSUPPORTED);
-        if cmp.is_none() || cmp.is_some_and(|cmp| cmp != Ordering::Greater) {
-            bail!(
-                "Packet extraction is only supported for versions after {}!",
-                Self::MAX_UNSUPPORTED
-            );
+        let cmp = data
+            .manifests
+            .version
+            .compare(data.version, &MinecraftVersion::new_pre_release(1, 21, 0, 1).unwrap());
+        if cmp.is_none() || cmp.is_some_and(|cmp| cmp == Ordering::Less) {
+            bail!("Packet extraction is only supported for versions since \"1.21.0-pre1\"!");
         }
 
         Packets::packet_json(data).await?;
@@ -43,10 +43,6 @@ impl ExtractModule for Packets {
 }
 
 impl Packets {
-    /// The maximum unsupported version for packet extraction.
-    // TODO: Find the exact version and rename to `MIN_SUPPORTED`
-    const MAX_UNSUPPORTED: MinecraftVersion = MinecraftVersion::new_release(1, 20, 6);
-
     /// Extract packet ids from `packets.json`.
     async fn packet_json(data: &mut ExtractBundle<'_>) -> anyhow::Result<()> {
         // Get the path to the packet report
