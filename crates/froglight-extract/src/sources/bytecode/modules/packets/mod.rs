@@ -8,6 +8,7 @@ use tracing::error;
 
 use crate::{bundle::ExtractBundle, sources::ExtractModule};
 
+mod fields;
 mod registry;
 
 /// A module that extracts packet information and fields.
@@ -29,10 +30,8 @@ pub struct Packets;
 impl ExtractModule for Packets {
     async fn extract<'a>(&self, data: &mut ExtractBundle<'a>) -> anyhow::Result<()> {
         // Check if the version is supported
-        let cmp = data
-            .manifests
-            .version
-            .compare(data.version, &MinecraftVersion::new_pre_release(1, 21, 0, 1).unwrap());
+        let min_version = MinecraftVersion::new_pre_release(1, 21, 0, 1).unwrap();
+        let cmp = data.manifests.version.compare(data.version, &min_version);
         if cmp.is_none() || cmp.is_some_and(|cmp| cmp == Ordering::Less) {
             bail!("Packet extraction is only supported for versions since \"1.21.0-pre1\"!");
         }
@@ -94,7 +93,16 @@ impl Packets {
             }
         }
 
-        // TODO: Get packet fields
+        // Get packet fields
+        let Some(packet_fields) = Self::get_packet_fields(packet_list, data) else {
+            bail!("Failed to get packet fields");
+        };
+        // Append the packet fields to the output
+        for (packet, fields) in packet_fields {
+            if !Self::append_packet_fields(&packet, fields, data) {
+                error!("Failed to append packet fields to \"{packet}\"");
+            }
+        }
 
         Ok(())
     }

@@ -7,39 +7,10 @@ use hashbrown::HashMap;
 use tracing::error;
 
 use super::Packets;
-use crate::{bundle::ExtractBundle, sources::get_method_code};
+use crate::{bundle::ExtractBundle, sources::get_class_method_code};
 
 impl Packets {
-    /// Append the packet class to the output.
-    ///
-    /// All packets must be iterated over,
-    /// since the same packet can be used multiple times.
-    pub(super) fn append_packet_class(
-        packet: &str,
-        class: &str,
-        data: &mut ExtractBundle<'_>,
-    ) -> bool {
-        let mut found_matching = false;
-        if let Some(packets) = data.output["packets"].as_object_mut() {
-            for state in packets.values_mut() {
-                if let Some(state) = state.as_object_mut() {
-                    for direction in state.values_mut() {
-                        if let Some(packet_data) = direction.get_mut(packet) {
-                            if packet_data.get("java_class").is_none() {
-                                packet_data["java_class"] = class.to_string().into();
-                                found_matching = true;
-                            } else {
-                                error!("Packet class already set for \"{packet}\"?");
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        found_matching
-    }
-
-    const STATIC_METHOD: &'static str = "<clinit>";
+    const REGISTRY_METHOD: &'static str = "<clinit>";
     const PACKET_TYPE: &'static str = "Lnet/minecraft/network/packet/PacketType;";
 
     /// Extract packets from a packet registry class.
@@ -51,7 +22,7 @@ impl Packets {
         data: &ExtractBundle<'_>,
     ) -> Option<HashMap<String, String>> {
         let classfile = data.jar_container.get(class)?.parse();
-        let code = get_method_code(&classfile, Self::STATIC_METHOD)?;
+        let code = get_class_method_code(&classfile, Self::REGISTRY_METHOD)?;
 
         let mut map = HashMap::new();
 
@@ -115,5 +86,36 @@ impl Packets {
         } else {
             Some(map)
         }
+    }
+
+    const CLASS_ENTRY: &'static str = "class";
+
+    /// Append the packet class to the output.
+    ///
+    /// All packets must be iterated over,
+    /// since the same packet can be used multiple times.
+    pub(super) fn append_packet_class(
+        packet: &str,
+        class: &str,
+        data: &mut ExtractBundle<'_>,
+    ) -> bool {
+        let mut found_matching = false;
+        if let Some(packets) = data.output["packets"].as_object_mut() {
+            for state in packets.values_mut() {
+                if let Some(state) = state.as_object_mut() {
+                    for direction in state.values_mut() {
+                        if let Some(packet_data) = direction.get_mut(packet) {
+                            if packet_data.get(Self::CLASS_ENTRY).is_none() {
+                                packet_data[Self::CLASS_ENTRY] = class.to_string().into();
+                                found_matching = true;
+                            } else {
+                                error!("Packet class already set for \"{packet}\"?");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        found_matching
     }
 }
