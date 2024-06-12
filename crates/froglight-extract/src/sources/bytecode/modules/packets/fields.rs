@@ -4,46 +4,93 @@ use cafebabe::{
     attributes::AttributeData,
     bytecode::Opcode,
     constant_pool::{BootstrapArgument, InvokeDynamic, MemberRef, NameAndType},
-    descriptor::{FieldType, Ty},
+    descriptor::FieldType,
     ClassFile, MethodInfo,
 };
 use tracing::{debug, error, trace, warn};
 
-use super::Packets;
+use super::{codec::CodecConstructor, Packets};
 use crate::{
     bundle::ExtractBundle,
     sources::{bytecode::traits::FieldTypeTrait, get_method_code},
 };
 
 impl Packets {
+    /// Get the fields of a packet class
     pub(super) fn get_packet_fields(
         packets: Vec<(String, String)>,
         data: &ExtractBundle<'_>,
     ) -> Option<Vec<(String, Vec<String>)>> {
         let mut packet_fields = Vec::with_capacity(packets.len());
-        for (packet_key, packet_class) in packets {
-            let Some(fields) = Self::packet_fields(&packet_class, data) else {
-                error!("Failed to get packet fields for \"{packet_key}\"");
+        for (key, class) in packets {
+            let Some(fields) = Self::packet_fields(&class, data) else {
+                error!("Failed to get packet fields for \"{key}\"");
                 return None;
             };
-            packet_fields.push((packet_key, fields));
+            packet_fields.push((key, fields));
         }
         Some(packet_fields)
     }
 
-    const CODEC_FIELD_NAME: &'static str = "CODEC";
-
     /// Get the fields of a packet class
-    fn packet_fields(packet_class: &str, data: &ExtractBundle<'_>) -> Option<Vec<String>> {
-        let classfile = data.jar_container.get(packet_class)?.parse();
+    fn packet_fields(class: &str, data: &ExtractBundle<'_>) -> Option<Vec<String>> {
+        let classfile = data.jar_container.get(class)?.parse();
+        trace!("Class: {}", classfile.this_class);
 
+        // Detect codec type and construction, choose the correct method to parse
+        match Self::get_codec_type(&classfile) {
+            // Units have no fields
+            Some(CodecConstructor::Unit) => Some(Vec::new()),
+            // Parse the fields from the codec's `encode`/`decode` methods
+            Some(CodecConstructor::CreateCodec(_)) => Self::parse_codec_method(&classfile, data),
+            // TODO: Parse the tuple constructor
+            Some(CodecConstructor::Tuple(_)) => {
+                warn!("`Tuple` codec not implemented: \"{}\"", classfile.this_class);
+                Some(Vec::new())
+            }
+            // TODO: Parse the xmap constructor
+            Some(CodecConstructor::XMap(_)) => {
+                warn!("`XMap` codec not implemented: \"{}\"", classfile.this_class);
+                Some(Vec::new())
+            }
+            None => {
+                // Don't emit a warning if the class is a bundle.
+                // Bundles don't have a codec field.
+                if !classfile.this_class.contains("Bundle") {
+                    warn!(
+                        "No `{}` field found in \"{}\"",
+                        Self::CODEC_FIELD_NAME,
+                        classfile.this_class
+                    );
+                }
+                Some(Vec::new())
+            }
+        }
+    }
+
+    const SIGNATURE_ATTRIB_NAME: &'static str = "Signature";
+
+    const CODEC_PREFIX: &'static str = "Lnet/minecraft/network/codec/PacketCodec<";
+    const CODEC_SUFFIX: &'static str = ";>;";
+
+    /// Look at the codec field signature to see what it was constructed using
+    ///
+    /// Then find a method that uses the same parameters
+    /// and parse the fields from it.
+    // TODO: I don't think is correct, it always uses a `PacketByteBuf`...
+    fn parse_codec_method(
+        classfile: &ClassFile<'_>,
+        _data: &ExtractBundle<'_>,
+    ) -> Option<Vec<String>> {
         let Some(field) =
-            classfile.fields.iter().find(|field| field.name == Self::CODEC_FIELD_NAME)
+            classfile.fields.iter().find(|&field| field.name == Self::CODEC_FIELD_NAME)
         else {
-            error!("Failed to find codec field in \"{packet_class}\"");
+            error!("Failed to find codec field in \"{}\"", classfile.this_class);
             return Some(Vec::new());
         };
-        let Some(attribute) = field.attributes.iter().find(|a| a.name == "Signature") else {
+        let Some(attribute) =
+            field.attributes.iter().find(|&a| a.name == Self::SIGNATURE_ATTRIB_NAME)
+        else {
             error!("Failed to find signature attribute in codec field");
             return None;
         };
@@ -52,48 +99,57 @@ impl Packets {
             return None;
         };
 
-        let parameters_method = signature
-            .trim_start_matches("Lnet/minecraft/network/codec/PacketCodec<")
-            .trim_end_matches(";>;");
+        let parameters_method =
+            signature.trim_start_matches(Self::CODEC_PREFIX).trim_end_matches(Self::CODEC_SUFFIX);
         let parameters = format!("{};", parameters_method.split_once(";L")?.0);
         let parameters = Cow::Borrowed(parameters.as_str());
         let parameters = FieldType::parse(&parameters)?;
 
-        // TODO: Detect codec type and construction, choose the correct method to parse
-
-        // Find and parse the method with matching parameters
-        if let Some(method) = classfile
+        if let Some(fields) = classfile
             .methods
             .iter()
-            .find(|method| method.descriptor.parameters == vec![parameters.clone()])
+            .find(|&method| method.descriptor.parameters == vec![parameters.clone()])
+            .and_then(|method| Self::fields_from_method(classfile, method))
         {
-            return Self::fields_from_opcodes(&classfile, method);
+            Some(fields)
+        } else {
+            error!("Failed to find method for \"{}\"", classfile.this_class);
+            debug!("Parameters: {parameters:?}");
+            None
         }
-
-        // Unit packets have no fields
-        if parameters == FieldType::Ty(Ty::Object(Cow::Borrowed("io/netty/buffer/ByteBuf"))) {
-            warn!("Is \"{packet_class}\" a Unit?");
-            return Some(Vec::new());
-        }
-
-        // Log an error and return an empty list
-        error!("Failed to find method for \"{packet_class}\"");
-        debug!("Parameters: {parameters:?}");
-        Some(Vec::new())
     }
 
-    /// Get the fields from the opcodes of a method
-    fn fields_from_opcodes(class: &ClassFile<'_>, method: &MethodInfo) -> Option<Vec<String>> {
+    const BOOTSRAP_FIELD_NAME: &'static str = "BootstrapMethods";
+
+    /// Get a list of packet fields from a method
+    ///
+    /// Iterates over the opcodes of the method to find when
+    /// specific methods are called, which are then used to
+    /// determine what data types packets are composed of.
+    ///
+    /// A packet that calls `ByteBuffer.readString`
+    /// *probably* contains a string.
+    fn fields_from_method(class: &ClassFile<'_>, method: &MethodInfo) -> Option<Vec<String>> {
         let code = get_method_code(method)?;
         let mut fields = Vec::new();
 
-        trace!("Class: {}", class.this_class);
         for (_, op) in &code.opcodes {
             match op {
+                // Find the type read from the method call, if any
+                Opcode::Invokeinterface(MemberRef { class_name, name_and_type }, ..)
+                | Opcode::Invokespecial(MemberRef { class_name, name_and_type })
+                | Opcode::Invokestatic(MemberRef { class_name, name_and_type })
+                | Opcode::Invokevirtual(MemberRef { class_name, name_and_type }) => {
+                    if let Some(field) = Self::name_to_type(class_name, name_and_type) {
+                        fields.push(field);
+                    }
+                }
                 // Resolve the dynamic method call and find the type, if any
+                //
+                // I'm only guessing `dynamic` means to look at the bootstrap methods...
                 Opcode::Invokedynamic(InvokeDynamic { attr_index, name_and_type }) => {
                     if let Some(bootstrap) =
-                        class.attributes.iter().find(|attr| attr.name == "BootstrapMethods")
+                        class.attributes.iter().find(|attr| attr.name == Self::BOOTSRAP_FIELD_NAME)
                     {
                         let AttributeData::BootstrapMethods(bootstrap) = &bootstrap.data else {
                             error!("    Dyn Missing :: Mislabeled :: {}", name_and_type.name);
@@ -119,15 +175,6 @@ impl Packets {
                         error!("    Dyn Missing :: None :: {}", name_and_type.name);
                     }
                 }
-                // Find the type read from the method call, if any
-                Opcode::Invokeinterface(MemberRef { class_name, name_and_type }, ..)
-                | Opcode::Invokespecial(MemberRef { class_name, name_and_type })
-                | Opcode::Invokestatic(MemberRef { class_name, name_and_type })
-                | Opcode::Invokevirtual(MemberRef { class_name, name_and_type }) => {
-                    if let Some(field) = Self::name_to_type(class_name, name_and_type) {
-                        fields.push(field);
-                    }
-                }
                 _ => {}
             }
         }
@@ -135,54 +182,56 @@ impl Packets {
         Some(fields)
     }
 
-    /// Get the returned type from:
+    const BYTEBUF_TYPE: &'static str = "io/netty/buffer/ByteBuf";
+    const PACKETBYTEBUF_TYPE: &'static str = "net/minecraft/network/PacketByteBuf";
+    const REGISTRYBYTEBUF_TYPE: &'static str = "net/minecraft/network/RegistryByteBuf";
+
+    /// Determine the type by:
     /// 1. class that owns the method
     /// 2. the name of the method
     fn name_to_type(class_name: &str, name_and_type: &NameAndType) -> Option<String> {
         match class_name {
-            "io/netty/buffer/ByteBuf"
-            | "net/minecraft/network/PacketByteBuf"
-            | "net/minecraft/network/RegistryByteBuf" => match &*name_and_type.name {
-                "decodeAsJson" => Some(String::from("Json")),
-                "readBlockPos" => Some(String::from("BlockPos")),
-                "readBlockHitResult" => Some(String::from("BlockHitResult")),
-                "readBoolean" => Some(String::from("bool")),
-                "readByte" | "readUnsignedByte" => Some(String::from("u8")),
-                "readByteArray" => Some(String::from("Vec<u8>")),
-                "readChunkPos" => Some(String::from("ChunkPos")),
-                "readCollection" | "readList" => Some(String::from("Vec")),
-                "readDouble" => Some(String::from("f64")),
-                "readEnumConstant" => Some(String::from("Enum")),
-                "readEnumSet" => Some(String::from("BitSet")),
-                "readFloat" => Some(String::from("f32")),
-                "readIdentifier" => Some(String::from("ResourceKey")),
-                "readInstant" | "readLong" => Some(String::from("i64")),
-                "readInt" => Some(String::from("i32")),
-                "readIntArray" | "readIntList" => Some(String::from("Vec<i32>")),
-                "readLongArray" => Some(String::from("Vec<i64>")),
-                "readMap" => Some(String::from("HashMap")),
-                "readNbt" => Some(String::from("Nbt")),
-                "readNullable" | "readOptional" => Some(String::from("Option")),
-                "readShort" => Some(String::from("i16")),
-                "readString" => Some(String::from("String")),
-                "readUnsignedShort" => Some(String::from("u16")),
-                "readUuid" => Some(String::from("Uuid")),
-                "readVarInt" => Some(String::from("VarInt")),
-                "readVarLong" => Some(String::from("VarLong")),
-                _ => {
-                    trace!("    {class_name} :: {}", name_and_type.name);
-                    None
+            Self::BYTEBUF_TYPE | Self::PACKETBYTEBUF_TYPE | Self::REGISTRYBYTEBUF_TYPE => {
+                match &*name_and_type.name {
+                    "decodeAsJson" => Some(String::from("Json")),
+                    "readBlockPos" => Some(String::from("BlockPos")),
+                    "readBlockHitResult" => Some(String::from("BlockHitResult")),
+                    "readBoolean" => Some(String::from("bool")),
+                    "readByte" | "readUnsignedByte" => Some(String::from("u8")),
+                    "readByteArray" => Some(String::from("Vec<u8>")),
+                    "readChunkPos" => Some(String::from("ChunkPos")),
+                    "readCollection" | "readList" => Some(String::from("Vec")),
+                    "readDouble" => Some(String::from("f64")),
+                    "readEnumConstant" => Some(String::from("Enum")),
+                    "readEnumSet" => Some(String::from("BitSet")),
+                    "readFloat" => Some(String::from("f32")),
+                    "readIdentifier" => Some(String::from("ResourceKey")),
+                    "readInstant" | "readLong" => Some(String::from("i64")),
+                    "readInt" => Some(String::from("i32")),
+                    "readIntArray" | "readIntList" => Some(String::from("Vec<i32>")),
+                    "readLongArray" => Some(String::from("Vec<i64>")),
+                    "readMap" => Some(String::from("HashMap")),
+                    "readNbt" => Some(String::from("Nbt")),
+                    "readNullable" | "readOptional" => Some(String::from("Option")),
+                    "readShort" => Some(String::from("i16")),
+                    "readString" => Some(String::from("String")),
+                    "readUnsignedShort" => Some(String::from("u16")),
+                    "readUuid" => Some(String::from("Uuid")),
+                    "readVarInt" => Some(String::from("VarInt")),
+                    "readVarLong" => Some(String::from("VarLong")),
+                    _ => {
+                        trace!("    {class_name} :: {}", name_and_type.name);
+                        None
+                    }
                 }
-            },
+            }
             "net/minecraft/network/packet/c2s/handshake/ConnectionIntent"
             | "net/minecraft/util/math/Direction"
             | "net/minecraft/world/Difficulty" => {
-                if name_and_type.name == "byId" {
-                    Some(String::from("VarInt"))
-                } else {
+                if name_and_type.name != "byId" {
                     trace!("    {class_name} :: {}", name_and_type.name);
-                    None
                 }
+                None
             }
             "net/minecraft/entity/EquipmentSlot" => {
                 if name_and_type.name == "values" {
@@ -221,6 +270,7 @@ impl Packets {
             | "net/minecraft/network/codec/PacketCodec"
             | "net/minecraft/util/math/MathHelper"
             | "com/mojang/datafixers/util/Pair"
+            | "java/lang/Object"
             | "java/util/function/Function"
             | "java/util/List"
             | "java/util/Optional" => None,

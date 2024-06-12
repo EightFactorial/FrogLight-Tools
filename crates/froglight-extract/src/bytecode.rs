@@ -84,6 +84,8 @@ pub struct ClassContainer(Arc<[u8]>);
 
 impl ClassContainer {
     /// Parse the class file.
+    ///
+    /// Try not to call this method multiple times, as it is expensive.
     #[must_use]
     #[allow(clippy::missing_panics_doc)]
     pub fn parse(&self) -> ClassFile<'_> { cafebabe::parse_class(&self.0).unwrap() }

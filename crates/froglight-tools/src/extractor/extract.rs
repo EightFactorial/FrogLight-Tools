@@ -13,10 +13,10 @@ use crate::cli::ExtractArguments;
 /// Extract data from the specified version.
 #[allow(clippy::too_many_lines)]
 pub(super) async fn extract(args: &ExtractArguments) -> anyhow::Result<Value> {
-    // --- Prepare Files ---
-
     // Create a `Client` for downloading files
     let client = reqwest::Client::new();
+
+    // --- Prepare Manifests ---
 
     // Get the `VersionManifest`
     let version_manifest =
@@ -24,16 +24,6 @@ pub(super) async fn extract(args: &ExtractArguments) -> anyhow::Result<Value> {
 
     // Get the `YarnManifest`
     let yarn_manifest = froglight_tools::manifests::get_yarn_manifest(&args.cache, &client).await?;
-
-    // Get `TinyRemapper`
-    let Some(remapper_path) =
-        froglight_tools::mappings::get_tinyremapper(&args.cache, &client).await
-    else {
-        let error = "Failed to download `TinyRemapper` JAR";
-
-        error!("{error}");
-        return Err(anyhow!(error));
-    };
 
     // Get the version entry
     let Some(version_entry) = version_manifest.get(&args.version) else {
@@ -84,6 +74,26 @@ pub(super) async fn extract(args: &ExtractArguments) -> anyhow::Result<Value> {
     info!("Loaded Asset Manifest for: \"{}\"", version_entry.id);
     debug!("Asset Manifest: {} Assets", asset_manifest.objects.len());
 
+    // --- Run `Server` JAR Generators ---
+
+    // Download the `Server` JAR
+    let Some(server_jar) =
+        froglight_tools::json::download_server_jar(&release_manifest.downloads, &cache, &client)
+            .await
+    else {
+        error!("Failed to download `Server` JAR");
+        return Err(anyhow!("Failed to download `Server` JAR"));
+    };
+
+    // Run the `Server` JAR generators
+    info!("Running \"{}\" `Server` JAR generators ...", version_entry.id);
+    let Some(json_path) = froglight_tools::json::generate_server_json(&server_jar, &cache).await
+    else {
+        error!("Failed to generate `Server` JSON");
+        return Err(anyhow!("Failed to generate `Server` JSON"));
+    };
+    info!("Generated \"{}\" `Server` JSON files", version_entry.id);
+
     // Download the `Client` JAR
     let Some(client_jar) = froglight_tools::deobfuscate::download_client_jar(
         &release_manifest.downloads,
@@ -96,16 +106,17 @@ pub(super) async fn extract(args: &ExtractArguments) -> anyhow::Result<Value> {
         return Err(anyhow!("Failed to download `Client` JAR"));
     };
 
-    // Download the `Server` JAR
-    let Some(server_jar) =
-        froglight_tools::json::download_server_jar(&release_manifest.downloads, &cache, &client)
-            .await
-    else {
-        error!("Failed to download `Server` JAR");
-        return Err(anyhow!("Failed to download `Server` JAR"));
-    };
+    // --- Deobfuscate `Client` JAR ---
 
-    // --- Deobfuscate Jar ---
+    // Get `TinyRemapper`
+    let Some(remapper_path) =
+        froglight_tools::mappings::get_tinyremapper(&args.cache, &client).await
+    else {
+        let error = "Failed to download `TinyRemapper` JAR";
+
+        error!("{error}");
+        return Err(anyhow!(error));
+    };
 
     // Get the latest Yarn mappings for this version
     let Some(yarn_build) = yarn_manifest.get_latest(&version_entry.id) else {
@@ -154,15 +165,6 @@ pub(super) async fn extract(args: &ExtractArguments) -> anyhow::Result<Value> {
     debug!("\"{}\" parsed {} classes", version_entry.id, jar_container.len());
 
     // --- Extract  ---
-
-    // Run the `Server` JAR generators
-    info!("Running \"{}\" `Server` JAR generators ...", version_entry.id);
-    let Some(json_path) = froglight_tools::json::generate_server_json(&server_jar, &cache).await
-    else {
-        error!("Failed to generate `Server` JSON");
-        return Err(anyhow!("Failed to generate `Server` JSON"));
-    };
-    info!("Generated \"{}\" `Server` JSON files", version_entry.id);
 
     // Create a `Value` to store extracted data
     let mut extract_data = Value::Object(Map::new());

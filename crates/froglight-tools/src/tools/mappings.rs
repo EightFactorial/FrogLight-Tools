@@ -24,6 +24,7 @@ pub async fn get_tinyremapper(cache: &Path, client: &Client) -> Option<PathBuf> 
     info!("Downloading `TinyRemapper` from: \"{}\"", REMAPPER_URL);
     let response = client.get(REMAPPER_URL).send().await.ok()?;
     let bytes = response.bytes().await.ok()?;
+    info!("Caching `TinyRemapper` at: \"{}\"", remapper_path.display());
     tokio::fs::write(&remapper_path, &bytes).await.ok()?;
 
     Some(remapper_path)

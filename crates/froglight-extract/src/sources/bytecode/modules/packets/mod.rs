@@ -8,6 +8,7 @@ use tracing::error;
 
 use crate::{bundle::ExtractBundle, sources::ExtractModule};
 
+mod codec;
 mod fields;
 mod registry;
 
