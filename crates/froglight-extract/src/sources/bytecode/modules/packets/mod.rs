@@ -2,15 +2,17 @@ use std::cmp::Ordering;
 
 use anyhow::bail;
 use froglight_definitions::MinecraftVersion;
+use hashbrown::HashMap;
 use serde_json::Value;
 use serde_unit_struct::{Deserialize_unit_struct, Serialize_unit_struct};
-use tracing::error;
 
 use crate::{bundle::ExtractBundle, sources::ExtractModule};
 
-mod codec;
+mod constructor;
+mod discover;
 mod fields;
-mod registry;
+mod special;
+mod tuple;
 
 /// A module that extracts packet information and fields.
 #[derive(
@@ -58,50 +60,49 @@ impl Packets {
         Ok(())
     }
 
-    /// Packet registry names and classes
-    const PACKET_REGISTRY_CLASSES: [&'static str; 8] = [
-        "net/minecraft/network/packet/LoginPackets",
-        "net/minecraft/network/packet/CommonPackets",
-        "net/minecraft/network/packet/PingPackets",
-        "net/minecraft/network/packet/HandshakePackets",
-        "net/minecraft/network/packet/CookiePackets",
-        "net/minecraft/network/packet/PlayPackets",
-        "net/minecraft/network/packet/StatusPackets",
-        "net/minecraft/network/packet/ConfigPackets",
-    ];
-
     /// Extract packet fields from bytecode.
     #[allow(clippy::unused_async)]
     async fn packet_bytecode(data: &mut ExtractBundle<'_>) -> anyhow::Result<()> {
-        // Get a map of all packets and their classes
-        let mut packet_list = Vec::new();
-        for registry_class in Self::PACKET_REGISTRY_CLASSES {
-            let Some(packets) = Self::packets_in_class(registry_class, data) else {
-                bail!("Failed to identify packets for \"{registry_class}\"");
-            };
-            packet_list.extend(packets);
-        }
+        // Discover packet classes
+        let classes = Self::discover_classes(data)?;
 
-        // Filter out specific packets
+        // Extract packet fields
+        let packets: HashMap<String, (String, Vec<String>)> = classes
+            .into_iter()
+            .map(|(key, class)| {
+                Self::packet_fields(&class, data).map(|fields| (key, (class, fields)))
+            })
+            .try_collect()?;
+
+        // Append the packet data to the existing output
         //
-        // "minecraft:bundle" since it is the same as "minecraft:bundle_delimiter"
-        packet_list.retain(|(packet, _)| packet != "minecraft:bundle");
-
-        // Append the packet classes to the output
-        for (packet, class) in &packet_list {
-            if !Self::append_packet_class(packet, class, data) {
-                error!("Failed to append packet class to \"{packet}\"");
-            }
-        }
-
-        // Get packet fields
-        let Some(packet_fields) = Self::get_packet_fields(packet_list, data) else {
-            bail!("Failed to get packet fields");
-        };
-        // Append the packet fields to the output
-        for (packet, fields) in packet_fields {
-            if !Self::append_packet_fields(&packet, fields, data) {
-                error!("Failed to append packet fields to \"{packet}\"");
+        // {
+        //     "packets": {
+        //         "state": {
+        //             "direction": {
+        //                 "packet": {
+        //                     "class": "packet_class",
+        //                     "fields": ["field1", "field2"]
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+        for (key, (class, fields)) in packets {
+            let packet_data = data.output["packets"].as_object_mut().unwrap();
+            // Get the packet states
+            for (_state, state_data) in packet_data {
+                // Get the directions for the state
+                let states = state_data.as_object_mut().unwrap();
+                for (_direction, direction_data) in states {
+                    // Get the packets for the direction
+                    let packets = direction_data.as_object_mut().unwrap();
+                    if let Some(packet_data) = packets.get_mut(&key) {
+                        // Insert the packet data
+                        packet_data["class"] = class.clone().into();
+                        packet_data["fields"] = fields.clone().into();
+                    }
+                }
             }
         }
 
