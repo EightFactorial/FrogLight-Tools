@@ -74,9 +74,16 @@ impl Packets {
         for member in members {
             // If the descriptor is a function, parse it as a `CodecConstructor::Special`
             if is_descriptor_function(&member.name_and_type.descriptor) {
-                if let Some(field) = Self::parse_special(CodecConstructor::Special(member)) {
-                    fields.push(field);
-                }
+                if let Some(classfile) =
+                    data.jar_container.get(member.class_name.as_ref()).map(ClassContainer::parse)
+                {
+                    fields.extend(Self::parse_method(&classfile, &member.name_and_type, data)?);
+                } else {
+                    bail!(
+                        "Error extracting packet fields, \"{}\" does not exist",
+                        member.class_name
+                    );
+                };
             } else if let Some(member_classfile) =
                 data.jar_container.get(member.class_name.as_ref()).map(ClassContainer::parse)
             {

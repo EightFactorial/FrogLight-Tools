@@ -9,11 +9,11 @@ use crate::sources::{get_class_method_code, is_descriptor_function};
 #[derive(Debug)]
 #[allow(dead_code)]
 pub(super) enum CodecConstructor<'a> {
-    Create(Cow<'a, str>),
+    Create(&'a Cow<'a, str>),
     Special(&'a MemberRef<'a>),
-    Tuple(Cow<'a, str>),
+    Tuple(&'a Cow<'a, str>),
     Unit,
-    XMap(Cow<'a, str>),
+    XMap(&'a Cow<'a, str>),
 }
 
 impl Packets {
@@ -61,19 +61,19 @@ impl Packets {
                                 }
                                 "createCodec" => {
                                     return Ok((
-                                        CodecConstructor::Create(name_and_type.descriptor.clone()),
+                                        CodecConstructor::Create(&classfile.this_class),
                                         index,
                                     ));
                                 }
                                 "tuple" => {
                                     return Ok((
-                                        CodecConstructor::Tuple(name_and_type.descriptor.clone()),
+                                        CodecConstructor::Tuple(&name_and_type.descriptor),
                                         index,
                                     ));
                                 }
                                 "xmap" => {
                                     return Ok((
-                                        CodecConstructor::XMap(name_and_type.descriptor.clone()),
+                                        CodecConstructor::XMap(&name_and_type.descriptor),
                                         index,
                                     ));
                                 }

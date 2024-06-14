@@ -9,9 +9,9 @@ use serde_unit_struct::{Deserialize_unit_struct, Serialize_unit_struct};
 use crate::{bundle::ExtractBundle, sources::ExtractModule};
 
 mod constructor;
+mod create;
 mod discover;
 mod fields;
-mod special;
 mod tuple;
 
 /// A module that extracts packet information and fields.

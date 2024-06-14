@@ -3,6 +3,7 @@ use cafebabe::{
     descriptor::{FieldType, Ty},
     ClassFile, FieldInfo,
 };
+use tracing::warn;
 
 use super::Packets;
 use crate::{
@@ -44,7 +45,7 @@ impl Packets {
                 FieldType::Ty(Ty::Object(object)) => match &**object {
                     Self::PACKET_CODEC_TYPE => Self::read_codec(classfile, codec_field, data),
                     unk => {
-                        println!("Unknown codec type: {unk}");
+                        warn!("Unknown codec type: {unk}");
                         Self::read_codec(classfile, codec_field, data)
                     }
                 },
@@ -67,16 +68,20 @@ impl Packets {
         data: &ExtractBundle<'_>,
     ) -> anyhow::Result<Vec<String>> {
         match Self::codec_type(classfile, codec_field)? {
-            (codec @ CodecConstructor::Special(_), _) => {
-                Ok(Self::parse_special(codec).map(|field| vec![field]).unwrap_or_default())
+            (codec @ CodecConstructor::Create(..), index) => Self::parse_create(codec, index, data),
+            (CodecConstructor::Special(member), _) => {
+                let Some(classfile) =
+                    data.jar_container.get(member.class_name.as_ref()).map(ClassContainer::parse)
+                else {
+                    bail!("Special codec class not found: {}", member.class_name);
+                };
+
+                Self::parse_method(&classfile, &member.name_and_type, data)
             }
             (codec @ CodecConstructor::Tuple(_), index) => {
                 Self::parse_tuple(classfile, codec, index, data)
             }
-            (
-                CodecConstructor::Unit | CodecConstructor::Create(..) | CodecConstructor::XMap(..),
-                _,
-            ) => Ok(Vec::new()),
+            (CodecConstructor::Unit | CodecConstructor::XMap(..), _) => Ok(Vec::new()),
         }
     }
 }
