@@ -5,14 +5,12 @@ use froglight_definitions::MinecraftVersion;
 use hashbrown::HashMap;
 use serde_json::Value;
 use serde_unit_struct::{Deserialize_unit_struct, Serialize_unit_struct};
+use tracing::error;
 
 use crate::{bundle::ExtractBundle, sources::ExtractModule};
 
-mod constructor;
-mod create;
 mod discover;
-mod fields;
-mod tuple;
+mod parse;
 
 /// A module that extracts packet information and fields.
 #[derive(
@@ -66,46 +64,57 @@ impl Packets {
         // Discover packet classes
         let classes = Self::discover_classes(data)?;
 
-        // Extract packet fields
-        let packets: HashMap<String, (String, Vec<String>)> = classes
-            .into_iter()
-            .map(|(key, class)| {
-                Self::packet_fields(&class, data).map(|fields| (key, (class, fields)))
-            })
-            .try_collect()?;
+        // Get packet fields
+        let packet_data = Self::parse(classes, data)?;
+        // Append data to output
+        Self::append_bytecode_info(packet_data, data);
 
-        // Append the packet data to the existing output
-        //
-        // {
-        //     "packets": {
-        //         "state": {
-        //             "direction": {
-        //                 "packet": {
-        //                     "class": "packet_class",
-        //                     "fields": ["field1", "field2"]
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
-        for (key, (class, fields)) in packets {
-            let packet_data = data.output["packets"].as_object_mut().unwrap();
-            // Get the packet states
-            for (_state, state_data) in packet_data {
-                // Get the directions for the state
-                let states = state_data.as_object_mut().unwrap();
-                for (_direction, direction_data) in states {
-                    // Get the packets for the direction
-                    let packets = direction_data.as_object_mut().unwrap();
-                    if let Some(packet_data) = packets.get_mut(&key) {
-                        // Insert the packet data
-                        packet_data["class"] = class.clone().into();
-                        packet_data["fields"] = fields.clone().into();
+        Ok(())
+    }
+
+    // Append the packet data to the existing output
+    //
+    // {
+    //     "packets": {
+    //         "state": {
+    //             "direction": {
+    //                 // Insert data matching this key
+    //                 "some:packet": {
+    //                     "class": "packet_class",
+    //                     "fields": ["type1", "type2"]
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+    fn append_bytecode_info(
+        packet_data: HashMap<String, (String, Vec<String>)>,
+        data: &mut ExtractBundle<'_>,
+    ) {
+        let output_packets = data.output["packets"].as_object_mut().unwrap();
+
+        // Get the packet states
+        for (_state, state_data) in output_packets {
+            // Get the directions for the state
+            //
+            let states = state_data.as_object_mut().unwrap();
+            for (_direction, direction_data) in states {
+                // Get the packets for the direction
+                //
+                let packets = direction_data.as_object_mut().unwrap();
+                for (packet_key, data) in packets {
+                    // Check if any data was found for this packet
+                    //
+                    if let Some((class, fields)) = packet_data.get(packet_key) {
+                        // Insert the class and fields
+                        data["class"] = Value::String(class.clone());
+                        data["fields"] =
+                            Value::Array(fields.iter().cloned().map(Value::String).collect());
+                    } else {
+                        error!("Failed to find packet data for \"{packet_key}\"");
                     }
                 }
             }
         }
-
-        Ok(())
     }
 }

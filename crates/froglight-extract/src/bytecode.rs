@@ -13,6 +13,21 @@ use tracing::error;
 pub struct JarContainer(HashMap<String, ClassContainer>);
 
 impl JarContainer {
+    /// Get the [`ClassFile`] with the given name
+    ///
+    /// Returns `None` if the class does not exist in the jar.
+    pub fn get_class<'a>(&'a self, class: &str) -> Option<ClassFile<'a>> {
+        self.get(class).map(ClassContainer::parse)
+    }
+
+    /// Get the [`ClassFile`] with the given name
+    ///
+    /// Returns an error if the class does not exist in the jar.
+    #[allow(clippy::missing_errors_doc)]
+    pub fn get_class_err<'a>(&'a self, class: &str) -> anyhow::Result<ClassFile<'a>> {
+        self.get_class(class).ok_or(anyhow::anyhow!("Class \"{class}\" does not exist in the jar"))
+    }
+
     /// Create a new [`JarContainer`] from a ZIP file reader.
     ///
     /// # Errors

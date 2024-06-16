@@ -8,8 +8,7 @@ use hashbrown::HashMap;
 use super::Packets;
 use crate::{
     bundle::ExtractBundle,
-    bytecode::ClassContainer,
-    sources::{get_class_field, get_class_method_code, get_field_signature},
+    sources::helpers::{get_class_field, get_class_method, get_code, get_signature},
 };
 
 impl Packets {
@@ -35,12 +34,9 @@ impl Packets {
         let mut class_map = HashMap::new();
 
         for class in Self::PACKET_CLASSES {
-            let Some(classfile) = data.jar_container.get(class).map(ClassContainer::parse) else {
-                bail!("Packet class \"{class}\" not found in jar");
-            };
-            let Some(code) = get_class_method_code(&classfile, Self::REGISTRY_METHOD) else {
-                bail!("Packet class \"{class}\" has no \"{}\" method", Self::REGISTRY_METHOD);
-            };
+            let classfile = data.jar_container.get_class_err(class)?;
+            let method = get_class_method(&classfile, Self::REGISTRY_METHOD, None)?;
+            let code = get_code(&method.attributes)?;
 
             // Get the packet registry key and static field name
             //
@@ -77,17 +73,8 @@ impl Packets {
             // "net/minecraft/network/packet/s2c/login/LoginSuccessS2CPacket"
             for (packet_key, field_name) in name_map {
                 // Find the field that matches the field name found earlier
-                let Some(field) = get_class_field(&classfile, field_name) else {
-                    bail!("Failed to get field \"{field_name}\" in \"{}\"", classfile.this_class);
-                };
-
-                // Get the field signature
-                let Some(signature) = get_field_signature(field) else {
-                    bail!(
-                        "Failed to get field signature for \"{field_name}\" in \"{}\"",
-                        classfile.this_class
-                    );
-                };
+                let field = get_class_field(&classfile, field_name)?;
+                let signature = get_signature(&field.attributes)?;
 
                 // Get the real packet type from the field descriptor
                 let descriptor = signature.split("<L").last().unwrap().split(';').next().unwrap();
