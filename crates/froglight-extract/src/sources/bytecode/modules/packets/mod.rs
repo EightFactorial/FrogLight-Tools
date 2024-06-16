@@ -10,6 +10,7 @@ use tracing::error;
 use crate::{bundle::ExtractBundle, sources::ExtractModule};
 
 mod discover;
+mod method;
 mod parse;
 
 /// A module that extracts packet information and fields.
@@ -51,7 +52,7 @@ impl Packets {
             bail!("Error extracting packet ids, \"{}\" does not exist", report_path.display());
         }
 
-        // Directly insert the packet data
+        // Directly insert the packet report data
         data.output["packets"] =
             serde_json::from_str::<Value>(&tokio::fs::read_to_string(report_path).await?)?;
 

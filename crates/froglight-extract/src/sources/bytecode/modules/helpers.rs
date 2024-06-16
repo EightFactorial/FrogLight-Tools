@@ -51,51 +51,73 @@ pub(crate) fn get_class_method<'a>(
 pub(crate) fn get_bootstrap<'a>(
     attributes: &'a [AttributeInfo<'a>],
 ) -> anyhow::Result<&'a [BootstrapMethodEntry<'a>]> {
-    if let Some(attribute) = attributes.iter().find(|&a| a.name == "BootstrapMethods") {
-        if let AttributeData::BootstrapMethods(bootstrap) = &attribute.data {
-            Ok(bootstrap.as_ref())
-        } else {
-            panic!("BootstrapMethods is not `AttributeData::BootstrapMethods`!");
-        }
-    } else {
+    get_bootstrap_silent(attributes).ok_or_else(|| {
         trace!("Attributes: {attributes:?}");
-        bail!("No `BootStrapMethods` in attribute list");
-    }
+        anyhow::anyhow!("No `BootstrapMethods` in attribute list")
+    })
+}
+pub(crate) fn get_bootstrap_silent<'a>(
+    attributes: &'a [AttributeInfo<'a>],
+) -> Option<&'a [BootstrapMethodEntry<'a>]> {
+    attributes.iter().find_map(|a| {
+        if a.name == "BootstrapMethods" {
+            if let AttributeData::BootstrapMethods(bootstrap) = &a.data {
+                Some(bootstrap.as_ref())
+            } else {
+                panic!("BootstrapMethods is not `AttributeData::BootstrapMethods`!");
+            }
+        } else {
+            None
+        }
+    })
 }
 
 /// Get the [`AttributeData::Code`] for a list of [`AttributeInfo`].
 pub(crate) fn get_code<'a>(
     attributes: &'a [AttributeInfo<'a>],
 ) -> anyhow::Result<&'a ByteCode<'a>> {
-    if let Some(attribute) = attributes.iter().find(|&a| a.name == "Code") {
-        if let AttributeData::Code(code) = &attribute.data {
-            if let Some(bytecode) = &code.bytecode {
-                Ok(bytecode)
+    get_code_silent(attributes).ok_or_else(|| {
+        trace!("Attributes: {attributes:?}");
+        anyhow::anyhow!("No `Code` in attribute list")
+    })
+}
+pub(crate) fn get_code_silent<'a>(attributes: &'a [AttributeInfo<'a>]) -> Option<&'a ByteCode<'a>> {
+    attributes.iter().find_map(|a| {
+        if a.name == "Code" {
+            if let AttributeData::Code(code) = &a.data {
+                code.bytecode.as_ref()
             } else {
-                bail!("Code has no ByteCode!");
+                panic!("Code is not `AttributeData::Code`!");
             }
         } else {
-            panic!("Code is not `AttributeData::Code`!");
+            None
         }
-    } else {
-        trace!("Attributes: {attributes:?}");
-        bail!("No `Code` in attribute list");
-    }
+    })
 }
+
 /// Get the [`AttributeData::Signature`] from a list of [`AttributeInfo`].
 pub(crate) fn get_signature<'a>(
     attributes: &'a [AttributeInfo<'a>],
 ) -> anyhow::Result<&'a Cow<'a, str>> {
-    if let Some(attribute) = attributes.iter().find(|&a| a.name == "Signature") {
-        if let AttributeData::Signature(signature) = &attribute.data {
-            Ok(signature)
-        } else {
-            panic!("Field signature is not `AttributeData::Signature`!");
-        }
-    } else {
+    get_signature_silent(attributes).ok_or_else(|| {
         trace!("Attributes: {attributes:?}");
-        bail!("No `Signature` in attribute list");
-    }
+        anyhow::anyhow!("No `Signature` in attribute list")
+    })
+}
+pub(crate) fn get_signature_silent<'a>(
+    attributes: &'a [AttributeInfo<'a>],
+) -> Option<&'a Cow<'a, str>> {
+    attributes.iter().find_map(|a| {
+        if a.name == "Signature" {
+            if let AttributeData::Signature(signature) = &a.data {
+                Some(signature)
+            } else {
+                panic!("Field signature is not `AttributeData::Signature`!");
+            }
+        } else {
+            None
+        }
+    })
 }
 
 /// Returns `true` if the descriptor points to a function.

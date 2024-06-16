@@ -26,7 +26,7 @@ impl Packets {
 
     const REGISTRY_METHOD: &'static str = "<clinit>";
 
-    const PACKET_OBJ_TYPE: &'static str = "Lnet/minecraft/network/packet/PacketType;";
+    const PACKETTYPE_OBJ: &'static str = "Lnet/minecraft/network/packet/PacketType;";
 
     pub(super) fn discover_classes(
         data: &ExtractBundle<'_>,
@@ -53,9 +53,9 @@ impl Packets {
                     {
                         name = Some(format!("minecraft:{const_name}"));
                     }
-                    // Find the packet type
+                    // Find the packet field name
                     Opcode::Putstatic(MemberRef { class_name, name_and_type }) => {
-                        if name_and_type.descriptor == Self::PACKET_OBJ_TYPE {
+                        if name_and_type.descriptor == Self::PACKETTYPE_OBJ {
                             if let Some(name) = name.take() {
                                 name_map.insert(name, &name_and_type.name);
                             } else {
@@ -67,7 +67,7 @@ impl Packets {
                 }
             }
 
-            // Use the field name to get the packet type
+            // Use the field name to get the packet class
             //
             // "minecraft:game_profile":
             // "net/minecraft/network/packet/s2c/login/LoginSuccessS2CPacket"
@@ -76,7 +76,7 @@ impl Packets {
                 let field = get_class_field(&classfile, field_name)?;
                 let signature = get_signature(&field.attributes)?;
 
-                // Get the real packet type from the field descriptor
+                // Get the real packet class from the field descriptor
                 let descriptor = signature.split("<L").last().unwrap().split(';').next().unwrap();
                 class_map.insert(packet_key, descriptor.to_string());
             }
