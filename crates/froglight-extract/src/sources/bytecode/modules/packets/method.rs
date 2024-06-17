@@ -83,11 +83,6 @@ fn parse_invoke_member(
 ) -> anyhow::Result<Vec<String>> {
     let mut fields = Vec::new();
 
-    // Skip non-Minecraft classes
-    if !member.class_name.starts_with("net/minecraft") {
-        return Ok(fields);
-    }
-
     // If a `*ByteBuf` method is called, return the type it reads
     if matches!(
         member.class_name.as_ref(),
@@ -158,6 +153,11 @@ fn parse_invoke_member(
             trace!("   Field: {field}");
             fields.push(field);
         }
+        return Ok(fields);
+    }
+
+    // Skip non-Minecraft classes
+    if !member.class_name.starts_with("net/minecraft") {
         return Ok(fields);
     }
 

@@ -24,9 +24,8 @@ impl Packets {
         "net/minecraft/network/packet/ConfigPackets",
     ];
 
-    const REGISTRY_METHOD: &'static str = "<clinit>";
-
-    const PACKETTYPE_OBJ: &'static str = "Lnet/minecraft/network/packet/PacketType;";
+    const REGISTRY_METHOD_NAME: &'static str = "<clinit>";
+    const PACKETTYPE_OBJECT: &'static str = "Lnet/minecraft/network/packet/PacketType;";
 
     pub(super) fn discover_classes(
         data: &ExtractBundle<'_>,
@@ -35,7 +34,7 @@ impl Packets {
 
         for class in Self::PACKET_CLASSES {
             let classfile = data.jar_container.get_class_err(class)?;
-            let method = get_class_method(&classfile, Self::REGISTRY_METHOD, None)?;
+            let method = get_class_method(&classfile, Self::REGISTRY_METHOD_NAME, None)?;
             let code = get_code(&method.attributes)?;
 
             // Get the packet registry key and static field name
@@ -55,7 +54,7 @@ impl Packets {
                     }
                     // Find the packet field name
                     Opcode::Putstatic(MemberRef { class_name, name_and_type }) => {
-                        if name_and_type.descriptor == Self::PACKETTYPE_OBJ {
+                        if name_and_type.descriptor == Self::PACKETTYPE_OBJECT {
                             if let Some(name) = name.take() {
                                 name_map.insert(name, &name_and_type.name);
                             } else {

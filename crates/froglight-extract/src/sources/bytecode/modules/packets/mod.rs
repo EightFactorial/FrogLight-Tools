@@ -9,6 +9,7 @@ use tracing::error;
 
 use crate::{bundle::ExtractBundle, sources::ExtractModule};
 
+mod codec;
 mod discover;
 mod method;
 mod parse;
