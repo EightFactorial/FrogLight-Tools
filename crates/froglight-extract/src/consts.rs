@@ -1,5 +1,4 @@
 //! Constants used by the `froglight-generate` crate.
-#![allow(dead_code)]
 
 /// The git hash of the current commit.
 ///

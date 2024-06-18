@@ -11,6 +11,8 @@ pub use modules::*;
 #[enum_dispatch(ExtractModule)]
 #[serde(untagged)]
 pub enum BuiltinJsonModule {
+    /// Debug information
+    Debug(Debug),
     /// The `version.json` file
     Version(Version),
     /// Blocks and block data

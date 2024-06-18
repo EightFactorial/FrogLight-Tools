@@ -27,6 +27,7 @@ pub enum Modules {
 impl Modules {
     /// Default modules to use when none are specified.
     pub const DEFAULT: &'static [Modules] = &[
+        Modules::BuiltinJson(BuiltinJsonModule::Debug(Debug)),
         Modules::BuiltinJson(BuiltinJsonModule::Version(Version)),
         Modules::BuiltinJson(BuiltinJsonModule::Blocks(Blocks)),
         Modules::BuiltinJson(BuiltinJsonModule::Registries(Registries)),
