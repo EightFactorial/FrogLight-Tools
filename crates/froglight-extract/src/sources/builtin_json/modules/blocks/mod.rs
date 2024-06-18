@@ -50,14 +50,14 @@ impl Blocks {
         let mut target_id = 0u32;
         while let Some((name, target)) = report
             .iter_mut()
-            .find(|(_, data)| data.states.iter().any(|state| state.id == target_id))
+            .find(|(_, data)| data.states.iter().any(|state| state.protocol_id == target_id))
         {
             // Sort the states by id
-            target.states.sort_by(|a, b| a.id.cmp(&b.id));
+            target.states.sort_by(|a, b| a.protocol_id.cmp(&b.protocol_id));
 
             // Update the target id
             let last = target.states.last().unwrap();
-            target_id = last.id + 1;
+            target_id = last.protocol_id + 1;
 
             // Insert the target into final output
             data.output["blocks"][name] = serde_json::to_value(target)?;

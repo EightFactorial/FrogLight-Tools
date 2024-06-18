@@ -6,3 +6,6 @@ pub use registries::Registries;
 
 mod version;
 pub use version::Version;
+
+mod tags;
+pub use tags::Tags;

@@ -126,7 +126,7 @@ fn parse_invoke_member(
             "readEnumConstant" => Some(String::from("Enum")),
             "readEnumSet" => Some(String::from("BitSet")),
             "readFloat" => Some(String::from("f32")),
-            "readIdentifier" => Some(String::from("ResourceLocation")),
+            "readIdentifier" | "readRegistryKey" => Some(String::from("ResourceLocation")),
             "readInstant" | "readLong" => Some(String::from("i64")),
             "readInt" => Some(String::from("i32")),
             "readIntArray" | "readIntList" => Some(String::from("Vec<i32>")),
@@ -163,7 +163,11 @@ fn parse_invoke_member(
 
     // If the method takes a `PacketByteBuf`, parse any fields it reads
     if let Some(descriptor) = MethodDescriptor::parse(&member.name_and_type.descriptor) {
-        if descriptor.parameters.iter().any(|p| p == PACKETBYTEBUF_FIELD_DESCRIPTOR) {
+        if descriptor.parameters.iter().any(|p| {
+            p == BYTEBUF_FIELD_DESCRIPTOR
+                || p == PACKETBYTEBUF_FIELD_DESCRIPTOR
+                || p == REGISTRYBYTEBUF_FIELD_DESCRIPTOR
+        }) {
             trace!(" Reading: {}.{}", member.class_name, member.name_and_type.name);
 
             let member_classfile = data.jar_container.get_class_err(&member.class_name)?;
@@ -181,5 +185,9 @@ fn parse_invoke_member(
     Ok(fields)
 }
 
+const BYTEBUF_FIELD_DESCRIPTOR: &FieldType<'static> =
+    &FieldType::Ty(Ty::Object(Cow::Borrowed(Packets::BYTEBUF_TYPE)));
 const PACKETBYTEBUF_FIELD_DESCRIPTOR: &FieldType<'static> =
     &FieldType::Ty(Ty::Object(Cow::Borrowed(Packets::PACKETBYTEBUF_TYPE)));
+const REGISTRYBYTEBUF_FIELD_DESCRIPTOR: &FieldType<'static> =
+    &FieldType::Ty(Ty::Object(Cow::Borrowed(Packets::REGISTRYBYTEBUF_TYPE)));

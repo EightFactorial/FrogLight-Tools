@@ -48,13 +48,8 @@ pub(super) fn parse_codec(
                 }
             }
             Packets::PACKETCODECS_TYPE => match member.name_and_type.name.as_ref() {
+                "indexed" | "registryEntry" => Ok(vec![String::from("VarInt")]),
                 "map" => Ok(vec![String::from("HashMap")]),
-                "unlimitedRegistryCodec" => Ok(vec![String::from("UnlimitedRegistryCodec")]),
-                "registryEntry" => Ok(vec![String::from("RegistryEntry")]),
-                "indexed" => Ok(vec![String::from("Indexed")]),
-                "string" => Ok(vec![String::from("String")]),
-                "unlimitedCodec" => Ok(vec![String::from("UnlimitedCodec")]),
-                "nbt" | "nbtCompound" => Ok(vec![String::from("Nbt")]),
                 _ => Err(anyhow!("Unexpected `Invoke*` before Codec initialization: {last:?}")),
             },
             _ => parse_method(member, data),
@@ -208,9 +203,7 @@ fn parse_tuple(bundle: &[&Opcode], data: &ExtractBundle<'_>) -> anyhow::Result<V
                     let member_field =
                         get_class_field(&member_classfile, &member.name_and_type.name)?;
 
-                    let result = parse_codec(&member_classfile, member_field, data)?;
-                    trace!("  Done: {}.{}", member.class_name, member.name_and_type.name);
-                    fields.extend(result);
+                    fields.extend(parse_codec(&member_classfile, member_field, data)?);
                 }
             }
         }

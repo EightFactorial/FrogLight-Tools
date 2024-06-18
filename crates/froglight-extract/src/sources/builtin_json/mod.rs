@@ -17,4 +17,6 @@ pub enum BuiltinJsonModule {
     Blocks(Blocks),
     /// Registries and registry data
     Registries(Registries),
+    /// Tags and tag data
+    Tags(Tags),
 }
