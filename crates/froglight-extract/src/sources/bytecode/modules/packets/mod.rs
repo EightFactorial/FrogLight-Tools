@@ -109,9 +109,8 @@ impl Packets {
                     //
                     if let Some((class, fields)) = packet_data.get(packet_key) {
                         // Insert the class and fields
-                        data["class"] = Value::String(class.clone());
-                        data["fields"] =
-                            Value::Array(fields.iter().cloned().map(Value::String).collect());
+                        data["class"] = class.clone().into();
+                        data["fields"] = fields.clone().into();
                     } else {
                         error!("Failed to find packet data for \"{packet_key}\"");
                     }

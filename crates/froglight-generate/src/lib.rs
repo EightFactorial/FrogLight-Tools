@@ -3,4 +3,5 @@
 
 pub(crate) mod consts;
 
+pub mod bundle;
 pub mod modules;

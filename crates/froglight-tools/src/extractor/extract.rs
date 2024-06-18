@@ -1,9 +1,9 @@
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use async_zip::tokio::read::fs::ZipFileReader;
 use froglight_extract::{
     bundle::{ExtractBundle, ManifestBundle},
     bytecode::JarContainer,
-    sources::{ExtractModule, Modules},
+    sources::ExtractModule,
 };
 use serde_json::{Map, Value};
 use tracing::{debug, error, info};
@@ -45,32 +45,13 @@ pub(super) async fn extract(args: &ExtractArguments) -> anyhow::Result<Value> {
     }
 
     // Get the `ReleaseManifest`
-    let release_manifest = match froglight_tools::manifests::get_release_manifest(
-        version_entry,
-        &cache,
-        &client,
-    )
-    .await
-    {
-        Ok(manifest) => manifest,
-        Err(err) => {
-            error!("Failed to get `ReleaseManifest`: {err}");
-            return Err(err.into());
-        }
-    };
+    let release_manifest =
+        froglight_tools::manifests::get_release_manifest(version_entry, &cache, &client).await?;
     info!("Loaded Release Manifest for: \"{}\"", version_entry.id);
 
     // Get the `AssetManifest`
     let asset_manifest =
-        match froglight_tools::manifests::get_asset_manifest(&release_manifest, &cache, &client)
-            .await
-        {
-            Ok(manifest) => manifest,
-            Err(err) => {
-                error!("Failed to get `AssetManifest`: {err}");
-                return Err(err.into());
-            }
-        };
+        froglight_tools::manifests::get_asset_manifest(&release_manifest, &cache, &client).await?;
     info!("Loaded Asset Manifest for: \"{}\"", version_entry.id);
     debug!("Asset Manifest: {} Assets", asset_manifest.objects.len());
 
@@ -81,18 +62,18 @@ pub(super) async fn extract(args: &ExtractArguments) -> anyhow::Result<Value> {
         froglight_tools::json::download_server_jar(&release_manifest.downloads, &cache, &client)
             .await
     else {
-        error!("Failed to download `Server` JAR");
-        return Err(anyhow!("Failed to download `Server` JAR"));
+        bail!("Failed to download `Server` JAR");
     };
 
     // Run the `Server` JAR generators
     info!("Running \"{}\" `Server` JAR generators ...", version_entry.id);
     let Some(json_path) = froglight_tools::json::generate_server_json(&server_jar, &cache).await
     else {
-        error!("Failed to generate `Server` JSON");
-        return Err(anyhow!("Failed to generate `Server` JSON"));
+        bail!("Failed to generate `Server` JSON");
     };
     info!("Generated \"{}\" `Server` JSON files", version_entry.id);
+
+    // --- Parse `Client` JAR ---
 
     // Download the `Client` JAR
     let Some(client_jar) = froglight_tools::deobfuscate::download_client_jar(
@@ -102,34 +83,26 @@ pub(super) async fn extract(args: &ExtractArguments) -> anyhow::Result<Value> {
     )
     .await
     else {
-        error!("Failed to download `Client` JAR");
-        return Err(anyhow!("Failed to download `Client` JAR"));
+        bail!("Failed to download `Client` JAR");
     };
-
-    // --- Deobfuscate `Client` JAR ---
 
     // Get `TinyRemapper`
     let Some(remapper_path) =
         froglight_tools::mappings::get_tinyremapper(&args.cache, &client).await
     else {
-        let error = "Failed to download `TinyRemapper` JAR";
-
-        error!("{error}");
-        return Err(anyhow!(error));
+        bail!("Failed to download `TinyRemapper` JAR");
     };
 
     // Get the latest Yarn mappings for this version
     let Some(yarn_build) = yarn_manifest.get_latest(&version_entry.id) else {
-        error!("No Yarn mappings found for: \"{}\"", version_entry.id);
-        return Err(anyhow!("No Yarn mappings found"));
+        bail!("No Yarn mappings found for: \"{}\"", version_entry.id);
     };
     info!("Using Yarn: \"{yarn_build}\"");
 
     let Some(yarn_mappings) =
         froglight_tools::mappings::get_yarn_mappings(yarn_build, &cache, &client).await
     else {
-        error!("Failed to download `Yarn` mappings");
-        return Err(anyhow!("Failed to download `Yarn` mappings"));
+        bail!("Failed to download `Yarn` mappings");
     };
 
     // Get the deobfuscated `Client` JAR
@@ -141,26 +114,13 @@ pub(super) async fn extract(args: &ExtractArguments) -> anyhow::Result<Value> {
     )
     .await
     else {
-        error!("Failed to deobfuscate `Client` JAR");
-        return Err(anyhow!("Failed to deobfuscate `Client` JAR"));
+        bail!("Failed to deobfuscate `Client` JAR");
     };
 
     // Read and parse the deobfuscated `Client` JAR
     info!("Parsing \"{}\" `Client` JAR ...", version_entry.id);
-    let jar_reader = match ZipFileReader::new(mapped_jar).await {
-        Ok(reader) => reader,
-        Err(err) => {
-            error!("Failed to create ZIP reader: {err}");
-            return Err(err.into());
-        }
-    };
-    let jar_container = match JarContainer::new_tokio_fs(&jar_reader).await {
-        Ok(jar) => jar,
-        Err(err) => {
-            error!("Failed to parse `Client` JAR: {err}");
-            return Err(err);
-        }
-    };
+    let jar_reader = ZipFileReader::new(mapped_jar).await?;
+    let jar_container = JarContainer::new_tokio_fs(&jar_reader).await?;
     info!("Successfully parsed \"{}\" `Client` JAR", version_entry.id);
     debug!("\"{}\" parsed {} classes", version_entry.id, jar_container.len());
 
@@ -186,9 +146,6 @@ pub(super) async fn extract(args: &ExtractArguments) -> anyhow::Result<Value> {
 
     // Sort modules and extract data
     let mut modules = args.modules.clone();
-    if modules.is_empty() {
-        modules.extend(Modules::DEFAULT);
-    }
     modules.sort();
     modules.dedup();
 

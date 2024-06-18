@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use anyhow::anyhow;
 use clap::Parser;
+use froglight_generate::modules::Modules;
 use froglight_tools::logging;
 use tokio::task::JoinSet;
 use tracing::{debug, error, info, warn};
@@ -19,14 +20,20 @@ mod generate;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let args = GenerateArguments::parse();
+    let mut args = GenerateArguments::parse();
     logging::setup(&args.verbose);
+
+    // If no modules are specified, use the default
+    if args.modules.is_empty() {
+        args.modules.extend(Modules::DEFAULT);
+    }
 
     // Debugging information
     debug!("Cache: \"{}\"", args.cache.display());
     debug!("Config: \"{}\"", args.config.display());
     debug!("Directory: \"{}\"", args.dir.display());
     debug!("Refresh: {}", args.refresh);
+    debug!("Modules: {:?}", args.modules);
     debug!("");
 
     // Make sure `dir` points to a valid project directory
@@ -126,10 +133,12 @@ async fn main() -> anyhow::Result<()> {
     for version in config.versions {
         joinset.spawn(generate::generate(
             version,
+            args.modules.clone(),
             version_manifest.clone(),
             yarn_manifest.clone(),
             remapper_path.clone(),
             args.cache.clone(),
+            args.dir.clone(),
             client.clone(),
         ));
     }

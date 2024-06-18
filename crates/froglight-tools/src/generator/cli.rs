@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use clap_verbosity_flag::Verbosity;
+use froglight_generate::modules::Modules;
 
 #[derive(Debug, Parser)]
 pub(super) struct GenerateArguments {
@@ -23,6 +24,8 @@ pub(super) struct GenerateArguments {
     /// The path to the project directory
     #[arg(short, long)]
     pub(super) dir: PathBuf,
+
     // The modules used to generate data
-    // pub(super) modules: Vec<Modules>,
+    #[arg(short, long)]
+    pub(super) modules: Vec<Modules>,
 }

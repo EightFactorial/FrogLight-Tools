@@ -3,6 +3,7 @@
 
 use anyhow::anyhow;
 use clap::Parser;
+use froglight_extract::sources::Modules;
 use froglight_tools::logging;
 use tracing::{debug, error, info, warn};
 
@@ -13,8 +14,13 @@ mod extract;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let args = ExtractArguments::parse();
+    let mut args = ExtractArguments::parse();
     logging::setup(&args.verbose);
+
+    // If no modules are specified, use the default
+    if args.modules.is_empty() {
+        args.modules.extend(Modules::DEFAULT);
+    }
 
     // Debugging information
     info!("Version: \"{}\"", args.version);
