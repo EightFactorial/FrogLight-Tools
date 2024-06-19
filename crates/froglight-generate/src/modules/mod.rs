@@ -1,5 +1,7 @@
 //! Extraction Sources
 
+use std::future::Future;
+
 use enum_dispatch::enum_dispatch;
 use froglight_extract::{bundle::ExtractBundle, sources::Modules as ExtractModules};
 use serde::{Deserialize, Serialize};
@@ -35,12 +37,11 @@ impl Modules {
 #[enum_dispatch]
 pub trait GenerateModule: sealed::GenerateRequired {
     /// Run the generation process.
-    #[allow(async_fn_in_trait)]
-    async fn generate(
+    fn generate(
         &self,
         generate: &GenerateBundle<'_>,
         extract: &ExtractBundle<'_>,
-    ) -> anyhow::Result<()>;
+    ) -> impl Future<Output = anyhow::Result<()>> + Send + Sync;
 }
 
 /// Sealed trait to allow an array of required extract modules to be defined.
