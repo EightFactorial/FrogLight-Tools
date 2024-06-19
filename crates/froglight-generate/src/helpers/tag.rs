@@ -4,13 +4,16 @@ use tokio::{
     fs::{File, OpenOptions},
     io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt},
 };
+use tracing::debug;
 
+use super::format_file_contents;
 use crate::consts::GENERATE_NOTICE;
 
 /// Update the `@generated` tag at the top of a file.
 ///
 /// If there is no tag, one will be added.
 pub(crate) async fn update_tag(path: &Path) -> anyhow::Result<()> {
+    debug!("Updating `@generated` tag for: \"{}\"", path.display());
     update_file_tag(&mut OpenOptions::new().read(true).write(true).open(path).await?).await
 }
 
@@ -28,14 +31,19 @@ pub(crate) async fn update_file_tag(file: &mut File) -> anyhow::Result<()> {
     file.read_to_string(&mut contents).await?;
 
     // Update the tag in the contents.
-    let updated = update_file_contents(contents);
+    let updated = tag_file_contents(contents);
+    let formatted = format_file_contents(updated).await?;
 
     // Write the updated contents back to the file.
     file.seek(SeekFrom::Start(0u64)).await?;
-    file.write_all(updated.as_bytes()).await.map_err(Into::into)
+    file.write_all(formatted.as_bytes()).await?;
+    file.sync_data().await.map_err(Into::into)
 }
 
-fn update_file_contents(contents: String) -> String {
+/// Update the `@generated` tag at the top of a file.
+///
+/// If there is no tag, one will be added.
+pub(crate) fn tag_file_contents(contents: String) -> String {
     if let Some(index) = contents.find("//! @generated") {
         // If the @generated tag is found, update it.
         existing_tag(contents, index)
@@ -94,4 +102,11 @@ fn test_new_tag() {
     let test_content = "//! Inserting New `@generated` Tag";
     let updated = new_tag(test_content.to_string());
     assert!(updated.ends_with(GENERATE_NOTICE));
+}
+
+#[test]
+fn test_untagged() {
+    let test_content = "";
+    let updated = new_tag(test_content.to_string());
+    assert!(updated[..updated.len() - 2].ends_with(GENERATE_NOTICE));
 }

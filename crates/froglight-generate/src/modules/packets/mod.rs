@@ -7,10 +7,15 @@ use froglight_extract::{
     },
 };
 use serde_unit_struct::{Deserialize_unit_struct, Serialize_unit_struct};
+use tokio::fs::OpenOptions;
 use tracing::debug;
 
 use super::sealed::GenerateRequired;
-use crate::{bundle::GenerateBundle, helpers::update_tag, modules::GenerateModule};
+use crate::{
+    bundle::GenerateBundle,
+    helpers::{update_file_modules, update_file_tag},
+    modules::GenerateModule,
+};
 
 /// A module that generates states and packets.
 #[derive(
@@ -53,8 +58,13 @@ impl GenerateModule for Packets {
         }
         debug!("Found `froglight-protocol` crate at \"{}\"", src_path.display());
 
-        let ver_path = src_path.join("versions/mod.rs");
-        update_tag(&ver_path).await?;
+        {
+            let ver_path = src_path.join("versions/mod.rs");
+            let mut ver_file = OpenOptions::new().read(true).write(true).open(&ver_path).await?;
+
+            update_file_modules(&mut ver_file, &ver_path, true, false).await?;
+            update_file_tag(&mut ver_file).await?;
+        }
 
         Ok(())
     }
