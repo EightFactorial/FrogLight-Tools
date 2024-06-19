@@ -1,6 +1,9 @@
-#![allow(dead_code)]
+use std::{io::SeekFrom, path::Path};
 
-use std::path::Path;
+use tokio::{
+    fs::{File, OpenOptions},
+    io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt},
+};
 
 use crate::consts::GENERATE_NOTICE;
 
@@ -8,27 +11,42 @@ use crate::consts::GENERATE_NOTICE;
 ///
 /// If there is no tag, one will be added.
 pub(crate) async fn update_tag(path: &Path) -> anyhow::Result<()> {
+    update_file_tag(&mut OpenOptions::new().read(true).write(true).open(path).await?).await
+}
+
+/// Update the `@generated` tag at the top of a file.
+///
+/// If there is no tag, one will be added.
+///
+/// Requires the file to be opened with both
+/// [`read`](OpenOptions::read) and [`write`](OpenOptions::write)
+/// permissions.
+pub(crate) async fn update_file_tag(file: &mut File) -> anyhow::Result<()> {
     // Read the contents of the file.
-    let contents = tokio::fs::read_to_string(path).await?;
+    let mut contents = String::new();
+    file.seek(SeekFrom::Start(0u64)).await?;
+    file.read_to_string(&mut contents).await?;
+
+    // Update the tag in the contents.
+    let updated = update_file_contents(contents);
 
     // Write the updated contents back to the file.
-    tokio::fs::write(
-        path,
-        if let Some(index) = contents.find("//! @generated") {
-            // If the @generated tag is found, update it.
-            update_existing_tag(contents, index)
-        } else {
-            // If the @generated tag is not found, insert it.
-            insert_new_tag(contents)
-        },
-    )
-    .await?;
+    file.seek(SeekFrom::Start(0u64)).await?;
+    file.write_all(updated.as_bytes()).await.map_err(Into::into)
+}
 
-    Ok(())
+fn update_file_contents(contents: String) -> String {
+    if let Some(index) = contents.find("//! @generated") {
+        // If the @generated tag is found, update it.
+        existing_tag(contents, index)
+    } else {
+        // If the @generated tag is not found, insert it.
+        new_tag(contents)
+    }
 }
 
 /// Update an existing `@generated` tag with the current git hash.
-fn update_existing_tag(mut contents: String, index: usize) -> String {
+fn existing_tag(mut contents: String, index: usize) -> String {
     // Find the end of the line where the `@generated` tag is.
     let end = contents[index..].find('\n').unwrap_or(contents[index..].len());
     // Replace the existing line with the `@generated` tag with the new one.
@@ -37,7 +55,7 @@ fn update_existing_tag(mut contents: String, index: usize) -> String {
 }
 
 /// Insert a new `@generated` doc comment with the current git hash.
-fn insert_new_tag(mut contents: String) -> String {
+fn new_tag(mut contents: String) -> String {
     // Find the end of the last `//!` comment in the file.
     let mut end = 0usize;
     while let Some(index) = contents[end..].find("//!") {
@@ -63,17 +81,17 @@ fn insert_new_tag(mut contents: String) -> String {
 }
 
 #[test]
-fn test_update_existing_tag() {
+fn test_existing_tag() {
     let test_content =
         "//! Updating Existing `@generated` Tag\n//!\n//! @generated `froglight-generate` #0000000";
     let index = test_content.find("//! @generated").unwrap();
-    let updated = update_existing_tag(test_content.to_string(), index);
+    let updated = existing_tag(test_content.to_string(), index);
     assert!(updated.ends_with(GENERATE_NOTICE));
 }
 
 #[test]
-fn test_insert_new_tag() {
+fn test_new_tag() {
     let test_content = "//! Inserting New `@generated` Tag";
-    let updated = insert_new_tag(test_content.to_string());
+    let updated = new_tag(test_content.to_string());
     assert!(updated.ends_with(GENERATE_NOTICE));
 }

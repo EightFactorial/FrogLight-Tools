@@ -5,22 +5,24 @@ use std::{path::Path, process::Stdio};
 use quote::ToTokens;
 use tokio::{fs::File, io::AsyncWriteExt, process::Command, task::JoinHandle};
 
-use super::update_tag;
+use super::update_file_tag;
 
 /// Write tokens to a file.
 ///
 /// This will overwrite the file if it already exists.
 pub(crate) async fn write_tokens_to_file(tokens: impl ToTokens, path: &Path) -> anyhow::Result<()> {
-    append_tokens_to_file(tokens, &mut File::create(path).await?).await?;
-    update_tag(path).await
+    let mut file = File::create(path).await?;
+    append_tokens_to_file(tokens, &mut file).await?;
+    update_file_tag(&mut file).await
 }
 
 /// Write code to a file.
 ///
 /// This will overwrite the file if it already exists.
 pub(crate) async fn write_to_file(output: String, path: &Path) -> anyhow::Result<()> {
-    append_to_file(output, &mut File::create(path).await?).await?;
-    update_tag(path).await
+    let mut file = File::create(path).await?;
+    append_to_file(output, &mut file).await?;
+    update_file_tag(&mut file).await
 }
 
 /// Append tokens to a file.
