@@ -11,7 +11,6 @@ use crate::{
     helpers::{update_file_modules, version_module_name, version_struct_name},
 };
 
-#[allow(clippy::unused_async)]
 impl Packets {
     pub(super) async fn create_version(
         path: &Path,
@@ -26,17 +25,24 @@ impl Packets {
             tokio::fs::create_dir(&version_path).await?;
         }
 
-        // TODO: Create the connection state modules
+        // Create the connection state modules
+        let states = extract.output["packets"].as_object().unwrap();
+        for (state, state_data) in states {
+            Self::create_state(state, state_data, &version_path, generate, extract).await?;
+        }
 
-        // Update the version module
-        Self::update_mod(&version_path.join("mod.rs"), generate, extract).await
+        // Create the version module
+        Self::create_version_mod(&version_path.join("mod.rs"), generate, extract).await
     }
 
+    /// The docs for the version module and struct.
+    // TODO: Delete the range if BASE and JAR are the same.
     const VERSION_DOCS: &'static str = "//! Protocol `{PROTOCOL}`
 //!
 //! Used by Minecraft `{BASE}` - `{JAR}`";
 
-    async fn update_mod(
+    /// Create the `versions/{VERSION}/mod.rs` file.
+    async fn create_version_mod(
         path: &Path,
         generate: &GenerateBundle<'_>,
         extract: &ExtractBundle<'_>,
@@ -62,11 +68,12 @@ impl Packets {
         // Create the struct docs
         let struct_docs = mod_docs.replace("//!", "///");
 
-        // Create the struct and impl
+        // Combine the docs, struct, and impl and write to the file
         let output_contents = format!(
             r#"{mod_docs}
 //!
 {GENERATE_NOTICE}
+#![allow(clippy::module_inception)]
 
 {struct_docs}
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
@@ -81,7 +88,7 @@ impl crate::traits::Version for {0} {{
         );
         mod_file.write_all(output_contents.as_bytes()).await?;
 
-        // Update the tag and modules
+        // Update the file modules
         update_file_modules(&mut mod_file, path, true, false).await
     }
 }

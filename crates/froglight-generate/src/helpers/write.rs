@@ -1,7 +1,12 @@
-use std::{path::Path, process::Stdio};
+use std::{io::SeekFrom, path::Path, process::Stdio};
 
 use quote::ToTokens;
-use tokio::{fs::File, io::AsyncWriteExt, process::Command, task::JoinHandle};
+use tokio::{
+    fs::File,
+    io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt},
+    process::Command,
+    task::JoinHandle,
+};
 
 use super::tag_file_contents;
 
@@ -45,8 +50,25 @@ pub(crate) async fn append_to_file(output: String, file: &mut File) -> anyhow::R
     file.write_all(&formatted.into_bytes()).await.map_err(Into::into)
 }
 
+/// Format a file using `rustfmt`.
+pub(crate) async fn format_file(file: &mut File) -> anyhow::Result<()> {
+    let mut contents = String::new();
+    file.seek(SeekFrom::Start(0)).await?;
+    file.read_to_string(&mut contents).await?;
+
+    let formatted = format_file_contents(contents).await?;
+    file.seek(SeekFrom::Start(0)).await?;
+    file.set_len(0).await?;
+    file.write_all(formatted.as_bytes()).await.map_err(Into::into)
+}
+
 /// Format a string using `rustfmt`.
 pub(crate) async fn format_file_contents(input: String) -> anyhow::Result<String> {
+    // Skip formatting if the input is empty
+    if input.is_empty() {
+        return Ok(input);
+    }
+
     let mut command = Command::new("rustfmt");
     command.stdin(Stdio::piped()).stdout(Stdio::piped());
 

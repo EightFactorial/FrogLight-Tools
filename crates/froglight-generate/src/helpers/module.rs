@@ -57,6 +57,7 @@ pub(crate) async fn update_file_modules(
 
     // Write the updated contents back to the file.
     file.seek(SeekFrom::Start(0u64)).await?;
+    file.set_len(0).await?;
     file.write_all(formatted.as_bytes()).await.map_err(Into::into)
 }
 
@@ -112,6 +113,7 @@ fn inner_update_module(
             module_items.push(Item::Verbatim(TokenStream::new()));
         }
     }
+    module_items.push(Item::Verbatim(TokenStream::new()));
     for module in module_items.into_iter().rev() {
         file.items.insert(index, module);
     }

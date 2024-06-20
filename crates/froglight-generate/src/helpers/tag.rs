@@ -37,6 +37,7 @@ pub(crate) async fn update_file_tag(file: &mut File, path: &Path) -> anyhow::Res
 
     // Write the updated contents back to the file.
     file.seek(SeekFrom::Start(0u64)).await?;
+    file.set_len(0).await?;
     file.write_all(formatted.as_bytes()).await?;
     file.sync_data().await.map_err(Into::into)
 }
