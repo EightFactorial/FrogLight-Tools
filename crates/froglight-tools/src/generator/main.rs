@@ -142,7 +142,9 @@ async fn main() -> anyhow::Result<()> {
             client.clone(),
         ));
     }
-    while joinset.join_next().await.is_some() {}
+    while let Some(Ok(result)) = joinset.join_next().await {
+        result?;
+    }
 
     Ok(())
 }

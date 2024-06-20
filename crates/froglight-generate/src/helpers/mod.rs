@@ -3,9 +3,8 @@
 mod module;
 pub(crate) use module::*;
 
-mod names;
-#[allow(unused_imports)]
-pub(crate) use names::*;
+mod name;
+pub(crate) use name::*;
 
 mod tag;
 pub(crate) use tag::*;

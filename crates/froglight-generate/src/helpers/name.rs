@@ -3,12 +3,12 @@ use proc_macro2::Span;
 use syn::Ident;
 
 /// Generate the struct name.
-pub(super) fn version_struct_name(version: &MinecraftVersion) -> Ident {
+pub(crate) fn version_struct_name(version: &MinecraftVersion) -> Ident {
     Ident::new(&format!("V{version}").replace('.', "_"), Span::call_site())
 }
 
 /// Generate the module name.
-pub(super) fn version_module_name(version: &MinecraftVersion) -> Ident {
+pub(crate) fn version_module_name(version: &MinecraftVersion) -> Ident {
     Ident::new(&format!("v{version}").replace('.', "_"), Span::call_site())
 }
 

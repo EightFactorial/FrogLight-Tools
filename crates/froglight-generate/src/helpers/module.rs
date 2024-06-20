@@ -6,9 +6,9 @@ use tokio::{
     fs::{File, OpenOptions},
     io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt},
 };
-use tracing::debug;
+use tracing::trace;
 
-use super::{format_file_contents, tokens_to_string};
+use super::format_file_contents;
 
 /// Update the modules in a file.
 ///
@@ -20,7 +20,6 @@ pub(crate) async fn update_modules(
     public: bool,
     reexport: bool,
 ) -> anyhow::Result<()> {
-    debug!("Updating modules for: \"{}\"", path.display());
     update_file_modules(
         &mut OpenOptions::new().read(true).write(true).open(path).await?,
         path,
@@ -45,6 +44,8 @@ pub(crate) async fn update_file_modules(
     public: bool,
     reexport: bool,
 ) -> anyhow::Result<()> {
+    trace!("Updating modules for: \"{}\"", path.display());
+
     // Read the contents of the file.
     let mut contents = String::new();
     file.seek(SeekFrom::Start(0u64)).await?;
@@ -56,8 +57,7 @@ pub(crate) async fn update_file_modules(
 
     // Write the updated contents back to the file.
     file.seek(SeekFrom::Start(0u64)).await?;
-    file.write_all(formatted.as_bytes()).await?;
-    file.sync_data().await.map_err(Into::into)
+    file.write_all(formatted.as_bytes()).await.map_err(Into::into)
 }
 
 fn inner_update_module(
@@ -117,5 +117,5 @@ fn inner_update_module(
     }
 
     // Unparse the file back into a string.
-    tokens_to_string(file)
+    Ok(prettyplease::unparse(&file))
 }

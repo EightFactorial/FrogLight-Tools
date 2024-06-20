@@ -4,7 +4,7 @@ use tokio::{
     fs::{File, OpenOptions},
     io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt},
 };
-use tracing::debug;
+use tracing::trace;
 
 use super::format_file_contents;
 use crate::consts::GENERATE_NOTICE;
@@ -13,8 +13,7 @@ use crate::consts::GENERATE_NOTICE;
 ///
 /// If there is no tag, one will be added.
 pub(crate) async fn update_tag(path: &Path) -> anyhow::Result<()> {
-    debug!("Updating `@generated` tag for: \"{}\"", path.display());
-    update_file_tag(&mut OpenOptions::new().read(true).write(true).open(path).await?).await
+    update_file_tag(&mut OpenOptions::new().read(true).write(true).open(path).await?, path).await
 }
 
 /// Update the `@generated` tag at the top of a file.
@@ -24,7 +23,9 @@ pub(crate) async fn update_tag(path: &Path) -> anyhow::Result<()> {
 /// Requires the file to be opened with both
 /// [`read`](OpenOptions::read) and [`write`](OpenOptions::write)
 /// permissions.
-pub(crate) async fn update_file_tag(file: &mut File) -> anyhow::Result<()> {
+pub(crate) async fn update_file_tag(file: &mut File, path: &Path) -> anyhow::Result<()> {
+    trace!("Updating `@generated` tag for: \"{}\"", path.display());
+
     // Read the contents of the file.
     let mut contents = String::new();
     file.seek(SeekFrom::Start(0u64)).await?;
