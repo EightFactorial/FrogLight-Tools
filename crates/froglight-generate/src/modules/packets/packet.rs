@@ -109,16 +109,8 @@ impl Packets {
         let mut imports = Vec::new();
         imports.push(syn::parse_quote! { use froglight_macros::FrogReadWrite; });
 
-        if fields.iter().any(|&f| f == "ResourceLocation") {
-            imports.push(syn::parse_quote! { use crate::common::ResourceKey; });
-        }
-
-        if fields.iter().any(|&f| f == "String") {
-            imports.push(syn::parse_quote! { use compact_str::CompactString; });
-        }
-
-        if fields.iter().any(|&f| f == "Json") {
-            imports.push(syn::parse_quote! { use serde::{Serialize, Deserialize}; });
+        if fields.iter().any(|&f| f == "BlockPos") {
+            imports.push(syn::parse_quote! { use crate::common::BlockPosition; });
         }
 
         if fields.iter().any(|&f| f == "HashMap") {
@@ -130,6 +122,18 @@ impl Packets {
                 #[cfg(feature = "hashbrown")]
                 use hashbrown::HashMap;
             });
+        }
+
+        if fields.iter().any(|&f| f == "Json") {
+            imports.push(syn::parse_quote! { use serde::{Serialize, Deserialize}; });
+        }
+
+        if fields.iter().any(|&f| f == "ResourceLocation") {
+            imports.push(syn::parse_quote! { use crate::common::ResourceKey; });
+        }
+
+        if fields.iter().any(|&f| f == "String") {
+            imports.push(syn::parse_quote! { use compact_str::CompactString; });
         }
 
         if fields.len() == 1 {
@@ -164,7 +168,12 @@ impl Packets {
 
             // If the packet doesn't have any floats, derive `Eq` and `Hash`
             if fields.iter().all(|&f| !matches!(f, "f32" | "f64")) {
-                derives.extend(quote::quote! { Eq, Hash, });
+                derives.extend(quote::quote! { Eq, });
+
+                // If the packet doesn't have any HashMaps, derive `Hash`
+                if fields.iter().all(|&f| !matches!(f, "HashMap")) {
+                    derives.extend(quote::quote! { Hash, });
+                }
             }
 
             // If the packet only has one field, derive `Deref`, `DerefMut`,
@@ -218,6 +227,7 @@ impl Packets {
 
             // Replace the extracted field type with the correct type
             value = match value.as_str() {
+                "BlockPos" => String::from("BlockPosition"),
                 "HashMap" => String::from("HashMap<(), ()>"),
                 "Option" => String::from("Option<()>"),
                 "ResourceLocation" => String::from("ResourceKey"),
