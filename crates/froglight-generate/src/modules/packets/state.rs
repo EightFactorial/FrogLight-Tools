@@ -10,7 +10,10 @@ use super::Packets;
 use crate::{
     bundle::GenerateBundle,
     consts::GENERATE_NOTICE,
-    helpers::{class_to_struct_name, format_file, update_file_modules, version_struct_name},
+    helpers::{
+        class_to_module_name, class_to_struct_name, format_file, update_file_modules,
+        version_struct_name,
+    },
 };
 
 #[allow(clippy::unused_async)]
@@ -28,35 +31,62 @@ impl Packets {
             tokio::fs::create_dir(&state_path).await?;
         }
 
-        // TODO: Create the packet structs
         let mut clientbound = Vec::new();
-        if let Some(clientbound_data) = state_data["clientbound"].as_object() {
-            for packet in clientbound_data.values() {
-                let name = packet["class"].as_str().unwrap();
-
-                // TODO: Check if the packet matches a previously generated packet
-                // clientbound.push(PacketType::Existing { name, path:
-                // String::from("crate::version::{VERSION}::path::to::Packet") });
-
-                // Generate a new packet
-                Self::create_packet(name, packet, &state_path, generate, extract).await?;
-                clientbound.push(PacketType::New { name: class_to_struct_name(name) });
-            }
-        }
+        let clientbound_data = state_data["clientbound"]
+            .as_object()
+            .map(|m| {
+                m.values()
+                    .map(|v| {
+                        let name = v["class"].as_str().unwrap();
+                        (class_to_struct_name(name), class_to_module_name(name), v)
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
 
         let mut serverbound = Vec::new();
-        if let Some(serverbound_data) = state_data["serverbound"].as_object() {
-            for packet in serverbound_data.values() {
-                let name = packet["class"].as_str().unwrap();
+        let serverbound_data = state_data["serverbound"]
+            .as_object()
+            .map(|m| {
+                m.values()
+                    .map(|v| {
+                        let name = v["class"].as_str().unwrap();
+                        (class_to_struct_name(name), class_to_module_name(name), v)
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
 
-                // TODO: Check if the packet matches a previously generated packet
-                // serverbound.push(PacketType::Existing { name, path:
-                // String::from("crate::version::{VERSION}::path::to::Packet") });
-
-                // Generate a new packet
-                Self::create_packet(name, packet, &state_path, generate, extract).await?;
-                serverbound.push(PacketType::New { name: class_to_struct_name(name) });
+        for (mut packet_name, mut module_name, packet) in clientbound_data.clone() {
+            if serverbound_data.iter().any(|(p, m, _)| p == &packet_name || m == &module_name) {
+                packet_name = format!("{}C2SPacket", packet_name.trim_end_matches("Packet"));
+                module_name.push_str("_c2s");
             }
+
+            // TODO: Check if the packet matches a previously generated packet
+            // clientbound.push(PacketType::Existing { name, path:
+            // String::from("crate::version::{VERSION}::path::to::Packet") });
+
+            // Generate a new packet
+            Self::create_packet(&packet_name, &module_name, packet, &state_path, generate, extract)
+                .await?;
+            clientbound.push(PacketType::New { name: packet_name });
+        }
+
+        for (mut packet_name, mut module_name, packet) in serverbound_data.clone() {
+            if clientbound_data.iter().any(|(p, m, _)| p == &packet_name || m == &module_name) {
+                packet_name = format!("{}S2CPacket", packet_name.trim_end_matches("Packet"));
+                module_name.push_str("_s2c");
+            }
+
+            // TODO: Check if the packet matches a previously generated packet
+            // serverbound.push(PacketType::Existing { name, path:
+            // String::from("crate::version::{VERSION}::path::to::Packet") });
+
+            // Generate a new packet
+            Self::create_packet(&packet_name, &module_name, packet, &state_path, generate, extract)
+                .await?;
+            serverbound.push(PacketType::New { name: packet_name });
         }
 
         Self::create_state_mod(

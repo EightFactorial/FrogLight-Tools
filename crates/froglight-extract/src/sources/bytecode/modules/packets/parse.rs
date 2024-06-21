@@ -2,7 +2,6 @@ use std::borrow::Cow;
 
 use anyhow::anyhow;
 use cafebabe::descriptor::{FieldType, Ty};
-use hashbrown::HashMap;
 use tracing::trace;
 
 use super::Packets;
@@ -18,15 +17,15 @@ impl Packets {
 
     /// Parse the packets in the given class map.
     pub(super) fn parse(
-        classes: HashMap<String, String>,
+        classes: Vec<(String, String)>,
         data: &ExtractBundle<'_>,
-    ) -> anyhow::Result<HashMap<String, (String, Vec<String>)>> {
-        let mut packet_data = HashMap::with_capacity(classes.len());
+    ) -> anyhow::Result<Vec<(String, String, Vec<String>)>> {
+        let mut packet_data = Vec::with_capacity(classes.len());
 
         for (packet, class) in classes {
             trace!("Packet: {packet}");
             let fields = Self::parse_packet(&class, data)?;
-            packet_data.insert(packet, (class, fields));
+            packet_data.push((packet, class, fields));
         }
 
         Ok(packet_data)
@@ -70,6 +69,14 @@ impl Packets {
                 && &f.descriptor == Self::PACKET_CODEC_FIELD_DESCRIPTOR
         }) {
             return super::codec::parse_codec(&classfile, codec_field, data);
+        }
+
+        if class.ends_with("/CustomPayloadS2CPacket") {
+            return Ok(vec![
+                String::from("VarInt"),
+                String::from("ResourceLocation"),
+                String::from("UnsizedBuffer"),
+            ]);
         }
 
         // Error if the packet has no init method or codec field

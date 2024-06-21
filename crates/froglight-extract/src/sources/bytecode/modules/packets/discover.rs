@@ -3,7 +3,6 @@ use cafebabe::{
     bytecode::Opcode,
     constant_pool::{LiteralConstant, Loadable, MemberRef},
 };
-use hashbrown::HashMap;
 
 use super::Packets;
 use crate::{
@@ -29,8 +28,8 @@ impl Packets {
 
     pub(super) fn discover_classes(
         data: &ExtractBundle<'_>,
-    ) -> anyhow::Result<HashMap<String, String>> {
-        let mut class_map = HashMap::new();
+    ) -> anyhow::Result<Vec<(String, String)>> {
+        let mut class_list = Vec::new();
 
         for class in Self::PACKET_CLASSES {
             let classfile = data.jar_container.get_class_err(class)?;
@@ -39,9 +38,9 @@ impl Packets {
 
             // Get the packet registry key and static field name
             //
-            // "minecraft:game_profile": "GAME_PROFILE"
+            // ("minecraft:game_profile", "GAME_PROFILE")
             let mut name = None;
-            let mut name_map = HashMap::new();
+            let mut name_list = Vec::new();
             for (_, op) in &code.opcodes {
                 match op {
                     // Find the packet registry name
@@ -56,7 +55,7 @@ impl Packets {
                     Opcode::Putstatic(MemberRef { class_name, name_and_type }) => {
                         if name_and_type.descriptor == Self::PACKETTYPE_OBJECT {
                             if let Some(name) = name.take() {
-                                name_map.insert(name, &name_and_type.name);
+                                name_list.push((name, name_and_type.name.to_string()));
                             } else {
                                 bail!("Failed to identify packet name in \"{class_name}\"");
                             }
@@ -68,19 +67,20 @@ impl Packets {
 
             // Use the field name to get the packet class
             //
-            // "minecraft:game_profile":
-            // "net/minecraft/network/packet/s2c/login/LoginSuccessS2CPacket"
-            for (packet_key, field_name) in name_map {
+            // ("minecraft:game_profile":
+            // "net/minecraft/network/packet/s2c/login/LoginSuccessS2CPacket")
+            for (_, field_name) in &mut name_list {
                 // Find the field that matches the field name found earlier
                 let field = get_class_field(&classfile, field_name)?;
                 let signature = get_signature(&field.attributes)?;
 
                 // Get the real packet class from the field descriptor
                 let descriptor = signature.split("<L").last().unwrap().split(';').next().unwrap();
-                class_map.insert(packet_key, descriptor.to_string());
+                *field_name = descriptor.to_string();
             }
+            class_list.extend(name_list);
         }
 
-        Ok(class_map)
+        Ok(class_list)
     }
 }

@@ -16,22 +16,19 @@ use tokio::{
 use tracing::trace;
 
 use super::Packets;
-use crate::{
-    bundle::GenerateBundle,
-    helpers::{class_to_module_name, class_to_struct_name, update_file_tag},
-};
+use crate::{bundle::GenerateBundle, helpers::update_file_tag};
 
 impl Packets {
     pub(super) async fn create_packet(
-        packet_class: &str,
+        packet_name: &str,
+        module_name: &str,
         packet_data: &Value,
         path: &Path,
 
         _generate: &GenerateBundle<'_>,
         _extract: &ExtractBundle<'_>,
     ) -> anyhow::Result<()> {
-        let module_name = class_to_module_name(packet_class);
-        let mut packet_path = path.join(&module_name);
+        let mut packet_path = path.join(module_name);
         packet_path.set_extension("rs");
 
         let mut packet_file = OpenOptions::new()
@@ -50,7 +47,7 @@ impl Packets {
         if contents.is_empty() || contents.contains("@generated") {
             trace!("Creating packet at \"{}\"", packet_path.display());
 
-            let output = Self::create_packet_inner(packet_class, packet_data);
+            let output = Self::create_packet_inner(packet_name, packet_data);
 
             packet_file.seek(SeekFrom::Start(0)).await?;
             packet_file.set_len(0).await?;
@@ -63,7 +60,7 @@ impl Packets {
         }
     }
 
-    fn create_packet_inner(packet_class: &str, packet_data: &Value) -> String {
+    fn create_packet_inner(packet_name: &str, packet_data: &Value) -> String {
         let mut packet_file = File { shebang: None, attrs: Vec::new(), items: Vec::new() };
 
         let fields = packet_data["fields"].as_array().unwrap();
@@ -81,7 +78,7 @@ impl Packets {
                 attrs: Self::attrs_from_fields(&fields),
                 vis: Visibility::Public(Pub::default()),
                 struct_token: Struct::default(),
-                ident: Ident::new(&class_to_struct_name(packet_class), Span::call_site()),
+                ident: Ident::new(packet_name, Span::call_site()),
                 generics: Generics::default(),
                 semi_token: Some(Semi::default()),
                 fields: Fields::Unit,
@@ -92,7 +89,7 @@ impl Packets {
                 attrs: Self::attrs_from_fields(&fields),
                 vis: Visibility::Public(Pub::default()),
                 struct_token: Struct::default(),
-                ident: Ident::new(&class_to_struct_name(packet_class), Span::call_site()),
+                ident: Ident::new(packet_name, Span::call_site()),
                 generics: Generics::default(),
                 semi_token: None,
                 fields: Self::packet_fields(&fields),
@@ -134,6 +131,10 @@ impl Packets {
 
         if fields.iter().any(|&f| f == "String") {
             imports.push(syn::parse_quote! { use compact_str::CompactString; });
+        }
+
+        if fields.iter().any(|&f| f == "Uuid") {
+            imports.push(syn::parse_quote! { use uuid::Uuid; });
         }
 
         if fields.len() == 1 {
@@ -197,6 +198,11 @@ impl Packets {
 
             attrs.push(syn::parse_quote! { #[derive(#derives)] });
         }
+
+        // Always derive `Reflect` if the `bevy` feature is enabled
+        attrs.push(
+            syn::parse_quote! { #[cfg_attr(feature = "bevy", derive(bevy_reflect::Reflect))] },
+        );
 
         // Mark the struct to be ser/de as JSON
         if fields.iter().any(|&f| f == "Json") {

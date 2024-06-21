@@ -2,10 +2,8 @@ use std::cmp::Ordering;
 
 use anyhow::bail;
 use froglight_definitions::MinecraftVersion;
-use hashbrown::HashMap;
 use serde_json::Value;
 use serde_unit_struct::{Deserialize_unit_struct, Serialize_unit_struct};
-use tracing::error;
 
 use crate::{bundle::ExtractBundle, sources::ExtractModule};
 
@@ -69,9 +67,7 @@ impl Packets {
         // Get packet fields
         let packet_data = Self::parse(classes, data)?;
         // Append data to output
-        Self::append_bytecode_info(packet_data, data);
-
-        Ok(())
+        Self::append_bytecode_info(packet_data, data)
     }
 
     // Append the packet data to the existing output
@@ -90,32 +86,43 @@ impl Packets {
     //     }
     // }
     fn append_bytecode_info(
-        packet_data: HashMap<String, (String, Vec<String>)>,
+        packet_data: Vec<(String, String, Vec<String>)>,
         data: &mut ExtractBundle<'_>,
-    ) {
+    ) -> anyhow::Result<()> {
         let output_packets = data.output["packets"].as_object_mut().unwrap();
 
         // Get the packet states
-        for (_state, state_data) in output_packets {
+        for (state, state_data) in output_packets {
             // Get the directions for the state
             //
             let states = state_data.as_object_mut().unwrap();
-            for (_direction, direction_data) in states {
+            for (direction, direction_data) in states {
                 // Get the packets for the direction
                 //
                 let packets = direction_data.as_object_mut().unwrap();
                 for (packet_key, data) in packets {
                     // Check if any data was found for this packet
                     //
-                    if let Some((class, fields)) = packet_data.get(packet_key) {
+                    if let Some((_, class, fields)) = packet_data.iter().find(|(key, class, _)| {
+                        key == packet_key
+                            && match direction.as_str() {
+                                "clientbound" => class.contains("/s2c/"),
+                                "serverbound" => class.contains("/c2s/"),
+                                _ => false,
+                            }
+                    }) {
                         // Insert the class and fields
                         data["class"] = class.clone().into();
                         data["fields"] = fields.clone().into();
                     } else {
-                        error!("Failed to find packet data for \"{packet_key}\"");
+                        bail!(
+                            "Failed to find packet data for \"{state}/{direction}/{packet_key}\""
+                        );
                     }
                 }
             }
         }
+
+        Ok(())
     }
 }
