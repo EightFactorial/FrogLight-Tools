@@ -59,8 +59,8 @@ impl Packets {
 
         for (mut packet_name, mut module_name, packet) in clientbound_data.clone() {
             if serverbound_data.iter().any(|(p, m, _)| p == &packet_name || m == &module_name) {
-                packet_name = format!("{}C2SPacket", packet_name.trim_end_matches("Packet"));
-                module_name.push_str("_c2s");
+                packet_name = format!("{}S2CPacket", packet_name.trim_end_matches("Packet"));
+                module_name.push_str("_s2c");
             }
 
             // TODO: Check if the packet matches a previously generated packet
@@ -75,8 +75,8 @@ impl Packets {
 
         for (mut packet_name, mut module_name, packet) in serverbound_data.clone() {
             if clientbound_data.iter().any(|(p, m, _)| p == &packet_name || m == &module_name) {
-                packet_name = format!("{}S2CPacket", packet_name.trim_end_matches("Packet"));
-                module_name.push_str("_s2c");
+                packet_name = format!("{}C2SPacket", packet_name.trim_end_matches("Packet"));
+                module_name.push_str("_c2s");
             }
 
             // TODO: Check if the packet matches a previously generated packet
