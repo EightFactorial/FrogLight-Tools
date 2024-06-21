@@ -7,7 +7,7 @@ use syn::{
     punctuated::Punctuated,
     token::{Brace, Pub, Semi, Struct},
     Attribute, Field, FieldMutability, Fields, FieldsNamed, File, Generics, Ident, Item,
-    ItemStruct, PathArguments, PathSegment, Type, TypePath, Visibility,
+    ItemStruct, Type, Visibility,
 };
 use tokio::{
     fs::OpenOptions,
@@ -47,7 +47,7 @@ impl Packets {
         packet_file.read_to_string(&mut contents).await?;
 
         // Skip recreating the packet if it is missing the `@generated` tag
-        if contents.contains("@generated") {
+        if contents.is_empty() || contents.contains("@generated") {
             trace!("Creating packet at \"{}\"", packet_path.display());
 
             let output = Self::create_packet_inner(packet_class, packet_data);
@@ -78,7 +78,7 @@ impl Packets {
         let packet = if fields.is_empty() {
             // If the packet has no fields, return a unit struct
             ItemStruct {
-                attrs: Vec::new(),
+                attrs: Self::attrs_from_fields(&fields),
                 vis: Visibility::Public(Pub::default()),
                 struct_token: Struct::default(),
                 ident: Ident::new(&class_to_struct_name(packet_class), Span::call_site()),
@@ -117,6 +117,21 @@ impl Packets {
             imports.push(syn::parse_quote! { use compact_str::CompactString; });
         }
 
+        if fields.iter().any(|&f| f == "Json") {
+            imports.push(syn::parse_quote! { use serde::{Serialize, Deserialize}; });
+        }
+
+        if fields.iter().any(|&f| f == "HashMap") {
+            imports.push(syn::parse_quote! {
+                #[cfg(not(feature = "hashbrown"))]
+                use std::collections::HashMap;
+            });
+            imports.push(syn::parse_quote! {
+                #[cfg(feature = "hashbrown")]
+                use hashbrown::HashMap;
+            });
+        }
+
         if fields.len() == 1 {
             imports.push(syn::parse_quote! { use derive_more::{Deref, DerefMut, From, Into}; });
         }
@@ -134,12 +149,13 @@ impl Packets {
             // Always derive `Debug`, `Clone`, and `PartialEq`
             derives.extend(quote::quote! { Debug, Clone, });
 
-            // If the packet doesn't have any Strings, Vecs, or ResourceLocations, derive
-            // `Copy`
-            if fields
-                .iter()
-                .all(|&f| !f.contains("Vec") && !matches!(f, "String" | "ResourceLocation"))
-            {
+            // If the packet doesn't have any Vecs, HashMaps, Strings, or ResourceLocations,
+            // derive `Copy`
+            if fields.iter().all(|&f| {
+                !f.contains("Vec")
+                    && !f.contains("HashMap")
+                    && !matches!(f, "String" | "ResourceLocation")
+            }) {
                 derives.extend(quote::quote! { Copy, });
             }
 
@@ -151,10 +167,20 @@ impl Packets {
                 derives.extend(quote::quote! { Eq, Hash, });
             }
 
-            // If the packet only has one field, derive `Deref`, `DerefMut`, `From`, and
-            // `Into`
+            // If the packet only has one field, derive `Deref`, `DerefMut`,
+            // `From`, and `Into`
             if fields.len() == 1 {
                 derives.extend(quote::quote! { Deref, DerefMut, From, Into, });
+            }
+
+            // If the packet is a unit struct, derive `Default`
+            if fields.is_empty() {
+                derives.extend(quote::quote! { Default, });
+            }
+
+            // If the packet is JSON, derive `Serialize` and `Deserialize`
+            if fields.iter().any(|&f| f == "Json") {
+                derives.extend(quote::quote! { Serialize, Deserialize, });
             }
 
             // Always derive `FrogReadWrite`
@@ -166,6 +192,13 @@ impl Packets {
         // Mark the struct to be ser/de as JSON
         if fields.iter().any(|&f| f == "Json") {
             attrs.push(syn::parse_quote! { #[frog(json)] });
+        }
+
+        // If the struct has no fields give it empty tests
+        if fields.is_empty() {
+            attrs.push(syn::parse_quote! {
+                #[frog(tests = ["read_verify", "write_verify"], bytes = [])]
+            });
         }
 
         attrs
@@ -185,6 +218,7 @@ impl Packets {
 
             // Replace the extracted field type with the correct type
             value = match value.as_str() {
+                "HashMap" => String::from("HashMap<(), ()>"),
                 "Option" => String::from("Option<()>"),
                 "ResourceLocation" => String::from("ResourceKey"),
                 "String" => String::from("CompactString"),
@@ -194,43 +228,13 @@ impl Packets {
                 _ => value,
             };
 
-            let ty: Type = if let Some(index) = value.find('<') {
-                let (ident, arg) = value.split_at(index);
-                let ident = Ident::new(ident, Span::call_site());
-                let arg = syn::parse_str::<Type>(&arg[1..arg.len() - 1]).unwrap();
-
-                Type::Path(TypePath {
-                    qself: None,
-                    path: syn::Path {
-                        leading_colon: None,
-                        segments: {
-                            let mut segments = Punctuated::new();
-                            segments.push(PathSegment {
-                                ident,
-                                arguments: PathArguments::AngleBracketed(
-                                    syn::parse_quote!( <#arg> ),
-                                ),
-                            });
-
-                            segments
-                        },
-                    },
-                })
-            } else if value.starts_with('[') {
-                let ident = Ident::new(&value[1..value.len() - 1], Span::call_site());
-                syn::parse_quote! { [#ident; 0] }
-            } else {
-                let ident = Ident::new(&value, Span::call_site());
-                syn::parse_quote! { #ident }
-            };
-
             named.push(Field {
                 attrs: if is_var { vec![syn::parse_quote! { #[frog(var)] }] } else { Vec::new() },
                 vis: Visibility::Public(Pub::default()),
                 mutability: FieldMutability::None,
                 ident: Some(Ident::new(&format!("field_{index}"), Span::call_site())),
                 colon_token: None,
-                ty,
+                ty: syn::parse_str::<Type>(&value).unwrap(),
             });
         }
 
