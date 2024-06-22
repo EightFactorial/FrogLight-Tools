@@ -40,7 +40,8 @@ impl Packets {
         }
 
         let mut clientbound = Vec::new();
-        let clientbound_data = state_data["clientbound"]
+
+        let mut clientbound_data = state_data["clientbound"]
             .as_object()
             .map(|m| {
                 m.values()
@@ -51,8 +52,12 @@ impl Packets {
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
+        clientbound_data.sort_by(|(_, _, a), (_, _, b)| {
+            a["protocol_id"].as_u64().unwrap().cmp(&b["protocol_id"].as_u64().unwrap())
+        });
 
         let mut serverbound = Vec::new();
+
         let serverbound_data = state_data["serverbound"]
             .as_object()
             .map(|m| {
@@ -64,6 +69,9 @@ impl Packets {
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
+        clientbound_data.sort_by(|(_, _, a), (_, _, b)| {
+            a["protocol_id"].as_u64().unwrap().cmp(&b["protocol_id"].as_u64().unwrap())
+        });
 
         for (mut packet_name, mut module_name, packet) in clientbound_data.clone() {
             if serverbound_data.iter().any(|(p, m, _)| p == &packet_name || m == &module_name) {
