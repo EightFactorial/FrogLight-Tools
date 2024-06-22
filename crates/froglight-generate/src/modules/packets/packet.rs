@@ -110,6 +110,10 @@ impl Packets {
             imports.push(syn::parse_quote! { use crate::common::BlockPosition; });
         }
 
+        if fields.iter().any(|&f| f == "GameProfile") {
+            imports.push(syn::parse_quote! { use crate::common::GameProfile; });
+        }
+
         if fields.iter().any(|&f| f == "HashMap") {
             imports.push(syn::parse_quote! {
                 #[cfg(not(feature = "hashbrown"))]
@@ -123,6 +127,10 @@ impl Packets {
 
         if fields.iter().any(|&f| f == "Json") {
             imports.push(syn::parse_quote! { use serde::{Serialize, Deserialize}; });
+        }
+
+        if fields.iter().any(|&f| f == "Nbt") {
+            imports.push(syn::parse_quote! { use simdnbt::owned::Nbt; });
         }
 
         if fields.iter().any(|&f| f == "ResourceLocation") {
@@ -159,7 +167,7 @@ impl Packets {
             if fields.iter().all(|&f| {
                 !f.contains("Vec")
                     && !f.contains("HashMap")
-                    && !matches!(f, "String" | "ResourceLocation")
+                    && !matches!(f, "GameProfile" | "Nbt" | "String" | "ResourceLocation")
             }) {
                 derives.extend(quote::quote! { Copy, });
             }
@@ -168,11 +176,11 @@ impl Packets {
             derives.extend(quote::quote! { PartialEq, });
 
             // If the packet doesn't have any floats, derive `Eq` and `Hash`
-            if fields.iter().all(|&f| !matches!(f, "f32" | "f64")) {
+            if fields.iter().all(|&f| !matches!(f, "f32" | "f64" | "Nbt")) {
                 derives.extend(quote::quote! { Eq, });
 
                 // If the packet doesn't have any HashMaps, derive `Hash`
-                if fields.iter().all(|&f| !matches!(f, "HashMap")) {
+                if fields.iter().all(|&f| !matches!(f, "GameProfile" | "HashMap")) {
                     derives.extend(quote::quote! { Hash, });
                 }
             }

@@ -3,8 +3,11 @@ use std::path::Path;
 use convert_case::{Case, Casing};
 use froglight_extract::bundle::ExtractBundle;
 use serde_json::Value;
-use tokio::{fs::OpenOptions, io::AsyncWriteExt};
-use tracing::warn;
+use tokio::{
+    fs::OpenOptions,
+    io::{AsyncReadExt, AsyncWriteExt},
+};
+use tracing::{trace, warn};
 
 use super::Packets;
 use crate::{
@@ -29,6 +32,11 @@ impl Packets {
         if !state_path.exists() {
             warn!("Creating state at \"{}\"", state_path.display());
             tokio::fs::create_dir(&state_path).await?;
+        }
+
+        if !Self::should_update(&state_path.join("mod.rs")).await? {
+            trace!("Skipping state at \"{}\"", state_path.display());
+            return Ok(());
         }
 
         let mut clientbound = Vec::new();
@@ -102,6 +110,25 @@ impl Packets {
 
     const STATE_DOCS: &'static str = r"//! [`{STATE}`](crate::states::{STATE}) state packets for
 //! [`{VERSION}`](super::{VERSION})";
+
+    async fn should_update(path: &Path) -> anyhow::Result<bool> {
+        if !path.exists() {
+            return Ok(true);
+        }
+
+        let mut mod_file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(path)
+            .await?;
+
+        let mut contents = String::new();
+        mod_file.read_to_string(&mut contents).await?;
+
+        Ok(contents.is_empty() || contents.contains("//! @generated"))
+    }
 
     async fn create_state_mod(
         state: &str,
