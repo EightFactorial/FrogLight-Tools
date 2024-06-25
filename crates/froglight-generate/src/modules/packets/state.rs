@@ -34,9 +34,9 @@ impl Packets {
             tokio::fs::create_dir(&state_path).await?;
         }
 
-        if !Self::should_update(&state_path.join("mod.rs")).await? {
-            trace!("Skipping state at \"{}\"", state_path.display());
-            return Ok(());
+        let create_packets = Self::should_update(&state_path.join("mod.rs")).await?;
+        if !create_packets {
+            trace!("Skipping creating packets for state \"{}\"", state);
         }
 
         let mut clientbound = Vec::new();
@@ -84,8 +84,18 @@ impl Packets {
             // String::from("crate::version::{VERSION}::path::to::Packet") });
 
             // Generate a new packet
-            Self::create_packet(&packet_name, &module_name, packet, &state_path, generate, extract)
+            if create_packets {
+                Self::create_packet(
+                    &packet_name,
+                    &module_name,
+                    packet,
+                    &state_path,
+                    generate,
+                    extract,
+                )
                 .await?;
+            }
+
             clientbound.push(PacketType::New { name: packet_name });
         }
 
@@ -100,8 +110,18 @@ impl Packets {
             // String::from("crate::version::{VERSION}::path::to::Packet") });
 
             // Generate a new packet
-            Self::create_packet(&packet_name, &module_name, packet, &state_path, generate, extract)
+            if create_packets {
+                Self::create_packet(
+                    &packet_name,
+                    &module_name,
+                    packet,
+                    &state_path,
+                    generate,
+                    extract,
+                )
                 .await?;
+            }
+
             serverbound.push(PacketType::New { name: packet_name });
         }
 
@@ -110,6 +130,7 @@ impl Packets {
             &state_path.join("mod.rs"),
             clientbound,
             serverbound,
+            create_packets,
             generate,
             extract,
         )
@@ -144,6 +165,7 @@ impl Packets {
 
         clientbound: Vec<PacketType>,
         serverbound: Vec<PacketType>,
+        create_packets: bool,
 
         generate: &GenerateBundle<'_>,
         _extract: &ExtractBundle<'_>,
@@ -161,11 +183,13 @@ impl Packets {
 
         let state_docs = Self::STATE_DOCS.replace("{STATE}", &state).replace("{VERSION}", &version);
 
+        let tag = if create_packets { GENERATE_NOTICE } else { "" };
+
         // Output the documentation
         let output = format!(
             r#"{state_docs}
 //!
-{GENERATE_NOTICE}
+{tag}
 #![allow(missing_docs)]
 "#
         );
