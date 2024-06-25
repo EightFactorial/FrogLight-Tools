@@ -58,7 +58,7 @@ impl Packets {
 
         let mut serverbound = Vec::new();
 
-        let serverbound_data = state_data["serverbound"]
+        let mut serverbound_data = state_data["serverbound"]
             .as_object()
             .map(|m| {
                 m.values()
@@ -69,7 +69,7 @@ impl Packets {
                     .collect::<Vec<_>>()
             })
             .unwrap_or_default();
-        clientbound_data.sort_by(|(_, _, a), (_, _, b)| {
+        serverbound_data.sort_by(|(_, _, a), (_, _, b)| {
             a["protocol_id"].as_u64().unwrap().cmp(&b["protocol_id"].as_u64().unwrap())
         });
 
