@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{future::Future, path::Path, pin::Pin};
 
 use anyhow::bail;
 use froglight_extract::{
@@ -55,31 +55,33 @@ impl GenerateRequired for Packets {
 
 impl GenerateModule for Packets {
     /// Run the generation process.
-    async fn generate(
-        &self,
-        generate: &GenerateBundle<'_>,
-        extract: &ExtractBundle<'_>,
-    ) -> anyhow::Result<()> {
-        // Get the path to the `froglight-protocol` src folder.
-        let src_path = generate.root_dir.join(Self::CRATE_SRC_PATH);
-        if !src_path.exists() {
-            bail!("Could not find `froglight-protocol` src at \"{}\"!", src_path.display());
-        }
-        debug!("Found `froglight-protocol` src at \"{}\"", src_path.display());
+    fn generate<'a>(
+        &'a self,
+        generate: &'a GenerateBundle<'_>,
+        extract: &'a ExtractBundle<'_>,
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + Sync + 'a>> {
+        Box::pin(async {
+            // Get the path to the `froglight-protocol` src folder.
+            let src_path = generate.root_dir.join(Self::CRATE_SRC_PATH);
+            if !src_path.exists() {
+                bail!("Could not find `froglight-protocol` src at \"{}\"!", src_path.display());
+            }
+            debug!("Found `froglight-protocol` src at \"{}\"", src_path.display());
 
-        // Get the path to the `versions` folder,
-        // creating it if it doesn't exist.
-        let ver_path = src_path.join(Self::VERSIONS_PATH);
-        if !ver_path.exists() {
-            warn!("Creating missing `versions` directory at \"{}\"", ver_path.display());
-            tokio::fs::create_dir(&ver_path).await?;
-        }
+            // Get the path to the `versions` folder,
+            // creating it if it doesn't exist.
+            let ver_path = src_path.join(Self::VERSIONS_PATH);
+            if !ver_path.exists() {
+                warn!("Creating missing `versions` directory at \"{}\"", ver_path.display());
+                tokio::fs::create_dir(&ver_path).await?;
+            }
 
-        // Create the versioned packets.
-        Self::create_version(&ver_path, generate, extract).await?;
+            // Create the versioned packets.
+            Self::create_version(&ver_path, generate, extract).await?;
 
-        // Update the `versions/mod.rs` file.
-        Self::create_versions_mod(&ver_path.join("mod.rs")).await
+            // Update the `versions/mod.rs` file.
+            Self::create_versions_mod(&ver_path.join("mod.rs")).await
+        })
     }
 }
 

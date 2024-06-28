@@ -49,6 +49,10 @@ pub struct BlockDefinition {
 /// A blockstate with its id and properties.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BlockState {
+    /// If the blockstate is the default one.
+    #[serde(default, skip_serializing_if = "BlockState::not_default")]
+    pub default: bool,
+
     /// The blockstate id.
     ///
     /// This is the id stored in chunks and send over the network.
@@ -60,4 +64,10 @@ pub struct BlockState {
     /// All properties inside the parent [`BlockData`] must be present.
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub properties: HashMap<String, String>,
+}
+
+impl BlockState {
+    /// Skip serializing the [`BlockState::default`] field if it is [`false`].
+    #[must_use]
+    pub const fn not_default(default: &bool) -> bool { !*default }
 }

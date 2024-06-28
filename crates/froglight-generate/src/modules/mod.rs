@@ -1,6 +1,6 @@
 //! Extraction Sources
 
-use std::future::Future;
+use std::{future::Future, pin::Pin};
 
 use enum_dispatch::enum_dispatch;
 use froglight_extract::{bundle::ExtractBundle, sources::Modules as ExtractModules};
@@ -8,6 +8,9 @@ use serde::{Deserialize, Serialize};
 
 mod packets;
 use packets::Packets;
+
+mod registries;
+use registries::Registries;
 
 use crate::bundle::GenerateBundle;
 
@@ -18,17 +21,21 @@ use crate::bundle::GenerateBundle;
 pub enum Modules {
     /// Generate packets
     Packets(Packets),
+    /// Generate registries
+    Registries(Registries),
 }
 
 impl Modules {
     /// Default modules to use when none are specified.
-    pub const DEFAULT: &'static [Modules] = &[Modules::Packets(Packets)];
+    pub const DEFAULT: &'static [Modules] =
+        &[Modules::Packets(Packets), Modules::Registries(Registries)];
 
     /// Get the required [`ExtractModules`] for this module.
     #[must_use]
     pub fn required(&self) -> &'static [ExtractModules] {
         match self {
             Modules::Packets(_) => <Packets as sealed::GenerateRequired>::REQUIRED,
+            Modules::Registries(_) => <Registries as sealed::GenerateRequired>::REQUIRED,
         }
     }
 }
@@ -37,11 +44,11 @@ impl Modules {
 #[enum_dispatch]
 pub trait GenerateModule: sealed::GenerateRequired {
     /// Run the generation process.
-    fn generate(
-        &self,
-        generate: &GenerateBundle<'_>,
-        extract: &ExtractBundle<'_>,
-    ) -> impl Future<Output = anyhow::Result<()>> + Send + Sync;
+    fn generate<'a>(
+        &'a self,
+        generate: &'a GenerateBundle<'_>,
+        extract: &'a ExtractBundle<'_>,
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + Sync + 'a>>;
 }
 
 /// Sealed trait to allow an array of required extract modules to be defined.
