@@ -20,11 +20,11 @@ use tracing::{debug, warn};
 use super::sealed::GenerateRequired;
 use crate::{
     bundle::GenerateBundle,
-    helpers::{update_file_modules, update_file_tag},
+    consts::GENERATE_NOTICE,
+    helpers::{format_file, update_file_modules},
     modules::GenerateModule,
 };
 
-mod contents;
 mod generated;
 mod version;
 
@@ -80,8 +80,25 @@ impl GenerateModule for Registries {
                 tokio::fs::create_dir(&reg_path).await?;
             }
 
-            // Create the registries.
-            Self::create_registries_contents(&reg_path, generate, extract).await?;
+            // Create the generated registries
+            {
+                let gen_path = reg_path.join("generated");
+                if !gen_path.exists() {
+                    warn!("Creating generated directory: \"{}\"", gen_path.display());
+                    tokio::fs::create_dir(&gen_path).await?;
+                }
+                generated::create_generated(&gen_path, generate, extract).await?;
+            }
+
+            // Create versioned implementations of the registries
+            {
+                let ver_path = reg_path.join(generate.version.base.to_long_string());
+                if !ver_path.exists() {
+                    warn!("Creating registry version directory: \"{}\"", ver_path.display());
+                    tokio::fs::create_dir(&ver_path).await?;
+                }
+                version::create_versioned(&ver_path, generate, extract).await?;
+            }
 
             // Update the `registries/mod.rs` file.
             Self::create_registries_mod(&reg_path.join("mod.rs")).await
@@ -108,6 +125,9 @@ impl Registries {
 
         // Write the docs
         mod_file.write_all(Self::REGISTRIES_DOCS.as_bytes()).await?;
+        mod_file.write_all(b"\n//!\n").await?;
+        mod_file.write_all(GENERATE_NOTICE.as_bytes()).await?;
+        mod_file.write_all(b"\n#![allow(missing_docs)]\n\n").await?;
 
         // Update the module list.
         update_file_modules(&mut mod_file, path, false, false).await?;
@@ -128,24 +148,23 @@ impl Registries {
 
             let mut build_modules = String::new();
             for version in modules {
-                build_modules.push_str(&format!("{version}::build(app);\n"));
+                build_modules.push_str(&format!("{version}::build(app);\n    "));
             }
 
             mod_file
                 .write_all(
                     format!(
                         r#"
-    #[doc(hidden)]
-    pub(super) fn build(app: &mut bevy_app::App) {{
-        {build_modules}
-    }}"#
+#[doc(hidden)]
+pub(super) fn build(app: &mut bevy_app::App) {{
+    {build_modules}
+}}"#
                     )
                     .as_bytes(),
                 )
                 .await?;
         }
 
-        // Update the file tag.
-        update_file_tag(&mut mod_file, path).await
+        format_file(&mut mod_file).await
     }
 }

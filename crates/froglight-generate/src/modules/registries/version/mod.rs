@@ -10,5 +10,5 @@ pub(super) async fn create_versioned(
     _generate: &GenerateBundle<'_>,
     _extract: &ExtractBundle<'_>,
 ) -> anyhow::Result<()> {
-    todo!()
+    Ok(())
 }

@@ -49,10 +49,10 @@ impl VersionManifest {
     ///
     /// Returns `None` if either version is not found.
     #[must_use]
-    pub fn compare(&self, rhs: &MinecraftVersion, lhs: &MinecraftVersion) -> Option<Ordering> {
+    pub fn compare(&self, lhs: &MinecraftVersion, rhs: &MinecraftVersion) -> Option<Ordering> {
         let rhs = &self.versions.iter().find(|&x| rhs.is_same(&x.id))?.release_time;
         let lhs = &self.versions.iter().find(|&x| lhs.is_same(&x.id))?.release_time;
-        Some(rhs.cmp(lhs))
+        Some(lhs.cmp(rhs))
     }
 
     /// Get a [`VersionManifestEntry`] by [`MinecraftVersion`].
