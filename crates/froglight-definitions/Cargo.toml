@@ -17,7 +17,7 @@ workspace = true
 
 [dev-dependencies]
 proptest = { workspace = true }
-quick-xml = { version = "0.34.0", features = ["serialize"] }
+quick-xml = { version = "0.35.0", features = ["serialize"] }
 
 [dependencies]
 chrono = { version = "0.4.38", features = ["serde"] }
