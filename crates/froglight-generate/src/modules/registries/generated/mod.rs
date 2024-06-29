@@ -39,7 +39,8 @@ pub(super) async fn create_generated(
     block::generate_blocks(&blck_path, generate, extract).await?;
 
     // Generate registries
-    let _reg_path = gen_path.join("registries");
+    let reg_path = gen_path.join("registries");
+    registry::generate_registries(&reg_path, generate, extract).await?;
 
     // Update the version and tag
     update_version(&mod_path, &generate.version.base).await?;

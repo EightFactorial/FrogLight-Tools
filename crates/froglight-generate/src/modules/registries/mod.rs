@@ -21,7 +21,7 @@ use super::sealed::GenerateRequired;
 use crate::{
     bundle::GenerateBundle,
     consts::GENERATE_NOTICE,
-    helpers::{format_file, update_file_modules},
+    helpers::{format_file, update_file_modules, version_module_name},
     modules::GenerateModule,
 };
 
@@ -92,7 +92,8 @@ impl GenerateModule for Registries {
 
             // Create versioned implementations of the registries
             {
-                let ver_path = reg_path.join(generate.version.base.to_long_string());
+                let ver_path =
+                    reg_path.join(version_module_name(&generate.version.jar).to_string());
                 if !ver_path.exists() {
                     warn!("Creating registry version directory: \"{}\"", ver_path.display());
                     tokio::fs::create_dir(&ver_path).await?;
