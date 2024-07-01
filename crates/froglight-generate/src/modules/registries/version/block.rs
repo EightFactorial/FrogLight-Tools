@@ -275,7 +275,7 @@ impl BlockData {
         let states = data["states"].as_array().unwrap();
         let states: Vec<_> = states.iter().map(|v| v.as_object().unwrap()).collect();
 
-        // There is only one state, so it must be the defualt
+        // There is only one state, so it must be the default
         // and there must be no fields or permutations
         if states.len() == 1 {
             return BlockData::Default;
