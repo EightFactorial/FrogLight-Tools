@@ -14,6 +14,7 @@ mod block;
 pub(super) use block::Block;
 
 mod registry;
+pub(super) use registry::Registry;
 
 pub(super) async fn create_generated(
     gen_path: &Path,

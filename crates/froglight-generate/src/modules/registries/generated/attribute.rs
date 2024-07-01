@@ -69,27 +69,36 @@ pub(super) async fn generate_attributes(
             }
             AttributeType::Enum(name, values) => {
                 // Start the enum attribute
-                attr_file.write_all(format!("    {name} {{\n").as_bytes()).await?;
+                attr_file.write_all(format!("    {name} {{\n        ").as_bytes()).await?;
 
                 // Write the values
-                for value in values {
-                    attr_file.write_all(format!("        {value},\n").as_bytes()).await?;
+                let values_len = values.len();
+                for (index, value) in values.into_iter().enumerate() {
+                    attr_file.write_all(value.as_bytes()).await?;
+
+                    if index != values_len - 1 {
+                        attr_file.write_all(b", ").await?;
+                    }
                 }
 
                 // Finish the enum attribute
-                attr_file.write_all(b"    },\n").await?;
+                attr_file.write_all(b"\n    },\n").await?;
             }
             AttributeType::Range(name, min, max) => {
                 // Start the range attribute
-                attr_file.write_all(format!("    {name} {{\n").as_bytes()).await?;
+                attr_file.write_all(format!("    {name} {{\n        ").as_bytes()).await?;
 
                 // Write the values
                 for value in min..=max {
-                    attr_file.write_all(format!("        _{value},\n").as_bytes()).await?;
+                    attr_file.write_all(format!("_{value}").as_bytes()).await?;
+
+                    if value != max {
+                        attr_file.write_all(b", ").await?;
+                    }
                 }
 
                 // Finish the range attribute
-                attr_file.write_all(b"    },\n").await?;
+                attr_file.write_all(b"\n    },\n").await?;
             }
         }
     }

@@ -89,10 +89,9 @@ async fn generate_registry(
         .await?;
 
     // Create the registry enum identity
-    let mut key_name =
-        name.trim_start_matches("minecraft:").replace([':', '/', '.'], "_").to_case(Case::Pascal);
-    key_name.push_str("Key");
+    let registry = Registry::from_data(name, data);
 
+    // Get the optional default entry
     let default_entry = data.get("default").and_then(|v| v.as_str());
 
     // Write the registry derive macro
@@ -105,32 +104,21 @@ async fn generate_registry(
         .await?;
 
     // Start the registry enum
-    registry_file.write_all(format!("\npub enum {key_name} {{\n").as_bytes()).await?;
-
-    // Sort the entries by protocol ID
-    let entries: &Map<String, Value> = data["entries"].as_object().unwrap();
-    let mut entries: Vec<(&String, i64)> =
-        entries.into_iter().map(|(k, v)| (k, v["protocol_id"].as_i64().unwrap())).collect();
-    entries.sort_by(|a, b| a.1.cmp(&b.1));
+    registry_file.write_all(format!("\npub enum {} {{\n", registry.name).as_bytes()).await?;
 
     // Write the registry values
-    for (entry_name, _) in entries {
-        let entry_ident = entry_name
-            .trim_start_matches("minecraft:")
-            .replace([':', '/', '.'], "_")
-            .to_case(Case::Pascal);
-
+    for (key, name) in registry.entries {
         // Write the key attribute
-        registry_file.write_all(format!(r#"    #[frog(key = "{entry_name}")]"#).as_bytes()).await?;
+        registry_file.write_all(format!(r#"    #[frog(key = "{key}")]"#).as_bytes()).await?;
         registry_file.write_all(b"\n").await?;
 
         // Mark the default entry
-        if default_entry.is_some_and(|n| n == entry_name) {
+        if default_entry.is_some_and(|n| n == key) {
             registry_file.write_all(b"    #[default]\n").await?;
         }
 
         // Write the entry
-        registry_file.write_all(format!("    {entry_ident},\n").as_bytes()).await?;
+        registry_file.write_all(format!("    {name},\n").as_bytes()).await?;
     }
 
     // Finish the registry enum
@@ -140,5 +128,46 @@ async fn generate_registry(
     format_file(&mut registry_file).await?;
 
     // Return the registry enum name
-    Ok(key_name)
+    Ok(registry.name)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Registry {
+    pub(crate) name: String,
+    pub(crate) entries: Vec<(String, String)>,
+}
+
+impl Registry {
+    pub(crate) fn from_data(name: &str, data: &Map<String, Value>) -> Self {
+        // Format the registry name
+        let name = Self::format_name(name);
+
+        // Create a list of entries sorted by protocol ID
+        let mut entries: Vec<(_, i64)> = data["entries"]
+            .as_object()
+            .unwrap()
+            .into_iter()
+            .map(|(k, v)| (k, v["protocol_id"].as_i64().unwrap()))
+            .collect();
+        entries.sort_by(|a, b| a.1.cmp(&b.1));
+
+        // Filter out the entry ids and format the entry names
+        let entries =
+            entries.into_iter().map(|(k, _)| (k.to_string(), Self::format_entry(k))).collect();
+
+        Self { name, entries }
+    }
+
+    pub(crate) fn format_name(name: &str) -> String {
+        let mut name = name
+            .trim_start_matches("minecraft:")
+            .replace([':', '/', '.'], "_")
+            .to_case(Case::Pascal);
+        name.push_str("Key");
+        name
+    }
+
+    pub(crate) fn format_entry(name: &str) -> String {
+        name.trim_start_matches("minecraft:").replace([':', '/', '.'], "_").to_case(Case::Pascal)
+    }
 }

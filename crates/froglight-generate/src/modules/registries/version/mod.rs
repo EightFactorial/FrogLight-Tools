@@ -20,7 +20,7 @@ pub(super) async fn create_versioned(
     let blck_path = ver_path.join("blocks.rs");
     block::generate_blocks(&blck_path, generate, extract).await?;
 
-    let reg_path = ver_path.join("registries");
+    let reg_path = ver_path.join("registries.rs");
     registry::generate_registries(&reg_path, generate, extract).await?;
 
     let mod_path = ver_path.join("mod.rs");
