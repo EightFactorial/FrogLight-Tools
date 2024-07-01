@@ -13,42 +13,8 @@ pub(super) async fn generate_blocks(
     _generate: &GenerateBundle<'_>,
     extract: &ExtractBundle<'_>,
 ) -> anyhow::Result<()> {
-    let mut block_list: Vec<Block> = Vec::new();
-
-    let block_data = extract.output["blocks"].as_object().unwrap();
-    for (block_name, block_data) in block_data {
-        let name = block_name.trim_start_matches("minecraft:").to_case(Case::Pascal);
-
-        let mut fields = HashMap::new();
-
-        if let Some(attribute_data) = block_data["properties"].as_object() {
-            for (attr_name, attr_values) in attribute_data {
-                let attr_values = attr_values.as_array().unwrap();
-                let mut attr_values = attr_values
-                    .iter()
-                    .map(|v| v.as_str().unwrap().to_case(Case::Pascal))
-                    .collect::<Vec<_>>();
-                attr_values.sort();
-
-                let attr_type_name = super::attribute::attribute_name(attr_name, &attr_values);
-
-                // Fix the `type` attribute name
-                let mut attr_name = attr_name.as_ref();
-                if attr_name == "type" {
-                    attr_name = "kind";
-                }
-
-                // Error and exit if there are duplicate attribute names
-                if fields.insert(attr_name.to_string(), attr_type_name).is_some() {
-                    bail!(
-                        "Duplicate attribute name for block: \"{block_name}\" -> \"{attr_name}\""
-                    );
-                }
-            }
-        }
-
-        block_list.push(Block { name, fields });
-    }
+    // Create the block list
+    let block_list = Block::create_list(extract)?;
 
     let mut block_file = OpenOptions::new()
         .read(true)
@@ -72,16 +38,23 @@ pub(super) async fn generate_blocks(
     // Start the block macro
     block_file.write_all(b"frog_create_blocks! {\n").await?;
 
+    let first = block_list.first().unwrap().clone();
+    let namespace = first.raw_name.split(':').next().unwrap();
+    block_file.write_all(format!("    \"{namespace}\",\n").as_bytes()).await?;
+
     // Write the blocks
-    for Block { name, fields } in block_list {
+    for Block { raw_name, name, fields } in block_list {
+        let block_key = raw_name.trim_start_matches(namespace).trim_start_matches(':');
+
         // Write the block fields
         if fields.is_empty() {
             // Write the block struct
-            block_file.write_all(format!("    {name},\n").as_bytes()).await?;
+            block_file.write_all(format!("    {name} => \"{block_key}\",\n").as_bytes()).await?;
         } else {
             // Start the block struct
-            block_file.write_all(format!("    {name} {{\n").as_bytes()).await?;
+            block_file.write_all(format!("    {name} => \"{block_key}\" {{\n").as_bytes()).await?;
 
+            // Write the block fields
             for (field_name, field_type) in fields {
                 block_file
                     .write_all(format!("        pub {field_name}: {field_type},\n").as_bytes())
@@ -99,14 +72,63 @@ pub(super) async fn generate_blocks(
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-struct Block {
+pub(crate) struct Block {
+    /// The raw name of the block.
+    ///
+    /// For example, `minecraft:grass_block`.
+    pub(crate) raw_name: String,
+
     /// The name of the block.
     ///
     /// For example, `GrassBlock`.
-    name: String,
+    pub(crate) name: String,
 
     /// The attribute fields of the block.
     ///
     /// For example, `{}`, `{"snowy": "SnowyAttribute"}`, etc.
-    fields: HashMap<String, String>,
+    pub(crate) fields: HashMap<String, String>,
+}
+
+impl Block {
+    /// Create a list of blocks from the [`ExtractBundle`].
+    pub(crate) fn create_list(extract: &ExtractBundle<'_>) -> anyhow::Result<Vec<Self>> {
+        let mut block_list: Vec<Block> = Vec::new();
+
+        let block_data = extract.output["blocks"].as_object().unwrap();
+        for (block_name, block_data) in block_data {
+            let name = block_name.trim_start_matches("minecraft:").to_case(Case::Pascal);
+
+            let mut fields = HashMap::new();
+
+            if let Some(attribute_data) = block_data["properties"].as_object() {
+                for (attr_name, attr_values) in attribute_data {
+                    let attr_values = attr_values.as_array().unwrap();
+                    let mut attr_values = attr_values
+                        .iter()
+                        .map(|v| v.as_str().unwrap().to_case(Case::Pascal))
+                        .collect::<Vec<_>>();
+                    attr_values.sort();
+
+                    let attr_type_name = super::attribute::attribute_name(attr_name, &attr_values);
+
+                    // Fix the `type` attribute name
+                    let mut attr_name = attr_name.as_ref();
+                    if attr_name == "type" {
+                        attr_name = "kind";
+                    }
+
+                    // Error and exit if there are duplicate attribute names
+                    if fields.insert(attr_name.to_string(), attr_type_name).is_some() {
+                        bail!(
+                            "Duplicate attribute name for block: \"{block_name}\" -> \"{attr_name}\""
+                        );
+                    }
+                }
+            }
+
+            block_list.push(Block { raw_name: block_name.clone(), name, fields });
+        }
+
+        Ok(block_list)
+    }
 }

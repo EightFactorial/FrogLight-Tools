@@ -8,7 +8,11 @@ use tracing::debug;
 use crate::{bundle::GenerateBundle, helpers::update_tag};
 
 mod attribute;
+pub(super) use attribute::AttributeType;
+
 mod block;
+pub(super) use block::Block;
+
 mod registry;
 
 pub(super) async fn create_generated(

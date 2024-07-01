@@ -3,6 +3,7 @@ use std::path::Path;
 use anyhow::bail;
 use convert_case::{Case, Casing};
 use froglight_extract::bundle::ExtractBundle;
+use serde_json::Value;
 use tokio::{fs::OpenOptions, io::AsyncWriteExt};
 use tracing::debug;
 
@@ -22,43 +23,7 @@ pub(super) async fn generate_attributes(
         };
 
         for (attr_name, attr_values) in attributes {
-            let attr_values = attr_values.as_array().unwrap();
-            let mut attr_values = attr_values
-                .iter()
-                .map(|v| v.as_str().unwrap().to_case(Case::Pascal))
-                .collect::<Vec<_>>();
-            attr_values.sort();
-
-            let new_attr_name = attribute_name(attr_name, &attr_values);
-
-            // Warn about long attribute names
-            if new_attr_name.len() >= 40 && attr_name != "shape" {
-                debug!("Consider shortening the attribute: \"{attr_name}\" -> \"{new_attr_name}\"");
-            }
-
-            if attr_values.len() == 2
-                && attr_values.contains(&String::from("True"))
-                && attr_values.contains(&String::from("False"))
-            {
-                block_attributes.push(AttributeType::Boolean(new_attr_name));
-            } else if !attr_name.contains("range") && new_attr_name.ends_with("RangeAttribute") {
-                let mut min = attr_values[0].parse::<i32>().unwrap();
-                let mut max = attr_values[0].parse::<i32>().unwrap();
-
-                // Find the min and max values
-                for value in attr_values.iter().skip(1) {
-                    let value = value.parse::<i32>().unwrap();
-                    if value < min {
-                        min = value;
-                    } else if value > max {
-                        max = value;
-                    }
-                }
-
-                block_attributes.push(AttributeType::Range(new_attr_name, min, max));
-            } else {
-                block_attributes.push(AttributeType::Enum(new_attr_name, attr_values));
-            }
+            block_attributes.push(AttributeType::create_from(attr_name, attr_values));
         }
     }
 
@@ -137,7 +102,7 @@ pub(super) async fn generate_attributes(
 /// Generate the attribute name.
 ///
 /// Allows for formatting special cases.
-pub(super) fn attribute_name(name: &str, values: &[String]) -> String {
+pub(crate) fn attribute_name(name: &str, values: &[String]) -> String {
     let attr_name = name.to_case(Case::Pascal);
     if matches!(name, "north" | "south" | "east" | "west" | "up" | "down") {
         let mut joined = values.join("");
@@ -190,16 +155,88 @@ pub(super) fn attribute_name(name: &str, values: &[String]) -> String {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) enum AttributeType {
+pub(crate) enum AttributeType {
     Boolean(String),
     Enum(String, Vec<String>),
     Range(String, i32, i32),
 }
 
 impl AttributeType {
-    fn name(&self) -> &str {
+    pub(crate) fn name(&self) -> &str {
         match self {
             Self::Boolean(name) | Self::Enum(name, ..) | Self::Range(name, ..) => name,
+        }
+    }
+
+    /// Create a list of attributes from the [`ExtractBundle`].
+    pub(crate) fn create_list(extract: &ExtractBundle<'_>) -> anyhow::Result<Vec<Self>> {
+        let mut block_attributes = Vec::new();
+
+        let block_data = extract.output["blocks"].as_object().unwrap();
+        for block in block_data.values() {
+            let Some(attributes) = block["properties"].as_object() else {
+                continue;
+            };
+
+            for (attr_name, attr_values) in attributes {
+                block_attributes.push(AttributeType::create_from(attr_name, attr_values));
+            }
+        }
+
+        // Sort and deduplicate the attributes
+        block_attributes.sort_by(|a, b| a.name().cmp(b.name()));
+        block_attributes.dedup();
+
+        // Error if there are any duplicate attribute names
+        for (i, attr) in block_attributes.iter().enumerate() {
+            for other in block_attributes.iter().skip(i + 1) {
+                if attr.name() == other.name() {
+                    bail!("Duplicate attribute name: \"{}\"", attr.name());
+                }
+            }
+        }
+
+        Ok(block_attributes)
+    }
+
+    /// Create an attribute from the attribute name and values.
+    pub(crate) fn create_from(attr_name: &str, attr_values: &Value) -> Self {
+        let attr_values = attr_values.as_array().unwrap();
+        let mut attr_values = attr_values
+            .iter()
+            .map(|v| v.as_str().unwrap().to_case(Case::Pascal))
+            .collect::<Vec<_>>();
+        attr_values.sort();
+
+        let new_attr_name = attribute_name(attr_name, &attr_values);
+
+        // Warn about long attribute names
+        if new_attr_name.len() >= 40 && attr_name != "shape" {
+            debug!("Consider shortening the attribute: \"{attr_name}\" -> \"{new_attr_name}\"");
+        }
+
+        if attr_values.len() == 2
+            && attr_values.contains(&String::from("True"))
+            && attr_values.contains(&String::from("False"))
+        {
+            AttributeType::Boolean(new_attr_name)
+        } else if !attr_name.contains("range") && new_attr_name.ends_with("RangeAttribute") {
+            let mut min = attr_values[0].parse::<i32>().unwrap();
+            let mut max = attr_values[0].parse::<i32>().unwrap();
+
+            // Find the min and max values
+            for value in attr_values.iter().skip(1) {
+                let value = value.parse::<i32>().unwrap();
+                if value < min {
+                    min = value;
+                } else if value > max {
+                    max = value;
+                }
+            }
+
+            AttributeType::Range(new_attr_name, min, max)
+        } else {
+            AttributeType::Enum(new_attr_name, attr_values)
         }
     }
 }

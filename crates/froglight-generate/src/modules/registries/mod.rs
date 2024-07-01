@@ -83,10 +83,6 @@ impl GenerateModule for Registries {
             // Create the generated registries
             {
                 let gen_path = reg_path.join("generated");
-                if !gen_path.exists() {
-                    warn!("Creating generated directory: \"{}\"", gen_path.display());
-                    tokio::fs::create_dir(&gen_path).await?;
-                }
                 generated::create_generated(&gen_path, generate, extract).await?;
             }
 
