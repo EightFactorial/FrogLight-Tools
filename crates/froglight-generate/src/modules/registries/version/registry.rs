@@ -51,7 +51,9 @@ pub(super) async fn generate_registries(
         .await?;
 
     reg_file.write_all(b"#[allow(clippy::wildcard_imports)]\n").await?;
-    reg_file.write_all(b"use crate::{definitions::ConvertId, registries::registries::*};\n\n").await?;
+    reg_file
+        .write_all(b"use crate::{definitions::ConvertId, registries::registries::*};\n\n")
+        .await?;
 
     // Start the registry implementation macro
     reg_file.write_all(b"frog_create_registry_impls! {\n").await?;
