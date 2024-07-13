@@ -5,12 +5,12 @@ use froglight_definitions::MinecraftVersion;
 use froglight_extract::bundle::ExtractBundle;
 use serde_json::{Map, Value};
 use tokio::{fs::OpenOptions, io::AsyncWriteExt};
-use tracing::{debug, trace};
+use tracing::{debug, trace, warn};
 
 use crate::{
     bundle::GenerateBundle,
     consts::GENERATE_NOTICE,
-    helpers::{format_file, update_file_modules},
+    helpers::{format_file, update_file_modules, update_tag},
 };
 
 pub(super) async fn generate_registries(
@@ -22,6 +22,7 @@ pub(super) async fn generate_registries(
     let mod_path = reg_path.join("mod.rs");
     if !should_generate(&mod_path, generate, extract).await? {
         debug!("Skipping registry generation...");
+        update_tag(&mod_path).await?;
         return Ok(());
     }
     debug!("Generating registries: \"{}\"", &generate.version.base);
@@ -84,6 +85,10 @@ async fn should_generate(
     generate: &GenerateBundle<'_>,
     extract: &ExtractBundle<'_>,
 ) -> anyhow::Result<bool> {
+    if !path.exists() {
+        return Ok(true);
+    }
+
     let contents = tokio::fs::read_to_string(path).await?;
     for line in contents.lines().filter(|&l| l.starts_with("//!")) {
         if let Some(stripped) = line.strip_prefix("//! Template: ") {
@@ -94,6 +99,7 @@ async fn should_generate(
             }
         }
     }
+    warn!("Unable to determine version, generating registries for: \"{}\"", generate.version.base);
     Ok(true)
 }
 

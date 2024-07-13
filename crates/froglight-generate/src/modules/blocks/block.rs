@@ -32,7 +32,9 @@ pub(super) async fn generate_blocks(
     // Import the block macro and attributes
     block_file.write_all(b"use froglight_macros::frog_create_blocks;\n").await?;
     block_file
-        .write_all(b"#[allow(clippy::wildcard_imports)]\nuse super::attributes::*;\n\n")
+        .write_all(
+            b"#[allow(clippy::wildcard_imports)]\nuse crate::definitions::attributes::*;\n\n",
+        )
         .await?;
 
     // Start the block macro
