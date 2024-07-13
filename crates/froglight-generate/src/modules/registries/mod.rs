@@ -1,20 +1,15 @@
-use std::{future::Future, io::SeekFrom, path::Path, pin::Pin};
+use std::{future::Future, pin::Pin};
 
 use anyhow::bail;
 use froglight_extract::{
     bundle::ExtractBundle,
     sources::{
-        builtin_json::{
-            Blocks as ExtractBlocks, BuiltinJsonModule, Registries as ExtractRegistries,
-        },
+        builtin_json::{BuiltinJsonModule, Registries as ExtractRegistries},
         Modules as ExtractModules,
     },
 };
 use serde_unit_struct::{Deserialize_unit_struct, Serialize_unit_struct};
-use tokio::{
-    fs::OpenOptions,
-    io::{AsyncReadExt, AsyncSeekExt, AsyncWriteExt},
-};
+use tokio::io::AsyncWriteExt;
 use tracing::{debug, warn};
 
 use super::sealed::GenerateRequired;
@@ -48,13 +43,15 @@ impl Registries {
     /// The path to the `froglight-registry` src folder,
     /// relative to the root directory.
     const CRATE_SRC_PATH: &'static str = "crates/froglight-registry/src";
+
+    /// The path to the `definitions` folder,
+    /// relative to the src folder.
+    const DEF_SRC_PATH: &'static str = "definitions";
 }
 
 impl GenerateRequired for Registries {
-    const REQUIRED: &'static [ExtractModules] = &[
-        ExtractModules::BuiltinJson(BuiltinJsonModule::Blocks(ExtractBlocks)),
-        ExtractModules::BuiltinJson(BuiltinJsonModule::Registries(ExtractRegistries)),
-    ];
+    const REQUIRED: &'static [ExtractModules] =
+        &[ExtractModules::BuiltinJson(BuiltinJsonModule::Registries(ExtractRegistries))];
 }
 
 impl GenerateModule for Registries {
@@ -72,96 +69,67 @@ impl GenerateModule for Registries {
             }
             debug!("Found `froglight-registry` src at \"{}\"", src_path.display());
 
-            // Get the path to the `registries` folder,
+            // Get the path to the `defitions` folder,
             // creating it if it doesn't exist.
-            let reg_path = src_path.join(Self::REGISTRIES_PATH);
-            if !reg_path.exists() {
-                warn!("Creating missing `registries` directory at \"{}\"", reg_path.display());
-                tokio::fs::create_dir(&reg_path).await?;
+            let def_path = src_path.join(Self::DEF_SRC_PATH);
+            if !def_path.exists() {
+                warn!("Creating missing `defintions` directory at \"{}\"", def_path.display());
+                tokio::fs::create_dir(&def_path).await?;
             }
 
             // Create the generated registries
             {
-                let gen_path = reg_path.join("generated");
-                generated::create_generated(&gen_path, generate, extract).await?;
+                let gen_path = def_path.join("generated");
+                generated::generate_registries(&gen_path, generate, extract).await?;
             }
 
             // Create versioned implementations of the registries
             {
-                let ver_path =
-                    reg_path.join(version_module_name(&generate.version.jar).to_string());
-                if !ver_path.exists() {
-                    warn!("Creating registry version directory: \"{}\"", ver_path.display());
-                    tokio::fs::create_dir(&ver_path).await?;
-                }
-                version::create_versioned(&ver_path, generate, extract).await?;
+                let ver_mod_name = version_module_name(&generate.version.jar).to_string();
+                let mut ver_path = def_path.join(ver_mod_name);
+                ver_path.set_extension("rs");
+                version::generate_registries(&ver_path, generate, extract).await?;
             }
 
-            // Update the `registries/mod.rs` file.
-            Self::create_registries_mod(&reg_path.join("mod.rs")).await
-        })
-    }
-}
+            // Update the `mod.rs` file
+            {
+                let mod_path = def_path.join("mod.rs");
+                let mut mod_file = tokio::fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .create(true)
+                    .truncate(true)
+                    .open(&mod_path)
+                    .await?;
 
-impl Registries {
-    /// The path to the `registries` folder,
-    /// relative to the `src` folder.
-    const REGISTRIES_PATH: &'static str = "registries";
+                // Write the docs and notice
+                mod_file.write_all(b"//! Generated registry implementations\n//!\n").await?;
+                mod_file.write_all(GENERATE_NOTICE.as_bytes()).await?;
+                mod_file.write_all(b"\n").await?;
 
-    const REGISTRIES_DOCS: &'static str = "//! Generated registries and their implementations";
+                // Allow missing documentation
+                mod_file.write_all(b"#![allow(missing_docs)]\n\n").await?;
 
-    /// Create the `registries/mod.rs` file.
-    async fn create_registries_mod(path: &Path) -> anyhow::Result<()> {
-        let mut mod_file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(path)
-            .await?;
+                // Add modules
+                update_file_modules(&mut mod_file, &mod_path, false, false).await?;
 
-        // Write the docs
-        mod_file.write_all(Self::REGISTRIES_DOCS.as_bytes()).await?;
-        mod_file.write_all(b"\n//!\n").await?;
-        mod_file.write_all(GENERATE_NOTICE.as_bytes()).await?;
-        mod_file.write_all(b"\n#![allow(missing_docs)]\n\n").await?;
+                // Reexport the generated registries
+                mod_file.write_all(b"\npub use generated::*;\n\n").await?;
 
-        // Update the module list.
-        update_file_modules(&mut mod_file, path, false, false).await?;
-        mod_file.write_all(b"\npub use generated::*;\n").await?;
-
-        // Update the build function.
-        {
-            let mut contents = String::new();
-            mod_file.seek(SeekFrom::Start(0)).await?;
-            mod_file.read_to_string(&mut contents).await?;
-
-            let mut modules = Vec::new();
-            for line in contents.lines() {
-                if line.starts_with("mod") {
-                    modules.push(line.split_whitespace().last().unwrap().trim_end_matches(';'));
-                }
-            }
-
-            let mut build_modules = String::new();
-            for version in modules {
-                build_modules.push_str(&format!("{version}::build(app);\n    "));
-            }
-
-            mod_file
-                .write_all(
-                    format!(
-                        r#"
-#[doc(hidden)]
-pub(super) fn build(app: &mut bevy_app::App) {{
-    {build_modules}
-}}"#
+                // Add the build function
+                mod_file
+                    .write_all(
+                        br"#[doc(hidden)]
+pub(super) fn build(app: &mut bevy_app::App) { generated::build(app); }
+",
                     )
-                    .as_bytes(),
-                )
-                .await?;
-        }
+                    .await?;
 
-        format_file(&mut mod_file).await
+                // Format the file
+                format_file(&mut mod_file).await?;
+            }
+
+            Ok(())
+        })
     }
 }

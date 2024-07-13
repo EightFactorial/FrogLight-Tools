@@ -1,10 +1,11 @@
-use std::path::Path;
+use std::{cmp::Ordering, path::Path};
 
 use convert_case::{Case, Casing};
+use froglight_definitions::MinecraftVersion;
 use froglight_extract::bundle::ExtractBundle;
 use serde_json::{Map, Value};
 use tokio::{fs::OpenOptions, io::AsyncWriteExt};
-use tracing::trace;
+use tracing::{debug, trace};
 
 use crate::{
     bundle::GenerateBundle,
@@ -14,9 +15,17 @@ use crate::{
 
 pub(super) async fn generate_registries(
     reg_path: &Path,
-    _generate: &GenerateBundle<'_>,
+    generate: &GenerateBundle<'_>,
     extract: &ExtractBundle<'_>,
 ) -> anyhow::Result<()> {
+    // Check if the registries should be generated
+    let mod_path = reg_path.join("mod.rs");
+    if !should_generate(&mod_path, generate, extract).await? {
+        debug!("Skipping registry generation...");
+        return Ok(());
+    }
+    debug!("Generating registries: \"{}\"", &generate.version.base);
+
     // Delete and recreate the registries directory
     if reg_path.exists() {
         tokio::fs::remove_dir_all(&reg_path).await?;
@@ -25,40 +34,67 @@ pub(super) async fn generate_registries(
 
     // Generate the registries
     let mut generated_registries = Vec::new();
-
-    let registry_data = extract.output["registries"].as_object().unwrap();
-    for (reg_name, reg_data) in registry_data {
-        let reg_data = reg_data.as_object().unwrap();
-        generated_registries.push(generate_registry(reg_name, reg_data, reg_path).await?);
+    {
+        let registry_data = extract.output["registries"].as_object().unwrap();
+        for (reg_name, reg_data) in registry_data {
+            let reg_data = reg_data.as_object().unwrap();
+            generated_registries.push(generate_registry(reg_name, reg_data, reg_path).await?);
+        }
     }
 
     // Create the mod file
-    let mod_path = reg_path.join("mod.rs");
-    let mut mod_file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .open(&mod_path)
-        .await?;
+    {
+        let mut mod_file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&mod_path)
+            .await?;
 
-    // Write the docs and notice
-    mod_file.write_all(b"//! Generated registries\n//!\n").await?;
-    mod_file.write_all(GENERATE_NOTICE.as_bytes()).await?;
-    mod_file.write_all(b"\n\n").await?;
+        // Write the docs and notice
+        mod_file.write_all(b"//! Generated registries\n//!\n").await?;
+        mod_file
+            .write_all(
+                format!("//! Template: {}\n//!\n", generate.version.base.to_long_string())
+                    .as_bytes(),
+            )
+            .await?;
+        mod_file.write_all(GENERATE_NOTICE.as_bytes()).await?;
+        mod_file.write_all(b"\n\n").await?;
 
-    // Update modules and reexport registries
-    update_file_modules(&mut mod_file, &mod_path, false, true).await?;
+        // Update modules and reexport registries
+        update_file_modules(&mut mod_file, &mod_path, false, true).await?;
 
-    // Create the `build` function
-    mod_file
-        .write_all(b"\n#[doc(hidden)]\npub(super) fn build(app: &mut bevy_app::App) {\n")
-        .await?;
-    for reg in &generated_registries {
-        mod_file.write_all(format!("    app.register_type::<{reg}>();\n").as_bytes()).await?;
+        // Create the `build` function
+        mod_file
+            .write_all(b"\n#[doc(hidden)]\npub(super) fn build(app: &mut bevy_app::App) {\n")
+            .await?;
+        for reg in &generated_registries {
+            mod_file.write_all(format!("    app.register_type::<{reg}>();\n").as_bytes()).await?;
+        }
+        mod_file.write_all(b"}\n").await?;
+        format_file(&mut mod_file).await
     }
-    mod_file.write_all(b"}\n").await?;
-    format_file(&mut mod_file).await
+}
+
+/// Returns `true` if the registries should be generated.
+async fn should_generate(
+    path: &Path,
+    generate: &GenerateBundle<'_>,
+    extract: &ExtractBundle<'_>,
+) -> anyhow::Result<bool> {
+    let contents = tokio::fs::read_to_string(path).await?;
+    for line in contents.lines().filter(|&l| l.starts_with("//!")) {
+        if let Some(stripped) = line.strip_prefix("//! Template: ") {
+            let generated = MinecraftVersion::from(stripped);
+            if let Some(cmp) = extract.manifests.version.compare(&generated, &generate.version.base)
+            {
+                return Ok(cmp != Ordering::Greater);
+            }
+        }
+    }
+    Ok(true)
 }
 
 async fn generate_registry(

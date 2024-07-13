@@ -6,6 +6,9 @@ use enum_dispatch::enum_dispatch;
 use froglight_extract::{bundle::ExtractBundle, sources::Modules as ExtractModules};
 use serde::{Deserialize, Serialize};
 
+mod blocks;
+use blocks::Blocks;
+
 mod packets;
 use packets::Packets;
 
@@ -21,6 +24,8 @@ use crate::bundle::GenerateBundle;
 pub enum Modules {
     /// Generate packets
     Packets(Packets),
+    /// Generate blocks
+    Blocks(Blocks),
     /// Generate registries
     Registries(Registries),
 }
@@ -35,6 +40,7 @@ impl Modules {
     pub fn required(&self) -> &'static [ExtractModules] {
         match self {
             Modules::Packets(_) => <Packets as sealed::GenerateRequired>::REQUIRED,
+            Modules::Blocks(_) => <Blocks as sealed::GenerateRequired>::REQUIRED,
             Modules::Registries(_) => <Registries as sealed::GenerateRequired>::REQUIRED,
         }
     }
