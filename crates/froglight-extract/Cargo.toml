@@ -24,7 +24,9 @@ async_zip = { version = "0.0.17", features = ["full", "tokio", "tokio-fs"] }
 cafebabe = { workspace = true }
 enum_dispatch = { workspace = true }
 froglight-definitions = { version = "0.1.0", path = "../froglight-definitions" }
+futures-lite = { workspace = true }
 hashbrown = { workspace = true, features = ["serde"] }
+reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 serde_unit_struct = "0.1.3"

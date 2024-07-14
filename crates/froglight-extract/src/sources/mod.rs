@@ -11,6 +11,10 @@ pub mod bytecode;
 #[allow(clippy::wildcard_imports)]
 use bytecode::*;
 
+pub mod mojang;
+#[allow(clippy::wildcard_imports)]
+use mojang::*;
+
 use crate::bundle::ExtractBundle;
 
 /// Modules that extract data from various sources.
@@ -22,6 +26,8 @@ pub enum Modules {
     BuiltinJson(BuiltinJsonModule),
     /// Data extracted from bytecode parsing.
     Bytecode(BytecodeModule),
+    /// Data extracted from Mojang's API.
+    Mojang(MojangModule),
 }
 
 impl Modules {

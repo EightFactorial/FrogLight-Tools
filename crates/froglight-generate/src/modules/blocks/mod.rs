@@ -75,7 +75,7 @@ impl GenerateModule for Blocks {
             // creating it if it doesn't exist.
             let def_path = src_path.join(Self::DEF_SRC_PATH);
             if !def_path.exists() {
-                warn!("Creating missing `defintions` directory at \"{}\"", def_path.display());
+                warn!("Creating missing `definitions` directory at \"{}\"", def_path.display());
                 tokio::fs::create_dir(&def_path).await?;
             }
 
