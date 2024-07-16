@@ -164,11 +164,13 @@ impl GenerateModule for Blocks {
                 {
                     mod_file
                         .write_all(
-                            br"#[doc(hidden)]
+                            br#"#[doc(hidden)]
+#[cfg(feature = "bevy")]
 pub(super) fn build(app: &mut bevy_app::App) {
-    app.register_type::<blocks::Blocks>();
+    #[cfg(feature = "reflect")]
+    { app.register_type::<blocks::Blocks>(); }
 
-",
+"#,
                         )
                         .await?;
 
