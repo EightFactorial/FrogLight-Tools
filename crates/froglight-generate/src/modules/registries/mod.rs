@@ -117,11 +117,11 @@ impl GenerateModule for Registries {
                 mod_file.write_all(b"\npub use generated::*;\n\n").await?;
 
                 // Add the build function
+                mod_file.write_all(b"#[doc(hidden)]\n").await?;
+                mod_file.write_all(b"#[cfg(feature = \"bevy\")]\n").await?;
                 mod_file
                     .write_all(
-                        br"#[doc(hidden)]
-pub(super) fn build(app: &mut bevy_app::App) { generated::build(app); }
-",
+                        b"pub(super) fn build(app: &mut bevy_app::App) { generated::build(app); }\n",
                     )
                     .await?;
 

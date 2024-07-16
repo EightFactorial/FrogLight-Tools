@@ -69,7 +69,7 @@ pub(super) async fn generate_registries(
 
         // Create the `build` function
         mod_file
-            .write_all(b"\n#[doc(hidden)]\npub(super) fn build(app: &mut bevy_app::App) {\n")
+            .write_all(b"\n#[doc(hidden)]\n#[cfg(feature = \"bevy\")]\npub(super) fn build(app: &mut bevy_app::App) {\n")
             .await?;
         for reg in &generated_registries {
             mod_file.write_all(format!("    app.register_type::<{reg}>();\n").as_bytes()).await?;
@@ -126,9 +126,7 @@ async fn generate_registry(
     registry_file.write_all(b"\n\n").await?;
 
     // Import macros
-    registry_file
-        .write_all(b"use froglight_macros::FrogRegistry;\nuse bevy_reflect::Reflect;\n\n")
-        .await?;
+    registry_file.write_all(b"use froglight_macros::FrogRegistry;\n\n").await?;
 
     // Create the registry enum identity
     let registry = Registry::from_data(name, data);
@@ -139,14 +137,17 @@ async fn generate_registry(
     // Write the registry derive macro
     registry_file
         .write_all(if default_entry.is_some() {
-            b"#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Reflect, FrogRegistry)]"
+            b"#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, FrogRegistry)]\n"
         } else {
-            b"#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Reflect, FrogRegistry)]"
+            b"#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, FrogRegistry)]\n"
         })
+        .await?;
+    registry_file
+        .write_all(b"#[cfg_attr(feature = \"reflect\", derive(bevy_reflect::Reflect))]\n")
         .await?;
 
     // Start the registry enum
-    registry_file.write_all(format!("\npub enum {} {{\n", registry.name).as_bytes()).await?;
+    registry_file.write_all(format!("pub enum {} {{\n", registry.name).as_bytes()).await?;
 
     // Write the registry values
     for (key, name) in registry.entries {
