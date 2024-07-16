@@ -166,8 +166,7 @@ impl GenerateModule for Blocks {
                         .write_all(
                             br"#[doc(hidden)]
 pub(super) fn build(app: &mut bevy_app::App) {
-    attributes::build(app);
-    blocks::build(app);
+    app.register_type::<blocks::Blocks>();
 
 ",
                         )
