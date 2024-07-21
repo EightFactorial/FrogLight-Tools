@@ -1,16 +1,17 @@
-//! Build script for the froglight-generate crate.
+//! Build script for the froglight-extract crate.
 //!
 //! This build script gathers information about the
-//! git repository to mark generated code.
-
+//! date and git sha to mark extracted code.
 use std::error::Error;
 
-use vergen::EmitBuilder;
+use vergen_gix::{BuildBuilder, Emitter, GixBuilder};
 
-/// Run the build script.
+/// Gather git repository and build information.
 pub fn main() -> Result<(), Box<dyn Error>> {
-    // Gather git repository information.
-    EmitBuilder::builder().build_date().git_branch().git_sha(true).git_dirty(true).emit()?;
+    let build = BuildBuilder::default().build_date(true).build()?;
+    let gix = GixBuilder::default().branch(true).dirty(true).sha(true).build()?;
+
+    Emitter::new().add_instructions(&build)?.add_instructions(&gix)?.emit()?;
 
     Ok(())
 }
