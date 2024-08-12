@@ -85,7 +85,7 @@ impl GenerateModule for Registries {
 
             // Create versioned implementations of the registries
             {
-                let ver_mod_name = version_module_name(&generate.version.jar).to_string();
+                let ver_mod_name = version_module_name(&generate.version.base).to_string();
                 let mut ver_path = def_path.join(ver_mod_name);
                 ver_path.set_extension("rs");
                 version::generate_registries(&ver_path, generate, extract).await?;
