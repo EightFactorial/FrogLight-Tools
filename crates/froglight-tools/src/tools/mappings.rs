@@ -11,7 +11,7 @@ use tracing::{debug, info};
 
 const REMAPPER_FILE_NAME: &str = "tiny-remapper.jar";
 const REMAPPER_URL: &str =
-    "https://maven.fabricmc.net/net/fabricmc/tiny-remapper/0.9.0/tiny-remapper-0.9.0-fat.jar";
+    "https://maven.fabricmc.net/net/fabricmc/tiny-remapper/0.10.4/tiny-remapper-0.10.4-fat.jar";
 
 /// Download the `TinyRemapper` JAR, if it does not exist in the cache.
 pub async fn get_tinyremapper(cache: &Path, client: &Client) -> Option<PathBuf> {
