@@ -157,6 +157,11 @@ fn parse_tuple(bundle: &[&Opcode], data: &ExtractBundle<'_>) -> anyhow::Result<V
                         (Packets::PACKETCODECS_TYPE, "BYTE") => Some(String::from("u8")),
                         (Packets::PACKETCODECS_TYPE, "BYTE_ARRAY") => Some(String::from("Vec<u8>")),
                         (Packets::PACKETCODECS_TYPE, "DOUBLE") => Some(String::from("f64")),
+                        (Packets::PACKETCODECS_TYPE, "FLOAT") => Some(String::from("f32")),
+                        // TODO: Remove "field" name when assigned a proper name
+                        (Packets::PACKETCODECS_TYPE, "INTEGER" | "field_53740") => {
+                            Some(String::from("i32"))
+                        }
                         (Packets::PACKETCODECS_TYPE, "GAME_PROFILE") => {
                             Some(String::from("GameProfile"))
                         }
@@ -172,7 +177,11 @@ fn parse_tuple(bundle: &[&Opcode], data: &ExtractBundle<'_>) -> anyhow::Result<V
                             | "UNLIMITED_NBT_ELEMENT",
                         ) => Some(String::from("Nbt")),
                         (Packets::PACKETCODECS_TYPE, _) => {
-                            bail!("Unknown `PacketCodec`: {}", member.name_and_type.name)
+                            bail!(
+                                "Unknown `PacketCodec`: \"{}.{}\"",
+                                member.class_name,
+                                member.name_and_type.name
+                            )
                         }
                         (
                             "net/minecraft/text/TextCodecs",

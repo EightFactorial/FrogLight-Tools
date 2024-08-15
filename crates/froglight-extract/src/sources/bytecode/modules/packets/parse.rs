@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use anyhow::anyhow;
 use cafebabe::descriptor::{FieldType, Ty};
-use tracing::trace;
+use tracing::{trace, warn};
 
 use super::Packets;
 use crate::bundle::ExtractBundle;
@@ -71,12 +71,21 @@ impl Packets {
             return super::codec::parse_codec(&classfile, codec_field, data);
         }
 
+        // Override for CustomPayloadS2CPacket
         if class.ends_with("/CustomPayloadS2CPacket") {
             return Ok(vec![
                 String::from("VarInt"),
                 String::from("ResourceLocation"),
                 String::from("UnsizedBuffer"),
             ]);
+        }
+
+        // Parse the first `CODEC`-type field in the class
+        if let Some(codec_field) =
+            classfile.fields.iter().find(|&f| f.descriptor == *Self::PACKET_CODEC_FIELD_DESCRIPTOR)
+        {
+            warn!("  Reading: Searching for fallback CODEC...");
+            return super::codec::parse_codec(&classfile, codec_field, data);
         }
 
         // Error if the packet has no init method or codec field

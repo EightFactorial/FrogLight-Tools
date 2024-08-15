@@ -1,11 +1,11 @@
-use std::{cmp::Ordering, path::Path};
+use std::path::Path;
 
 use convert_case::{Case, Casing};
 use froglight_definitions::MinecraftVersion;
 use froglight_extract::bundle::ExtractBundle;
 use serde_json::{Map, Value};
 use tokio::{fs::OpenOptions, io::AsyncWriteExt};
-use tracing::{debug, trace, warn};
+use tracing::{debug, trace};
 
 use crate::{
     bundle::GenerateBundle,
@@ -27,11 +27,10 @@ pub(super) async fn generate_registries(
     }
     debug!("Generating registries: \"{}\"", &generate.version.base);
 
-    // Delete and recreate the registries directory
-    if reg_path.exists() {
-        tokio::fs::remove_dir_all(&reg_path).await?;
+    // Create the registries directory if it doesn't exist
+    if !reg_path.exists() {
+        tokio::fs::create_dir_all(&reg_path).await?;
     }
-    tokio::fs::create_dir_all(&reg_path).await?;
 
     // Generate the registries
     let mut generated_registries = Vec::new();
@@ -83,7 +82,7 @@ pub(super) async fn generate_registries(
 async fn should_generate(
     path: &Path,
     generate: &GenerateBundle<'_>,
-    extract: &ExtractBundle<'_>,
+    _extract: &ExtractBundle<'_>,
 ) -> anyhow::Result<bool> {
     if !path.exists() {
         return Ok(true);
@@ -92,14 +91,10 @@ async fn should_generate(
     let contents = tokio::fs::read_to_string(path).await?;
     for line in contents.lines().filter(|&l| l.starts_with("//!")) {
         if let Some(stripped) = line.strip_prefix("//! Template: ") {
-            let generated = MinecraftVersion::from(stripped);
-            if let Some(cmp) = extract.manifests.version.compare(&generated, &generate.version.base)
-            {
-                return Ok(cmp != Ordering::Greater);
-            }
+            return Ok(!generate.version.base.is_same(&MinecraftVersion::from(stripped)));
         }
     }
-    warn!("Unable to determine version, generating registries for: \"{}\"", generate.version.base);
+
     Ok(true)
 }
 
