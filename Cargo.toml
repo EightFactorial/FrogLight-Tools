@@ -18,7 +18,7 @@ readme = "README.md"
 
 [workspace.dependencies]
 anyhow = "1.0.89"
-cafebabe = "0.7.0"
+cafebabe = "0.8.0"
 convert_case = "0.6.0"
 derive_more = "1.0.0"
 enum_dispatch = "0.3.13"
