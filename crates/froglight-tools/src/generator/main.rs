@@ -19,6 +19,7 @@ use config::GenerateConfig;
 mod generate;
 
 #[tokio::main]
+#[allow(clippy::needless_return)]
 async fn main() -> anyhow::Result<()> {
     let mut args = GenerateArguments::parse();
     logging::setup(&args.verbose);

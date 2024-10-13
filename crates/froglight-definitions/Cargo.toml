@@ -17,13 +17,13 @@ workspace = true
 
 [dev-dependencies]
 proptest = { workspace = true }
-quick-xml = { version = "0.36.0", features = ["serialize"] }
+quick-xml = { version = "0.36.2", features = ["serialize"] }
 
 [dependencies]
 chrono = { version = "0.4.38", features = ["serde"] }
 compact_str = { version = "0.8.0", features = ["serde"] }
 hashbrown = { workspace = true, features = ["serde"] }
-regex = "1.10.5"
+regex = "1.11.0"
 semver = { version = "1.0.23", features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["preserve_order"] }

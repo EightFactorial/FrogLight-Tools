@@ -310,7 +310,7 @@ impl<'de> Deserialize<'de> for MinecraftVersion {
         D: serde::Deserializer<'de>,
     {
         struct VersionVisitor;
-        impl<'de> serde::de::Visitor<'de> for VersionVisitor {
+        impl serde::de::Visitor<'_> for VersionVisitor {
             type Value = MinecraftVersion;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {

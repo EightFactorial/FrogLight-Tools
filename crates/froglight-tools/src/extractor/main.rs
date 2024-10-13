@@ -13,6 +13,7 @@ use cli::ExtractArguments;
 mod extract;
 
 #[tokio::main]
+#[allow(clippy::needless_return)]
 async fn main() -> anyhow::Result<()> {
     let mut args = ExtractArguments::parse();
     logging::setup(&args.verbose);

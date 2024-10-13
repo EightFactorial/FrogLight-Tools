@@ -10,7 +10,7 @@ allow = [
     "Apache-2.0",
     "BSD-3-Clause",
     "ISC",
-    #    "Zlib",
+    "Zlib",
     "0BSD",
     #    "BSD-2-Clause",
     #    "CC0-1.0",
@@ -44,6 +44,8 @@ workspace-default-features = "allow"
 # Other
 [[bans.skip]]
 name = "bitflags"
+[[bans.skip]]
+name = "hashbrown"
 [[bans.skip]]
 name = "redox_syscall"
 [[bans.skip]]
