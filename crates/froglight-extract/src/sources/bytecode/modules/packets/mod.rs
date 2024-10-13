@@ -4,6 +4,7 @@ use anyhow::bail;
 use froglight_definitions::MinecraftVersion;
 use serde_json::Value;
 use serde_unit_struct::{Deserialize_unit_struct, Serialize_unit_struct};
+use tracing::{trace, warn};
 
 use crate::{bundle::ExtractBundle, sources::ExtractModule};
 
@@ -92,7 +93,7 @@ impl Packets {
         let output_packets = data.output["packets"].as_object_mut().unwrap();
 
         // Get the packet states
-        for (state, state_data) in output_packets {
+        for (state, state_data) in output_packets.iter_mut() {
             // Get the directions for the state
             //
             let states = state_data.as_object_mut().unwrap();
@@ -104,17 +105,22 @@ impl Packets {
                     // Check if any data was found for this packet
                     //
                     if let Some((_, class, fields)) = packet_data.iter().find(|(key, class, _)| {
+                        // Find a matching packet key
                         key == packet_key
-                            && match direction.as_str() {
-                                "clientbound" => class.contains("/s2c/"),
-                                "serverbound" => class.contains("/c2s/"),
-                                _ => false,
+                            && if class.contains("/s2c/") {
+                                direction == "clientbound"
+                            } else if class.contains("/c2s") {
+                                direction == "serverbound"
+                            } else {
+                                warn!("Packet \"{packet_key}\" data has no direction!");
+                                true
                             }
                     }) {
                         // Insert the class and fields
                         data["class"] = class.clone().into();
                         data["fields"] = fields.clone().into();
                     } else {
+                        trace!("Packet Data: {packet_data:#?}");
                         bail!(
                             "Failed to find packet data for \"{state}/{direction}/{packet_key}\""
                         );
