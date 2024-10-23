@@ -35,7 +35,9 @@ pub(super) fn parse_codec(
                 #[allow(clippy::match_same_arms)]
                 match member.name_and_type.name.as_ref() {
                     // Made from "encode"/"decode" functions
-                    "createCodec" | "ofStatic" => parse_encode_decode(classfile, &bundle, data),
+                    "createCodec" | "of" | "ofStatic" => {
+                        parse_encode_decode(classfile, &bundle, data)
+                    }
                     // Made from a tuple of functions/codecs
                     "tuple" => parse_tuple(&bundle, data),
                     // Units have no fields
@@ -154,10 +156,13 @@ fn parse_tuple(bundle: &[&Opcode], data: &ExtractBundle<'_>) -> anyhow::Result<V
                 if let Some(field) =
                     match (member.class_name.as_ref(), member.name_and_type.name.as_ref()) {
                         (Packets::PACKETCODECS_TYPE, "BOOL") => Some(String::from("bool")),
-                        (Packets::PACKETCODECS_TYPE, "BYTE") => Some(String::from("u8")),
+                        (Packets::PACKETCODECS_TYPE, "BYTE" | "DEGREES") => {
+                            Some(String::from("u8"))
+                        }
                         (Packets::PACKETCODECS_TYPE, "BYTE_ARRAY") => Some(String::from("Vec<u8>")),
                         (Packets::PACKETCODECS_TYPE, "DOUBLE") => Some(String::from("f64")),
                         (Packets::PACKETCODECS_TYPE, "FLOAT") => Some(String::from("f32")),
+                        (Packets::PACKETCODECS_TYPE, "LONG") => Some(String::from("i64")),
                         // TODO: Remove "field" name when assigned a proper name
                         (Packets::PACKETCODECS_TYPE, "INTEGER" | "field_53740") => {
                             Some(String::from("i32"))
@@ -165,9 +170,14 @@ fn parse_tuple(bundle: &[&Opcode], data: &ExtractBundle<'_>) -> anyhow::Result<V
                         (Packets::PACKETCODECS_TYPE, "GAME_PROFILE") => {
                             Some(String::from("GameProfile"))
                         }
+                        (Packets::PACKETCODECS_TYPE, "OPTIONAL_INT") => {
+                            Some(String::from("Option<VarInt>"))
+                        }
                         (Packets::PACKETCODECS_TYPE, "SHORT") => Some(String::from("i16")),
                         (Packets::PACKETCODECS_TYPE, "STRING") => Some(String::from("String")),
-                        (Packets::PACKETCODECS_TYPE, "VAR_INT") => Some(String::from("VarInt")),
+                        (Packets::PACKETCODECS_TYPE, "VAR_INT" | "SYNC_ID") => {
+                            Some(String::from("VarInt"))
+                        }
                         (Packets::PACKETCODECS_TYPE, "VAR_LONG") => Some(String::from("VarLong")),
                         (
                             Packets::PACKETCODECS_TYPE,

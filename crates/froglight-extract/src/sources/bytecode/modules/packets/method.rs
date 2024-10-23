@@ -138,9 +138,9 @@ fn parse_invoke_member(
             "readPublicKey" => Some(String::from("PublicKey")),
             "readShort" => Some(String::from("i16")),
             "readString" => Some(String::from("String")),
+            "readSyncId" | "readVarInt" => Some(String::from("VarInt")),
             "readUnsignedShort" => Some(String::from("u16")),
             "readUuid" => Some(String::from("Uuid")),
-            "readVarInt" => Some(String::from("VarInt")),
             "readVarLong" => Some(String::from("VarLong")),
             // Ignore these methods
             "getMaxValidator" | "readableBytes" | "skipBytes" => None,
