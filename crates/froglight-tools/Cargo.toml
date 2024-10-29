@@ -33,7 +33,7 @@ tokio = { workspace = true, features = ["full"] }
 toml = { version = "0.8.19", features = ["parse", "preserve_order"] }
 tracing = { workspace = true }
 tracing-subscriber = "0.3.18"
-quick-xml = { version = "0.36.2", features = ["serialize"] }
+quick-xml = { version = "0.37.0", features = ["serialize"] }
 
 [[bin]]
 name = "extractor"
