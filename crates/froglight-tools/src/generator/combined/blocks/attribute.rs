@@ -12,7 +12,7 @@ use crate::{bundle::GenerateBundle, consts::GENERATE_NOTICE, helpers::format_fil
 pub(super) async fn generate_attributes(
     attr_path: &Path,
     _generate: &GenerateBundle<'_>,
-    extract: &ExtractBundle<'_>,
+    extract: &ExtractBundle,
 ) -> anyhow::Result<()> {
     let mut block_attributes = Vec::new();
 
@@ -178,7 +178,7 @@ impl AttributeType {
     }
 
     /// Create a list of attributes from the [`ExtractBundle`].
-    pub(crate) fn create_list(extract: &ExtractBundle<'_>) -> anyhow::Result<Vec<Self>> {
+    pub(crate) fn create_list(extract: &ExtractBundle) -> anyhow::Result<Vec<Self>> {
         let mut block_attributes = Vec::new();
 
         let block_data = extract.output["blocks"].as_object().unwrap();

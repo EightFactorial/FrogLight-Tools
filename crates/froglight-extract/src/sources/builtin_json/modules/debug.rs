@@ -19,7 +19,7 @@ use crate::{bundle::ExtractBundle, consts::GIT_HASH, sources::ExtractModule};
 pub struct Debug;
 
 impl ExtractModule for Debug {
-    async fn extract<'a>(&self, data: &mut ExtractBundle<'a>) -> anyhow::Result<()> {
+    async fn extract(&self, data: &mut ExtractBundle) -> anyhow::Result<()> {
         data.output["debug"]["build-date"] = env!("VERGEN_BUILD_DATE").into();
         data.output["debug"]["git-hash"] = GIT_HASH.into();
 

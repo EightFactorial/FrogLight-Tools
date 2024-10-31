@@ -61,7 +61,7 @@ impl GenerateModule for Blocks {
     fn generate<'a>(
         &'a self,
         generate: &'a GenerateBundle<'_>,
-        extract: &'a ExtractBundle<'_>,
+        extract: &'a ExtractBundle,
     ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + Sync + 'a>> {
         Box::pin(async {
             // Get the path to the `froglight-block` src folder.
@@ -198,7 +198,7 @@ pub(super) fn build(app: &mut bevy_app::App) {
 async fn should_generate(
     path: &Path,
     generate: &GenerateBundle<'_>,
-    extract: &ExtractBundle<'_>,
+    extract: &ExtractBundle,
 ) -> anyhow::Result<bool> {
     if !path.exists() {
         return Ok(true);

@@ -26,9 +26,7 @@ impl Packets {
     const REGISTRY_METHOD_NAME: &'static str = "<clinit>";
     const PACKETTYPE_OBJECT: &'static str = "Lnet/minecraft/network/packet/PacketType;";
 
-    pub(super) fn discover_classes(
-        data: &ExtractBundle<'_>,
-    ) -> anyhow::Result<Vec<(String, String)>> {
+    pub(super) fn discover_classes(data: &ExtractBundle) -> anyhow::Result<Vec<(String, String)>> {
         let mut class_list = Vec::new();
 
         for class in Self::PACKET_CLASSES {

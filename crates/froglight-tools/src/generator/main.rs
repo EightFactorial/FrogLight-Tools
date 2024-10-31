@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use anyhow::anyhow;
 use clap::Parser;
+use froglight_extract::bundle::ExtractBundle;
 use froglight_generate::modules::Modules;
 use froglight_tools::logging;
 use tokio::task::JoinSet;
@@ -16,6 +17,7 @@ use cli::GenerateArguments;
 mod config;
 use config::GenerateConfig;
 
+mod combined;
 mod generate;
 
 #[tokio::main]
@@ -129,7 +131,7 @@ async fn main() -> anyhow::Result<()> {
         return Err(anyhow!(error));
     };
 
-    // Generate all versions simultaneously
+    // Generate all version-exclusive data simultaneously
     let mut joinset = JoinSet::new();
     for version in config.versions {
         joinset.spawn(generate::generate(
@@ -143,9 +145,10 @@ async fn main() -> anyhow::Result<()> {
             client.clone(),
         ));
     }
-    while let Some(Ok(result)) = joinset.join_next().await {
-        result?;
-    }
 
-    Ok(())
+    // Generate all combined data together
+    match joinset.join_all().await.into_iter().collect::<Result<Vec<ExtractBundle>, _>>() {
+        Err(err) => Err(err),
+        Ok(bundles) => combined::generate(bundles, args.modules).await,
+    }
 }

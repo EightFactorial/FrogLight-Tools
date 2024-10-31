@@ -26,7 +26,7 @@ impl Packets {
         state_data: &Value,
         path: &Path,
         generate: &GenerateBundle<'_>,
-        extract: &ExtractBundle<'_>,
+        extract: &ExtractBundle,
     ) -> anyhow::Result<()> {
         let state_path = path.join(state);
         if !state_path.exists() {
@@ -168,7 +168,7 @@ impl Packets {
         create_packets: bool,
 
         generate: &GenerateBundle<'_>,
-        _extract: &ExtractBundle<'_>,
+        _extract: &ExtractBundle,
     ) -> anyhow::Result<()> {
         let mut mod_file = OpenOptions::new()
             .read(true)

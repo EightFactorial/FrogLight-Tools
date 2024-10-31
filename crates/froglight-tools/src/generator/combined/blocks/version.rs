@@ -53,7 +53,7 @@ use crate::{
 pub(super) async fn generate_blocks(
     blck_path: &Path,
     generate: &GenerateBundle<'_>,
-    extract: &ExtractBundle<'_>,
+    extract: &ExtractBundle,
 ) -> anyhow::Result<()> {
     let mut attrib_enum_list: Vec<(String, Vec<String>)> = Vec::new();
     let block_list: Vec<Block>;

@@ -18,7 +18,7 @@ impl Packets {
     /// Parse the packets in the given class map.
     pub(super) fn parse(
         classes: Vec<(String, String)>,
-        data: &ExtractBundle<'_>,
+        data: &ExtractBundle,
     ) -> anyhow::Result<Vec<(String, String, Vec<String>)>> {
         let mut packet_data = Vec::with_capacity(classes.len());
 
@@ -43,7 +43,7 @@ impl Packets {
         &FieldType::Ty(Ty::Object(Cow::Borrowed(Self::PACKETCODEC_TYPE)));
 
     /// Parse a packet class to extract its fields.
-    fn parse_packet(class: &str, data: &ExtractBundle<'_>) -> anyhow::Result<Vec<String>> {
+    fn parse_packet(class: &str, data: &ExtractBundle) -> anyhow::Result<Vec<String>> {
         // Skip "Bundle" packets, which have no codec or fields
         if class.contains("Bundle") {
             return Ok(Vec::new());

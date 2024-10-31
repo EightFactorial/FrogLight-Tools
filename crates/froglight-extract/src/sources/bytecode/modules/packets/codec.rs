@@ -19,7 +19,7 @@ const STATIC_METHOD: &str = "<clinit>";
 pub(super) fn parse_codec(
     classfile: &ClassFile<'_>,
     field: &FieldInfo<'_>,
-    data: &ExtractBundle<'_>,
+    data: &ExtractBundle,
 ) -> anyhow::Result<Vec<String>> {
     trace!("  Reading: {}.{}", classfile.this_class, field.name);
     let bundle = opcode_bundle(classfile, field)?;
@@ -96,7 +96,7 @@ fn opcode_bundle<'a>(
 }
 
 /// Parse a method called by a codec.
-fn parse_method(member: &MemberRef<'_>, data: &ExtractBundle<'_>) -> anyhow::Result<Vec<String>> {
+fn parse_method(member: &MemberRef<'_>, data: &ExtractBundle) -> anyhow::Result<Vec<String>> {
     let classfile = data.jar_container.get_class_err(&member.class_name)?;
     let method = get_class_method(
         &classfile,
@@ -112,7 +112,7 @@ fn parse_method(member: &MemberRef<'_>, data: &ExtractBundle<'_>) -> anyhow::Res
 fn parse_encode_decode(
     classfile: &ClassFile<'_>,
     bundle: &[&Opcode],
-    data: &ExtractBundle<'_>,
+    data: &ExtractBundle,
 ) -> anyhow::Result<Vec<String>> {
     let mut iter = bundle.iter();
     iter.next_back();
@@ -146,7 +146,7 @@ fn parse_encode_decode(
 const PACKETCODEC_OBJECT: &str = "Lnet/minecraft/network/codec/PacketCodec;";
 
 /// Parse a codec created by a `tuple` method.
-fn parse_tuple(bundle: &[&Opcode], data: &ExtractBundle<'_>) -> anyhow::Result<Vec<String>> {
+fn parse_tuple(bundle: &[&Opcode], data: &ExtractBundle) -> anyhow::Result<Vec<String>> {
     let mut fields = Vec::new();
 
     // Parse all codecs in the tuple
@@ -236,7 +236,7 @@ fn parse_tuple(bundle: &[&Opcode], data: &ExtractBundle<'_>) -> anyhow::Result<V
 fn parse_xmap(
     classfile: &ClassFile<'_>,
     bundle: &[&Opcode],
-    data: &ExtractBundle<'_>,
+    data: &ExtractBundle,
 ) -> anyhow::Result<Vec<String>> {
     let mut fields = Vec::new();
     fields.extend(parse_tuple(bundle, data)?);

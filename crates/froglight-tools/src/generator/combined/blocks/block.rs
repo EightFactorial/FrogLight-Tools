@@ -11,7 +11,7 @@ use crate::{bundle::GenerateBundle, consts::GENERATE_NOTICE, helpers::format_fil
 pub(super) async fn generate_blocks(
     blck_path: &Path,
     _generate: &GenerateBundle<'_>,
-    extract: &ExtractBundle<'_>,
+    extract: &ExtractBundle,
 ) -> anyhow::Result<()> {
     // Create the block list
     let block_list = Block::create_list(extract)?;
@@ -93,7 +93,7 @@ pub(crate) struct Block {
 
 impl Block {
     /// Create a list of blocks from the [`ExtractBundle`].
-    pub(crate) fn create_list(extract: &ExtractBundle<'_>) -> anyhow::Result<Vec<Self>> {
+    pub(crate) fn create_list(extract: &ExtractBundle) -> anyhow::Result<Vec<Self>> {
         let mut block_list: Vec<Block> = Vec::new();
 
         let block_data = extract.output["blocks"].as_object().unwrap();

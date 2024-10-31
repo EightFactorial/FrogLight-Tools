@@ -26,7 +26,7 @@ pub(super) async fn extract(args: &ExtractArguments) -> anyhow::Result<Value> {
     let yarn_manifest = froglight_tools::manifests::get_yarn_manifest(&args.cache, &client).await?;
 
     // Get the version entry
-    let Some(version_entry) = version_manifest.get(&args.version) else {
+    let Some(version_entry) = version_manifest.get(&args.version).cloned() else {
         error!("Version not found: {}", args.version);
         error!("Try emptying the cache directory and trying again.");
         return Err(anyhow!("Version not found in `VersionManifest`"));
@@ -46,7 +46,7 @@ pub(super) async fn extract(args: &ExtractArguments) -> anyhow::Result<Value> {
 
     // Get the `ReleaseManifest`
     let release_manifest =
-        froglight_tools::manifests::get_release_manifest(version_entry, &cache, &client).await?;
+        froglight_tools::manifests::get_release_manifest(&version_entry, &cache, &client).await?;
     info!("Loaded Release Manifest for: \"{}\"", version_entry.id);
 
     // Get the `AssetManifest`
@@ -126,22 +126,23 @@ pub(super) async fn extract(args: &ExtractArguments) -> anyhow::Result<Value> {
 
     // --- Extract  ---
 
-    // Create a `Value` to store extracted data
-    let mut extract_data = Value::Object(Map::new());
-
     // Create a `ManifestBundle`
-    let manifest_bundle =
-        ManifestBundle::new(&version_manifest, &yarn_manifest, &release_manifest, &asset_manifest);
+    let manifest_bundle = ManifestBundle::new(
+        version_manifest.into(),
+        yarn_manifest.into(),
+        release_manifest,
+        asset_manifest,
+    );
 
     // Create an `ExtractBundle`
     let mut extract_bundle = ExtractBundle::new(
-        &version_entry.id,
-        &jar_container,
-        &jar_reader,
+        version_entry.id.clone(),
+        jar_container,
+        jar_reader,
         manifest_bundle,
-        &mut extract_data,
-        &cache,
-        &json_path,
+        Value::Object(Map::new()),
+        cache,
+        json_path,
     );
 
     // Sort modules and extract data
@@ -159,5 +160,5 @@ pub(super) async fn extract(args: &ExtractArguments) -> anyhow::Result<Value> {
     info!("Done!");
 
     // Return the extracted data
-    Ok(extract_data)
+    Ok(extract_bundle.output)
 }

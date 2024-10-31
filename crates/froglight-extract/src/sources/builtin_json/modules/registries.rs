@@ -21,7 +21,7 @@ use crate::{bundle::ExtractBundle, sources::ExtractModule};
 pub struct Registries;
 
 impl ExtractModule for Registries {
-    async fn extract<'a>(&self, data: &mut ExtractBundle<'a>) -> anyhow::Result<()> {
+    async fn extract(&self, data: &mut ExtractBundle) -> anyhow::Result<()> {
         // Get the path to the registry report
         let report_path = data.json_dir.join("reports/registries.json");
         if !report_path.exists() {

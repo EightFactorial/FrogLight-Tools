@@ -1,6 +1,6 @@
 //! A bundle of data
 
-use std::path::Path;
+use std::{path::PathBuf, sync::Arc};
 
 use async_zip::tokio::read::fs::ZipFileReader;
 use froglight_definitions::{
@@ -12,60 +12,60 @@ use crate::bytecode::JarContainer;
 
 /// A bundle of data that is passed around between
 /// the various data extractor modules.
-pub struct ExtractBundle<'a> {
+pub struct ExtractBundle {
     /// The version of Minecraft that data is being extracted from.
-    pub version: &'a MinecraftVersion,
+    pub version: MinecraftVersion,
     /// All of the parsed class files.
-    pub jar_container: &'a JarContainer,
+    pub jar_container: JarContainer,
     /// The ZIP file reader.
-    pub jar_reader: &'a ZipFileReader,
+    pub jar_reader: ZipFileReader,
     /// All the manifests.
-    pub manifests: ManifestBundle<'a>,
+    pub manifests: ManifestBundle,
     /// The output JSON object that data is being written to.
-    pub output: &'a mut serde_json::Value,
+    pub output: serde_json::Value,
     /// The path to the cache directory.
-    pub cache_dir: &'a Path,
+    pub cache_dir: PathBuf,
     /// The path to the json directory.
-    pub json_dir: &'a Path,
+    pub json_dir: PathBuf,
 }
 
-impl<'a> ExtractBundle<'a> {
+impl ExtractBundle {
     /// Create a new [`ExtractBundle`].
     #[must_use]
     pub fn new(
-        version: &'a MinecraftVersion,
-        jar_container: &'a JarContainer,
-        jar_reader: &'a ZipFileReader,
-        manifests: ManifestBundle<'a>,
-        output: &'a mut serde_json::Value,
-        cache_dir: &'a Path,
-        json_dir: &'a Path,
+        version: MinecraftVersion,
+        jar_container: JarContainer,
+        jar_reader: ZipFileReader,
+        manifests: ManifestBundle,
+        output: serde_json::Value,
+        cache_dir: PathBuf,
+        json_dir: PathBuf,
     ) -> Self {
         Self { version, jar_container, jar_reader, manifests, output, cache_dir, json_dir }
     }
 }
 
 /// A bundle of manifests.
-#[derive(Debug, Clone, Copy)]
-pub struct ManifestBundle<'a> {
+#[derive(Debug, Clone)]
+pub struct ManifestBundle {
     /// The version manifest.
-    pub version: &'a VersionManifest,
+    pub version: Arc<VersionManifest>,
     /// The yarn manifest.
-    pub yarn: &'a YarnManifest,
+    pub yarn: Arc<YarnManifest>,
     /// The release manifest.
-    pub release: &'a ReleaseManifest,
+    pub release: ReleaseManifest,
     /// The asset manifest.
-    pub asset: &'a AssetManifest,
+    pub asset: AssetManifest,
 }
 
-impl<'a> ManifestBundle<'a> {
+impl ManifestBundle {
     /// Create a new [`ManifestBundle`].
     #[must_use]
     pub fn new(
-        version: &'a VersionManifest,
-        yarn: &'a YarnManifest,
-        release: &'a ReleaseManifest,
-        asset: &'a AssetManifest,
+        version: Arc<VersionManifest>,
+        yarn: Arc<YarnManifest>,
+        release: ReleaseManifest,
+        asset: AssetManifest,
     ) -> Self {
         Self { version, yarn, release, asset }
     }

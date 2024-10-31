@@ -19,7 +19,7 @@ use tracing::{debug, error, info};
 /// Generate code for a specific version.
 #[allow(clippy::too_many_lines)]
 #[allow(clippy::too_many_arguments)]
-pub(crate) async fn generate(
+pub(super) async fn generate(
     version: GenerateVersion,
     modules: Vec<Modules>,
 
@@ -30,11 +30,11 @@ pub(crate) async fn generate(
     mut cache: PathBuf,
     root_dir: PathBuf,
     client: Client,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<ExtractBundle> {
     // --- Prepare Manifests ---
 
     // Get the version entry
-    let Some(version_entry) = version_manifest.get(&version.jar) else {
+    let Some(version_entry) = version_manifest.get(&version.jar).cloned() else {
         error!("Version not found: {}", version.jar);
         error!("Try emptying the cache directory and trying again.");
         bail!("Version not found in `VersionManifest`");
@@ -50,7 +50,7 @@ pub(crate) async fn generate(
 
     // Get the `ReleaseManifest`
     let release_manifest =
-        froglight_tools::manifests::get_release_manifest(version_entry, &cache, &client).await?;
+        froglight_tools::manifests::get_release_manifest(&version_entry, &cache, &client).await?;
     info!("Loaded Release Manifest for: \"{}\"", version_entry.id);
 
     // Get the `AssetManifest`
@@ -126,22 +126,19 @@ pub(crate) async fn generate(
 
     // --- Extract and Generate ---
 
-    // Create a `Value` to store extracted data
-    let mut extract_data = Value::Object(Map::new());
-
     // Create a `ManifestBundle`
     let manifest_bundle =
-        ManifestBundle::new(&version_manifest, &yarn_manifest, &release_manifest, &asset_manifest);
+        ManifestBundle::new(version_manifest, yarn_manifest, release_manifest, asset_manifest);
 
     // Create an `ExtractBundle`
     let mut extract_bundle = ExtractBundle::new(
-        &version_entry.id,
-        &jar_container,
-        &jar_reader,
+        version_entry.id.clone(),
+        jar_container,
+        jar_reader,
         manifest_bundle,
-        &mut extract_data,
-        &cache,
-        &json_path,
+        Value::Object(Map::new()),
+        cache,
+        json_path,
     );
 
     // Extract data
@@ -173,5 +170,5 @@ pub(crate) async fn generate(
         }
     }
 
-    Ok(())
+    Ok(extract_bundle)
 }

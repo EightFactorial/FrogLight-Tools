@@ -47,7 +47,7 @@ impl Modules {
 pub trait ExtractModule {
     /// Run the extraction process.
     #[allow(async_fn_in_trait)]
-    async fn extract<'a>(&self, data: &mut ExtractBundle<'a>) -> anyhow::Result<()>;
+    async fn extract(&self, data: &mut ExtractBundle) -> anyhow::Result<()>;
 }
 
 /// Implement `FromStr` for `Modules` to allow parsing from a string.

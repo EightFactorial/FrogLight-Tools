@@ -22,7 +22,7 @@ use crate::{bundle::ExtractBundle, sources::ExtractModule};
 pub struct ResourcePack;
 
 impl ExtractModule for ResourcePack {
-    async fn extract<'a>(&self, data: &mut ExtractBundle<'a>) -> anyhow::Result<()> {
+    async fn extract(&self, data: &mut ExtractBundle) -> anyhow::Result<()> {
         let pack_path = data.cache_dir.join("resourcepack.zip");
         info!("Creating ResourcePack at: \"{}\"", pack_path.display());
 

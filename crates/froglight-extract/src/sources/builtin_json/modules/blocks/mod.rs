@@ -24,7 +24,7 @@ pub use report::{BlockData, BlockState, BlocksReport};
 pub struct Blocks;
 
 impl ExtractModule for Blocks {
-    async fn extract<'a>(&self, data: &mut ExtractBundle<'a>) -> anyhow::Result<()> {
+    async fn extract(&self, data: &mut ExtractBundle) -> anyhow::Result<()> {
         Blocks::block_json(data).await?;
         Blocks::block_bytecode(data).await
     }
@@ -32,7 +32,7 @@ impl ExtractModule for Blocks {
 
 impl Blocks {
     /// Extract block states and state ids from `blocks.json`.
-    async fn block_json(data: &mut ExtractBundle<'_>) -> anyhow::Result<()> {
+    async fn block_json(data: &mut ExtractBundle) -> anyhow::Result<()> {
         // Get the path to the block report
         let report_path = data.json_dir.join("reports/blocks.json");
         if !report_path.exists() {
@@ -78,5 +78,5 @@ impl Blocks {
 
     /// Extract block properties and data from bytecode.
     #[allow(clippy::unused_async)]
-    async fn block_bytecode(_data: &mut ExtractBundle<'_>) -> anyhow::Result<()> { Ok(()) }
+    async fn block_bytecode(_data: &mut ExtractBundle) -> anyhow::Result<()> { Ok(()) }
 }

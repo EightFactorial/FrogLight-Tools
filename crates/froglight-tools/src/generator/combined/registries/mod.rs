@@ -59,7 +59,7 @@ impl GenerateModule for Registries {
     fn generate<'a>(
         &'a self,
         generate: &'a GenerateBundle<'_>,
-        extract: &'a ExtractBundle<'_>,
+        extract: &'a ExtractBundle,
     ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + Sync + 'a>> {
         Box::pin(async {
             // Get the path to the `froglight-registry` src folder.

@@ -30,10 +30,10 @@ mod parse;
 pub struct Packets;
 
 impl ExtractModule for Packets {
-    async fn extract<'a>(&self, data: &mut ExtractBundle<'a>) -> anyhow::Result<()> {
+    async fn extract(&self, data: &mut ExtractBundle) -> anyhow::Result<()> {
         // Check if the version is supported
         let min_version = MinecraftVersion::new_pre_release(1, 21, 0, 1).unwrap();
-        let cmp = data.manifests.version.compare(data.version, &min_version);
+        let cmp = data.manifests.version.compare(&data.version, &min_version);
         if cmp.is_none() || cmp.is_some_and(|cmp| cmp == Ordering::Less) {
             bail!("Packet extraction is only supported for versions since \"1.21.0-pre1\"!");
         }
@@ -45,7 +45,7 @@ impl ExtractModule for Packets {
 
 impl Packets {
     /// Extract packet ids from `packets.json`.
-    async fn packet_json(data: &mut ExtractBundle<'_>) -> anyhow::Result<()> {
+    async fn packet_json(data: &mut ExtractBundle) -> anyhow::Result<()> {
         // Get the path to the packet report
         let report_path = data.json_dir.join("reports/packets.json");
         if !report_path.exists() {
@@ -61,7 +61,7 @@ impl Packets {
 
     /// Extract packet fields from bytecode.
     #[allow(clippy::unused_async)]
-    async fn packet_bytecode(data: &mut ExtractBundle<'_>) -> anyhow::Result<()> {
+    async fn packet_bytecode(data: &mut ExtractBundle) -> anyhow::Result<()> {
         // Discover packet classes
         let classes = Self::discover_classes(data)?;
 
@@ -88,7 +88,7 @@ impl Packets {
     // }
     fn append_bytecode_info(
         packet_data: Vec<(String, String, Vec<String>)>,
-        data: &mut ExtractBundle<'_>,
+        data: &mut ExtractBundle,
     ) -> anyhow::Result<()> {
         let output_packets = data.output["packets"].as_object_mut().unwrap();
 

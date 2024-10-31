@@ -15,7 +15,7 @@ impl Packets {
     pub(super) async fn create_version(
         path: &Path,
         generate: &GenerateBundle<'_>,
-        extract: &ExtractBundle<'_>,
+        extract: &ExtractBundle,
     ) -> anyhow::Result<()> {
         let version_module = version_module_name(&generate.version.base).to_string();
 
@@ -45,7 +45,7 @@ impl Packets {
     async fn create_version_mod(
         path: &Path,
         generate: &GenerateBundle<'_>,
-        extract: &ExtractBundle<'_>,
+        extract: &ExtractBundle,
     ) -> anyhow::Result<()> {
         // Create the `mod.rs` file
         let mut mod_file = OpenOptions::new()

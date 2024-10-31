@@ -21,7 +21,7 @@ use crate::{bundle::ExtractBundle, sources::ExtractModule};
 pub struct Version;
 
 impl ExtractModule for Version {
-    async fn extract<'a>(&self, data: &mut ExtractBundle<'a>) -> anyhow::Result<()> {
+    async fn extract(&self, data: &mut ExtractBundle) -> anyhow::Result<()> {
         // Find the `version.json` entry in the JAR.
         let Some((entry_index, _)) = data
             .jar_reader

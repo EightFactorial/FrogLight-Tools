@@ -16,7 +16,7 @@ use crate::{
 pub(super) async fn generate_registries(
     reg_path: &Path,
     generate: &GenerateBundle<'_>,
-    extract: &ExtractBundle<'_>,
+    extract: &ExtractBundle,
 ) -> anyhow::Result<()> {
     // Check if the registries should be generated
     let mod_path = reg_path.join("mod.rs");
@@ -82,7 +82,7 @@ pub(super) async fn generate_registries(
 async fn should_generate(
     path: &Path,
     generate: &GenerateBundle<'_>,
-    _extract: &ExtractBundle<'_>,
+    _extract: &ExtractBundle,
 ) -> anyhow::Result<bool> {
     if !path.exists() {
         return Ok(true);

@@ -20,7 +20,7 @@ use crate::{
 /// Parse a method handle to extract the fields it reads.
 pub(super) fn parse_method_handle(
     handle: &MethodHandle<'_>,
-    data: &ExtractBundle<'_>,
+    data: &ExtractBundle,
 ) -> anyhow::Result<Vec<String>> {
     // Skip non-Minecraft classes
     if !handle.class_name.starts_with("net/minecraft") {
@@ -38,7 +38,7 @@ pub(super) fn parse_method_handle(
 pub(super) fn parse_method(
     classfile: &ClassFile<'_>,
     method: &MethodInfo<'_>,
-    data: &ExtractBundle<'_>,
+    data: &ExtractBundle,
 ) -> anyhow::Result<Vec<String>> {
     let mut fields = Vec::new();
 
@@ -79,7 +79,7 @@ pub(super) fn parse_method(
 /// Parse an invoked member/method.
 fn parse_invoke_member(
     member: &MemberRef<'_>,
-    data: &ExtractBundle<'_>,
+    data: &ExtractBundle,
 ) -> anyhow::Result<Vec<String>> {
     let mut fields = Vec::new();
 

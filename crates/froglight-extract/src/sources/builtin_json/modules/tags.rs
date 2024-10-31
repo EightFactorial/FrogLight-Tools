@@ -24,7 +24,7 @@ use crate::{bundle::ExtractBundle, sources::ExtractModule};
 pub struct Tags;
 
 impl ExtractModule for Tags {
-    async fn extract<'a>(&self, data: &mut ExtractBundle<'a>) -> anyhow::Result<()> {
+    async fn extract(&self, data: &mut ExtractBundle) -> anyhow::Result<()> {
         let tag_dir = data.json_dir.join("data").join("minecraft").join("tags");
         if !tag_dir.exists() || !tag_dir.is_dir() {
             bail!("\"tags\" directory not found in JSON directory");

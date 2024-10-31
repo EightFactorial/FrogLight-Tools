@@ -14,7 +14,7 @@ use crate::{
 pub(super) async fn generate_registries(
     ver_path: &Path,
     generate: &GenerateBundle<'_>,
-    extract: &ExtractBundle<'_>,
+    extract: &ExtractBundle,
 ) -> anyhow::Result<()> {
     debug!(
         "Generating \"{}\" registry implementations at \"{}\"",

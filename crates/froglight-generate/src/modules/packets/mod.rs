@@ -58,7 +58,7 @@ impl GenerateModule for Packets {
     fn generate<'a>(
         &'a self,
         generate: &'a GenerateBundle<'_>,
-        extract: &'a ExtractBundle<'_>,
+        extract: &'a ExtractBundle,
     ) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + Sync + 'a>> {
         Box::pin(async {
             // Get the path to the `froglight-protocol` src folder.

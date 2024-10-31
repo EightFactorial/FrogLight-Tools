@@ -26,7 +26,7 @@ impl Packets {
         path: &Path,
 
         _generate: &GenerateBundle<'_>,
-        _extract: &ExtractBundle<'_>,
+        _extract: &ExtractBundle,
     ) -> anyhow::Result<()> {
         let mut packet_path = path.join(module_name);
         packet_path.set_extension("rs");
