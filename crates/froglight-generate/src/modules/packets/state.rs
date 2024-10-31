@@ -187,11 +187,11 @@ impl Packets {
 
         // Output the documentation
         let output = format!(
-            r#"{state_docs}
+            r"{state_docs}
 //!
 {tag}
 #![allow(missing_docs)]
-"#
+"
         );
         mod_file.write_all(output.as_bytes()).await?;
 
@@ -204,14 +204,14 @@ impl Packets {
         let serverbound = Self::state_packets(&serverbound, &mut imports);
 
         let output = format!(
-            r#"
+            r"
 froglight_macros::frog_state! {{
     {state},
     {version},
     Clientbound {{{clientbound}}},
     Serverbound {{{serverbound}}},
 }}
-    "#
+    "
         );
         mod_file.write_all(output.as_bytes()).await?;
 

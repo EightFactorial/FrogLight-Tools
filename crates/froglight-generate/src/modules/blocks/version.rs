@@ -120,13 +120,13 @@ pub(super) async fn generate_blocks(
         // Import the necessary modules
         file.write_all(
             format!(
-                r#"
+                r"
     use froglight_macros::frog_create_block_impls;
     use froglight_protocol::versions::{module}::{version};
 
     #[allow(clippy::wildcard_imports)]
     use super::{{attributes::*, blocks::*}};
-    "#
+    "
             )
             .as_bytes(),
         )
