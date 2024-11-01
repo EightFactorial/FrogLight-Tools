@@ -10,7 +10,7 @@ use serde::{
 };
 
 /// A map of types used in the protocol.
-#[derive(Debug, Clone, Deref, DerefMut, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deref, DerefMut, Serialize, Deserialize)]
 pub struct TypesMap(HashMap<CompactString, DataType>);
 
 /// A data type used in the protocol.
@@ -116,6 +116,12 @@ impl<'de> Deserialize<'de> for DataType {
                 formatter.write_str("a string or array")
             }
 
+            fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+            where
+                E: Error,
+            {
+                Ok(DataType::Named(CompactString::from(v)))
+            }
             fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
@@ -167,7 +173,9 @@ impl<'de> Deserialize<'de> for DataType {
                         seq.next_element()?
                             .ok_or_else(|| A::Error::custom("missing switch args"))?,
                     ),
-                    _ => seq.next_element()?.ok_or_else(|| A::Error::custom("missing args"))?,
+                    unknown => {
+                        return Err(A::Error::custom(format!("unknown data type, \"{unknown}\"")))
+                    }
                 };
 
                 Ok(DataType::Inline(kind, args))

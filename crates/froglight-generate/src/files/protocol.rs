@@ -79,17 +79,22 @@ async fn fetch() {
     cache.push("froglight-generate");
     tokio::fs::create_dir_all(&cache).await.unwrap();
 
+    let v1_20_6 = Version::new_release(1, 20, 6);
+    let v1_21_0 = Version::new_release(1, 21, 0);
+    let v1_21_1 = Version::new_release(1, 21, 1);
+
     let client = Client::new();
-    let datapaths = DataPaths::fetch(&Version::new_release(1, 21, 0), &cache, &(), false, &client)
-        .await
-        .unwrap();
+    let datapaths = DataPaths::fetch(&v1_21_0, &cache, &(), false, &client).await.unwrap();
 
-    // Test reading the protocol for multiple versions.
-    for version in [Version::new_release(1, 21, 0), Version::new_release(1, 21, 1)] {
-        // Fetch the protocol.
-        let protocol =
-            VersionProtocol::fetch(&version, &cache, &datapaths, false, &client).await.unwrap();
+    // Fetch the protocols for multiple versions.
+    let p1_20_6 =
+        VersionProtocol::fetch(&v1_20_6, &cache, &datapaths, false, &client).await.unwrap();
+    let p1_21_0 =
+        VersionProtocol::fetch(&v1_21_0, &cache, &datapaths, false, &client).await.unwrap();
+    let p1_21_1 =
+        VersionProtocol::fetch(&v1_21_1, &cache, &datapaths, false, &client).await.unwrap();
 
+    for protocol in [&p1_20_6, &p1_21_0, &p1_21_1] {
         // Check that all native types are known.
         for (name, data) in protocol.types.iter() {
             if DataType::Named("native".into()) == *data {
@@ -102,6 +107,11 @@ async fn fetch() {
             assert_valid_type(data, &protocol.types);
         }
     }
+
+    // Assert that v1.20.6 and v1.21.0 are different.
+    assert_ne!(p1_20_6, p1_21_0);
+    // Assert that v1.21.0 and v1.21.1 are the same.
+    assert_eq!(p1_21_0, p1_21_1);
 }
 
 #[cfg(test)]
