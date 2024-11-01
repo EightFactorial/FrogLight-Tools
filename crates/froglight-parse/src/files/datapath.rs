@@ -20,11 +20,18 @@ impl DataPaths {
     /// The URL of the data paths file.
     pub const FILE_URL: &str = "https://raw.githubusercontent.com/PrismarineJS/minecraft-data/refs/heads/master/data/dataPaths.json";
 
-    /// Get the URL for a Java edition protocol file.
+    /// Get the URL for a Java edition `proto.yml` file.
     #[must_use]
     pub fn get_java_proto(&self, version: &Version) -> Option<String> {
         let proto = self.pc.get(version).and_then(|paths| paths.proto.as_ref())?;
         Some(Self::FILE_URL.replace("dataPaths.json", proto) + "/proto.yml")
+    }
+
+    /// Get the URL for a Java edition `protocol.json` file.
+    #[must_use]
+    pub fn get_java_protocol(&self, version: &Version) -> Option<String> {
+        let protocol = self.pc.get(version).and_then(|paths| paths.protocol.as_ref())?;
+        Some(Self::FILE_URL.replace("dataPaths.json", protocol) + "/protocol.json")
     }
 }
 

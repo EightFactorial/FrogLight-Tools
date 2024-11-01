@@ -3,4 +3,5 @@
 mod datapath;
 pub use datapath::{DataPaths, EditionDataPaths, VersionDataPaths};
 
-mod proto;
+pub mod protocol;
+pub use protocol::VersionProtocol;

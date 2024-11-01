@@ -6,16 +6,23 @@ use reqwest::Client;
 use super::FileTrait;
 
 impl FileTrait for DataPaths {
-    fn get_url() -> &'static str { Self::FILE_URL }
+    type UrlData = ();
+    fn get_url(_: &Version, (): &Self::UrlData) -> String { Self::FILE_URL.to_string() }
     fn get_path(_: &Version, cache: &Path) -> PathBuf { cache.join(Self::FILE_NAME) }
 
+    /// Fetch the data paths file, downloading it if it doesn't exist.
+    ///
+    /// # Note
+    /// Version is ignored because the data paths file is the same for all
+    /// versions.
     fn fetch(
         version: &Version,
         cache: &Path,
+        data: &Self::UrlData,
         redownload: bool,
         client: &Client,
     ) -> impl std::future::Future<Output = anyhow::Result<Self>> + Send + Sync {
-        super::fetch_json(version, cache, redownload, client)
+        super::fetch_json(version, cache, data, redownload, client)
     }
 }
 
@@ -36,7 +43,7 @@ async fn fetch() {
     let version = Version::new_release(1, 21, 1);
     let client = Client::new();
 
-    let datapaths = DataPaths::fetch(&version, &cache, false, &client).await.unwrap();
+    let datapaths = DataPaths::fetch(&version, &cache, &(), false, &client).await.unwrap();
 
     assert_eq!(
         datapaths.get_java_proto(&Version::new_release(1, 20, 0)).as_deref(),

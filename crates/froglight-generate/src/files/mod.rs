@@ -5,11 +5,15 @@ use reqwest::Client;
 use serde::de::DeserializeOwned;
 
 mod datapath;
+mod protocol;
 
 /// Trait for files that are downloaded and cached.
 pub trait FileTrait: Sized + Send + Sync {
+    /// Data needed to get the URL of the file.
+    type UrlData;
+
     /// Get the URL of the file.
-    fn get_url() -> &'static str;
+    fn get_url(version: &Version, data: &Self::UrlData) -> String;
 
     /// Get the path to the file.
     fn get_path(version: &Version, cache: &Path) -> PathBuf;
@@ -18,6 +22,7 @@ pub trait FileTrait: Sized + Send + Sync {
     fn fetch(
         version: &Version,
         cache: &Path,
+        data: &Self::UrlData,
         redownload: bool,
         client: &Client,
     ) -> impl std::future::Future<Output = anyhow::Result<Self>> + Send + Sync;
@@ -30,6 +35,7 @@ pub trait FileTrait: Sized + Send + Sync {
 async fn fetch_json<T: FileTrait + DeserializeOwned>(
     version: &Version,
     cache: &Path,
+    data: &T::UrlData,
     redownload: bool,
     client: &Client,
 ) -> anyhow::Result<T> {
@@ -46,10 +52,15 @@ async fn fetch_json<T: FileTrait + DeserializeOwned>(
                 tracing::warn!("Failed to read file: {err}");
             }
         }
+    } else if let Some(parent) = path.parent() {
+        // Create the parent directory if it doesn't exist.
+        if !parent.exists() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
     }
 
     // Download the file.
-    let response = client.get(T::get_url()).send().await?;
+    let response = client.get(T::get_url(version, data)).send().await?;
     let bytes = response.bytes().await?;
 
     // Parse the file and write it to the cache.
@@ -67,6 +78,7 @@ async fn fetch_json<T: FileTrait + DeserializeOwned>(
 async fn fetch_yaml<T: FileTrait + DeserializeOwned>(
     version: &Version,
     cache: &Path,
+    data: &T::UrlData,
     redownload: bool,
     client: &Client,
 ) -> anyhow::Result<T> {
@@ -83,10 +95,15 @@ async fn fetch_yaml<T: FileTrait + DeserializeOwned>(
                 tracing::warn!("Failed to read file: {err}");
             }
         }
+    } else if let Some(parent) = path.parent() {
+        // Create the parent directory if it doesn't exist.
+        if !parent.exists() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
     }
 
     // Download the file.
-    let response = client.get(T::get_url()).send().await?;
+    let response = client.get(T::get_url(version, data)).send().await?;
     let bytes = response.bytes().await?;
 
     // Parse the file and write it to the cache.
