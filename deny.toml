@@ -14,8 +14,8 @@ allow = [
     "0BSD",
     #    "BSD-2-Clause",
     #    "CC0-1.0",
-    "MPL-2.0",
-    "OpenSSL",
+    # "MPL-2.0",
+    # "OpenSSL",
 ]
 
 [[licenses.exceptions]]
@@ -48,8 +48,6 @@ name = "bitflags"
 name = "hashbrown"
 [[bans.skip]]
 name = "redox_syscall"
-[[bans.skip]]
-name = "winnow"
 
 # Windows
 [[bans.skip]]

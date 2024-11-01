@@ -1,48 +1,14 @@
 [package]
 name = "froglight-tools"
-version = { workspace = true }
-edition = { workspace = true }
-license = { workspace = true }
-authors = { workspace = true }
-homepage = { workspace = true }
-repository = { workspace = true }
-readme = { workspace = true }
-
-[package.metadata.docs.rs]
-all-features = true
-rustdoc-args = ["--cfg", "docsrs"]
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme.workspace = true
 
 [lints]
 workspace = true
 
 [dependencies]
-anyhow = { workspace = true }
-async_zip = { version = "0.0.17", features = ["tokio", "tokio-fs"] }
-cargo_metadata = "0.18.1"
-clap = { version = "4.5.20", features = ["derive"] }
-clap-verbosity-flag = "2.2.2"
-froglight-definitions = { version = "0.1.0", path = "../froglight-definitions" }
-froglight-extract = { version = "0.1.0", path = "../froglight-extract" }
-froglight-generate = { version = "0.1.0", path = "../froglight-generate" }
-hashbrown = { workspace = true }
-reqwest = { version = "0.12.8", features = ["rustls-tls", "json"] }
-serde = { workspace = true }
-serde_json = { workspace = true }
-thiserror = "1.0.64"
-tokio = { workspace = true, features = ["full"] }
-toml = { version = "0.8.19", features = ["parse", "preserve_order"] }
-tracing = { workspace = true }
-tracing-subscriber = "0.3.18"
-quick-xml = { version = "0.37.0", features = ["serialize"] }
-
-[[bin]]
-name = "extractor"
-path = "src/extractor/main.rs"
-
-[[bin]]
-name = "generator"
-path = "src/generator/main.rs"
-
-[lib]
-name = "froglight_tools"
-path = "src/tools/lib.rs"

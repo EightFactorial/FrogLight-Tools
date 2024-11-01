@@ -1,8 +1,4 @@
-#![doc = include_str!("../README.md")]
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+//! TODO
 
-pub(crate) mod consts;
-pub(crate) mod helpers;
-
-pub mod bundle;
-pub mod modules;
+mod files;
+pub use files::*;

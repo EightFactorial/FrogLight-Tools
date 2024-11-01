@@ -1,0 +1,94 @@
+use compact_str::CompactString;
+use derive_more::derive::{Deref, DerefMut};
+use hashbrown::HashMap;
+use serde::{Deserialize, Serialize};
+
+use crate::Version;
+
+/// Data paths for Minecraft version data.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DataPaths {
+    /// [`EditionDataPaths`] for the Java edition.
+    pub pc: EditionDataPaths,
+    /// [`EditionDataPaths`] for the Bedrock edition.
+    pub bedrock: EditionDataPaths,
+}
+
+impl DataPaths {
+    /// The name of the data paths file.
+    pub const FILE_NAME: &str = "dataPaths.json";
+    /// The URL of the data paths file.
+    pub const FILE_URL: &str = "https://raw.githubusercontent.com/PrismarineJS/minecraft-data/refs/heads/master/data/dataPaths.json";
+
+    /// Get the URL for a Java edition protocol file.
+    #[must_use]
+    pub fn get_java_proto(&self, version: &Version) -> Option<String> {
+        let proto = self.pc.get(version).and_then(|paths| paths.proto.as_ref())?;
+        Some(Self::FILE_URL.replace("dataPaths.json", proto) + "/proto.yml")
+    }
+}
+
+/// Data paths for a specific edition.
+#[derive(Debug, Clone, Deref, DerefMut, Serialize, Deserialize)]
+#[serde(transparent)]
+pub struct EditionDataPaths(HashMap<Version, VersionDataPaths>);
+
+/// Data paths for a specific version.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(missing_docs)]
+pub struct VersionDataPaths {
+    #[serde(default)]
+    pub attributes: Option<CompactString>,
+    #[serde(default)]
+    pub blocks: Option<CompactString>,
+    #[serde(default, rename = "blockCollisionShapes")]
+    pub block_collision_shapes: Option<CompactString>,
+    #[serde(default)]
+    pub biomes: Option<CompactString>,
+    #[serde(default)]
+    pub effects: Option<CompactString>,
+    #[serde(default)]
+    pub items: Option<CompactString>,
+    #[serde(default)]
+    pub enchantments: Option<CompactString>,
+    #[serde(default)]
+    pub recipes: Option<CompactString>,
+    #[serde(default)]
+    pub instruments: Option<CompactString>,
+    #[serde(default)]
+    pub materials: Option<CompactString>,
+    #[serde(default)]
+    pub language: Option<CompactString>,
+    #[serde(default)]
+    pub entities: Option<CompactString>,
+    #[serde(default)]
+    pub protocol: Option<CompactString>,
+    #[serde(default)]
+    pub windows: Option<CompactString>,
+    #[serde(default)]
+    pub version: Option<CompactString>,
+    #[serde(default)]
+    pub foods: Option<CompactString>,
+    #[serde(default)]
+    pub particles: Option<CompactString>,
+    #[serde(default, rename = "blockLoot")]
+    pub block_loot: Option<CompactString>,
+    #[serde(default, rename = "entityLoot")]
+    pub entity_loot: Option<CompactString>,
+    #[serde(default, rename = "loginPacket")]
+    pub login_packet: Option<CompactString>,
+    #[serde(default)]
+    pub tints: Option<CompactString>,
+    #[serde(rename = "mapIcons")]
+    #[serde(default)]
+    pub map_icons: Option<CompactString>,
+    #[serde(default)]
+    pub commands: Option<CompactString>,
+    #[serde(default)]
+    pub sounds: Option<CompactString>,
+    #[serde(default)]
+    pub proto: Option<CompactString>,
+
+    #[serde(default, flatten)]
+    pub other: HashMap<CompactString, CompactString>,
+}

@@ -1,0 +1,23 @@
+[package]
+name = "froglight-parse"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+proptest = "1.5.0"
+
+[dependencies]
+compact_str = { workspace = true, features = ["serde"] }
+derive_more = { workspace = true }
+hashbrown = { workspace = true, features = ["serde"] }
+regex = "1.11"
+semver = "1.0"
+serde = { workspace = true }
