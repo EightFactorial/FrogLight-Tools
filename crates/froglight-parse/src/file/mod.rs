@@ -9,8 +9,8 @@ pub use generator::GeneratorData;
 pub mod manifest;
 pub use manifest::VersionManifest;
 
-pub mod mavenmetadata;
-pub use mavenmetadata::MavenMetadata;
+pub mod yarnmaven;
+pub use yarnmaven::YarnMavenMetadata;
 
 pub mod protocol;
 pub use protocol::VersionProtocol;

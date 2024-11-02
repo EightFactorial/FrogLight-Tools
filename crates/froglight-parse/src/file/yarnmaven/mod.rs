@@ -8,9 +8,9 @@ use serde::{Deserialize, Serialize};
 mod test;
 mod traits;
 
-/// The Maven metadata.
+/// The Yarn Maven metadata.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MavenMetadata {
+pub struct YarnMavenMetadata {
     /// The group ID.
     #[serde(rename = "groupId")]
     pub group_id: CompactString,
@@ -18,25 +18,25 @@ pub struct MavenMetadata {
     #[serde(rename = "artifactId")]
     pub artifact_id: CompactString,
     /// The versioning information.
-    pub versioning: MetadataVersioning,
+    pub versioning: YarnVersioning,
 }
 
-/// The versioning information.
+/// Information about the versioning of Yarn.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct MetadataVersioning {
-    /// The latest mappings build.
+pub struct YarnVersioning {
+    /// The latest yarn build.
     pub latest: CompactString,
-    /// The latest released mappings build.
+    /// The latest released yarn build.
     pub release: CompactString,
-    /// A list of mapping versions.
-    pub versions: VersionList,
+    /// A list of yarn versions.
+    pub versions: YarnVersionList,
     /// The last time the metadata was updated.
     #[serde(rename = "lastUpdated")]
     pub last_updated: u64,
 }
 
-/// A list of mapping versions.
+/// A list of Yarn versions.
 #[derive(Debug, Clone, PartialEq, Eq, Deref, DerefMut, Serialize, Deserialize)]
-pub struct VersionList {
+pub struct YarnVersionList {
     version: Vec<CompactString>,
 }
