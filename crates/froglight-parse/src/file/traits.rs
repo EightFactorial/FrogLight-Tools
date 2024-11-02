@@ -58,14 +58,15 @@ pub(super) async fn fetch_json<T: FileTrait + DeserializeOwned>(
     }
 
     // Download the file.
-    let response = client.get(T::get_url(version, data)).send().await?;
+    let url = T::get_url(version, data);
+    tracing::warn!("Downloading: \"{url}\"");
+
+    let response = client.get(url).send().await?;
     let bytes = response.bytes().await?;
+    tokio::fs::write(&path, &bytes).await?;
 
-    // Parse the file and write it to the cache.
-    let file = serde_json::from_slice(bytes.as_ref())?;
-    tokio::fs::write(&path, bytes).await?;
-
-    Ok(file)
+    // Parse the file
+    serde_json::from_slice(&bytes).map_err(Into::into)
 }
 
 /// Fetch a YAML file, downloading it if it doesn't exist.
@@ -101,14 +102,15 @@ pub(super) async fn fetch_yaml<T: FileTrait + DeserializeOwned>(
     }
 
     // Download the file.
-    let response = client.get(T::get_url(version, data)).send().await?;
+    let url = T::get_url(version, data);
+    tracing::warn!("Downloading: \"{url}\"");
+
+    let response = client.get(url).send().await?;
     let bytes = response.bytes().await?;
+    tokio::fs::write(&path, &bytes).await?;
 
-    // Parse the file and write it to the cache.
-    let file = serde_yml::from_slice(bytes.as_ref())?;
-    tokio::fs::write(&path, bytes).await?;
-
-    Ok(file)
+    // Parse the file
+    serde_yml::from_slice(&bytes).map_err(Into::into)
 }
 
 /// Fetch a XML file, downloading it if it doesn't exist.
@@ -144,12 +146,14 @@ pub(super) async fn fetch_xml<T: FileTrait + DeserializeOwned>(
     }
 
     // Download the file.
-    let response = client.get(T::get_url(version, data)).send().await?;
+    let url = T::get_url(version, data);
+    tracing::warn!("Downloading: \"{url}\"");
+
+    let response = client.get(url).send().await?;
     let bytes = response.bytes().await?;
+    tokio::fs::write(&path, &bytes).await?;
 
-    // Parse the file and write it to the cache.
-    let file = quick_xml::de::from_str(std::str::from_utf8(&bytes)?)?;
-    tokio::fs::write(&path, bytes).await?;
-
-    Ok(file)
+    // Parse the file
+    let contents = std::str::from_utf8(&bytes)?;
+    quick_xml::de::from_str(contents).map_err(Into::into)
 }
