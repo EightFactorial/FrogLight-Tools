@@ -2,7 +2,7 @@ use reqwest::Client;
 
 use crate::{
     file::{
-        protocol::{BufferArgs, ProtocolType, ProtocolTypeArgs, ProtocolTypeMap},
+        protocol::{ArrayArgs, BufferArgs, ProtocolType, ProtocolTypeArgs, ProtocolTypeMap},
         DataPath, FileTrait, VersionProtocol,
     },
     Version,
@@ -79,10 +79,20 @@ async fn fetch() {
         }
     }
 
-    // Assert that v1.20.6 and v1.21.0 are different.
+    // Assert that v1.20.6 and v1.21.0 use different types.
     assert_ne!(p1_20_6.types, p1_21_0.types);
-    // Assert that v1.21.0 and v1.21.1 are the same.
-    assert_eq!(p1_21_0.types, p1_21_1.types);
+
+    // Assert that they send the same handshake, status, and login packets.
+    assert_eq!(p1_20_6.packets["handshaking"], p1_21_0.packets["handshaking"]);
+    assert_eq!(p1_20_6.packets["status"], p1_21_0.packets["status"]);
+    assert_eq!(p1_20_6.packets["login"], p1_21_0.packets["login"]);
+
+    // Assert that they don't send the same configuration and play packets.
+    assert_ne!(p1_20_6.packets["configuration"], p1_21_0.packets["configuration"]);
+    assert_ne!(p1_20_6.packets["play"], p1_21_0.packets["play"]);
+
+    // Assert that v1.21.0 and v1.21.1 are completely identical.
+    assert_eq!(p1_21_0, p1_21_1);
 }
 
 /// Recursively assert that all types are valid,
@@ -99,12 +109,18 @@ fn assert_valid_type(data: &ProtocolType, types: &ProtocolTypeMap) {
         }
         ProtocolType::Inline(type_name, ProtocolTypeArgs::Array(array_args)) => {
             assert_eq!(type_name, "array");
-            assert!(
-                types.contains_key(&array_args.count_type),
-                "Unknown array protocol type: \"{}\"",
-                array_args.count_type
-            );
-            assert_valid_type(&array_args.kind, types);
+            match array_args {
+                ArrayArgs::CountField { kind, .. } => {
+                    assert_valid_type(kind, types);
+                }
+                ArrayArgs::Count { count_type, kind } => {
+                    assert!(
+                        types.contains_key(count_type),
+                        "Unknown array count protocol type: \"{count_type}\"",
+                    );
+                    assert_valid_type(kind, types);
+                }
+            }
         }
         ProtocolType::Inline(type_name, ProtocolTypeArgs::Bitfield(..)) => {
             assert_eq!(type_name, "bitfield");
@@ -150,6 +166,10 @@ fn assert_valid_type(data: &ProtocolType, types: &ProtocolTypeMap) {
             for field_type in switch_args.fields.values() {
                 assert_valid_type(field_type, types);
             }
+        }
+        ProtocolType::Inline(type_name, ProtocolTypeArgs::TopBitSetTerminatedArray(array_args)) => {
+            assert_eq!(type_name, "topBitSetTerminatedArray");
+            assert_valid_type(&array_args.kind, types);
         }
     }
 }

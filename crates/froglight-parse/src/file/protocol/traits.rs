@@ -7,6 +7,11 @@ use crate::{
     Version,
 };
 
+impl super::VersionProtocol {
+    /// The name of the protocol file.
+    pub const FILE_NAME: &str = "protocol.json";
+}
+
 impl FileTrait for super::VersionProtocol {
     type UrlData = DataPath;
     fn get_url(version: &Version, data: &Self::UrlData) -> String {

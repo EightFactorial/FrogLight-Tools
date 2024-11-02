@@ -33,14 +33,34 @@ pub enum ProtocolTypeArgs {
     Option(Box<ProtocolType>),
     PString(BufferArgs),
     Switch(SwitchArgs),
+    TopBitSetTerminatedArray(TopBitSetTerminatedArrayArgs),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ArrayArgs {
-    #[serde(rename = "countType")]
-    pub count_type: CompactString,
-    #[serde(rename = "type")]
-    pub kind: Box<ProtocolType>,
+#[serde(untagged)]
+pub enum ArrayArgs {
+    CountField {
+        #[serde(rename = "count")]
+        count_field: CompactString,
+        #[serde(rename = "type")]
+        kind: Box<ProtocolType>,
+    },
+    Count {
+        #[serde(rename = "countType")]
+        count_type: CompactString,
+        #[serde(rename = "type")]
+        kind: Box<ProtocolType>,
+    },
+}
+
+impl ArrayArgs {
+    /// Returns the kind of the array.
+    #[must_use]
+    pub fn kind(&self) -> &ProtocolType {
+        match self {
+            ArrayArgs::CountField { kind, .. } | ArrayArgs::Count { kind, .. } => kind,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -86,6 +106,12 @@ pub struct SwitchArgs {
     #[serde(rename = "compareTo")]
     pub compare_to: CompactString,
     pub fields: HashMap<CompactString, ProtocolType>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TopBitSetTerminatedArrayArgs {
+    #[serde(rename = "type")]
+    pub kind: Box<ProtocolType>,
 }
 
 impl Serialize for ProtocolType {
@@ -174,6 +200,11 @@ impl<'de> Deserialize<'de> for ProtocolType {
                         seq.next_element()?
                             .ok_or_else(|| A::Error::custom("missing switch args"))?,
                     ),
+                    "topBitSetTerminatedArray" => {
+                        ProtocolTypeArgs::TopBitSetTerminatedArray(seq.next_element()?.ok_or_else(
+                            || A::Error::custom("missing topBitSetTerminatedArray args"),
+                        )?)
+                    }
                     unknown => {
                         return Err(A::Error::custom(format!("unknown data type, \"{unknown}\"")))
                     }

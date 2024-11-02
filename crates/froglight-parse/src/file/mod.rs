@@ -1,7 +1,7 @@
 //! TODO
 
 mod datapath;
-pub use datapath::{DataPath, EditionDataPaths, VersionDataPaths};
+pub use datapath::{DataPath, EditionDataPath, VersionDataPath};
 
 pub mod protocol;
 pub use protocol::VersionProtocol;
