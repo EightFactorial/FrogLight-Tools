@@ -22,7 +22,7 @@ impl FileTrait for super::YarnMavenMetadata {
         data: &Self::UrlData,
         redownload: bool,
         client: &Client,
-    ) -> impl std::future::Future<Output = anyhow::Result<Self>> + Send + Sync {
+    ) -> impl std::future::Future<Output = anyhow::Result<Self>> {
         crate::file::fetch_xml(version, cache, data, redownload, client)
     }
 }

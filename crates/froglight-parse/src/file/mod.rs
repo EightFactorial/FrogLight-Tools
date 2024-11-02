@@ -20,7 +20,7 @@ pub use versioninfo::VersionInfo;
 
 mod traits;
 pub use traits::FileTrait;
-use traits::{fetch_json, fetch_xml};
+use traits::{fetch_file, fetch_json, fetch_xml};
 
 /// Get the `target` directory.
 ///
