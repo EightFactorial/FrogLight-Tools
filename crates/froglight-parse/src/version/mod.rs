@@ -156,6 +156,26 @@ impl Version {
     }
 
     /// Convert the version to a string, removing any trailing zeros.
+    ///
+    /// # Examples
+    /// ```rust
+    /// use froglight_parse::Version;
+    ///
+    /// let version = Version::new_release(1, 20, 0);
+    /// assert_eq!(version.to_string(), "1.20.0");
+    /// assert_eq!(version.to_long_string(), "1.20.0");
+    /// assert_eq!(version.to_short_string(), "1.20");
+    ///
+    /// let version = Version::new_rc(1, 20, 0, 1);
+    /// assert_eq!(version.to_string(), "1.20.0-rc1");
+    /// assert_eq!(version.to_long_string(), "1.20.0-rc1");
+    /// assert_eq!(version.to_short_string(), "1.20-rc1");
+    ///
+    /// let version = Version::new_pre(1, 20, 0, 1);
+    /// assert_eq!(version.to_string(), "1.20.0-pre1");
+    /// assert_eq!(version.to_long_string(), "1.20.0-pre1");
+    /// assert_eq!(version.to_short_string(), "1.20-pre1");
+    /// ```
     #[must_use]
     #[allow(clippy::missing_panics_doc)]
     pub fn to_short_string(&self) -> String {

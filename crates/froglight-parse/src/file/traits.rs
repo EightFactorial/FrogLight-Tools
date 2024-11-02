@@ -110,3 +110,46 @@ pub(super) async fn fetch_yaml<T: FileTrait + DeserializeOwned>(
 
     Ok(file)
 }
+
+/// Fetch a XML file, downloading it if it doesn't exist.
+///
+/// # Errors
+/// Errors if the file can't be read from the cache, downloaded, or parsed.
+pub(super) async fn fetch_xml<T: FileTrait + DeserializeOwned>(
+    version: &Version,
+    cache: &Path,
+    data: &T::UrlData,
+    redownload: bool,
+    client: &Client,
+) -> anyhow::Result<T> {
+    // If the file exists, try to parse it.
+    let path = T::get_path(version, cache);
+    if path.exists() && !redownload {
+        // If the file is successfully parsed, return it.
+        match tokio::fs::read_to_string(&path).await.map(|string| quick_xml::de::from_str(&string))
+        {
+            Ok(Ok(file)) => return Ok(file),
+            Ok(Err(err)) => {
+                tracing::warn!("Failed to parse file: {err}");
+            }
+            Err(err) => {
+                tracing::warn!("Failed to read file: {err}");
+            }
+        }
+    } else if let Some(parent) = path.parent() {
+        // Create the parent directory if it doesn't exist.
+        if !parent.exists() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
+    }
+
+    // Download the file.
+    let response = client.get(T::get_url(version, data)).send().await?;
+    let bytes = response.bytes().await?;
+
+    // Parse the file and write it to the cache.
+    let file = quick_xml::de::from_str(std::str::from_utf8(&bytes)?)?;
+    tokio::fs::write(&path, bytes).await?;
+
+    Ok(file)
+}

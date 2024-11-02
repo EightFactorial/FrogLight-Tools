@@ -1,14 +1,26 @@
 //! TODO
 
-mod datapath;
-pub use datapath::{DataPath, EditionDataPath, VersionDataPath};
+pub mod datapath;
+pub use datapath::DataPath;
+
+pub mod generator;
+pub use generator::GeneratorData;
+
+pub mod manifest;
+pub use manifest::VersionManifest;
+
+pub mod mavenmetadata;
+pub use mavenmetadata::MavenMetadata;
 
 pub mod protocol;
 pub use protocol::VersionProtocol;
 
+pub mod versioninfo;
+pub use versioninfo::VersionInfo;
+
 mod traits;
-use traits::fetch_json;
 pub use traits::FileTrait;
+use traits::{fetch_json, fetch_xml};
 
 /// Get the `target` directory.
 ///
