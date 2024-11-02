@@ -5,11 +5,15 @@ use serde::{Deserialize, Serialize};
 mod types;
 pub use types::*;
 
+#[cfg(test)]
+mod test;
+mod traits;
+
 /// The protocol file for a specific version.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VersionProtocol {
     /// The types the protocol uses.
-    pub types: TypesMap,
+    pub types: ProtocolTypeMap,
 }
 
 impl VersionProtocol {

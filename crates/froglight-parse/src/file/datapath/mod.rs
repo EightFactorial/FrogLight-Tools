@@ -5,16 +5,20 @@ use serde::{Deserialize, Serialize};
 
 use crate::Version;
 
+#[cfg(test)]
+mod test;
+mod traits;
+
 /// Data paths for Minecraft version data.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DataPaths {
+pub struct DataPath {
     /// [`EditionDataPaths`] for the Java edition.
     pub pc: EditionDataPaths,
     /// [`EditionDataPaths`] for the Bedrock edition.
     pub bedrock: EditionDataPaths,
 }
 
-impl DataPaths {
+impl DataPath {
     /// The name of the data paths file.
     pub const FILE_NAME: &str = "dataPaths.json";
     /// The URL of the data paths file.

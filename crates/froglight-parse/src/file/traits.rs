@@ -1,11 +1,9 @@
 use std::path::{Path, PathBuf};
 
-use froglight_parse::Version;
 use reqwest::Client;
 use serde::de::DeserializeOwned;
 
-mod datapath;
-mod protocol;
+use crate::Version;
 
 /// Trait for files that are downloaded and cached.
 pub trait FileTrait: Sized + Send + Sync {
@@ -32,7 +30,7 @@ pub trait FileTrait: Sized + Send + Sync {
 ///
 /// # Errors
 /// Errors if the file can't be read from the cache, downloaded, or parsed.
-async fn fetch_json<T: FileTrait + DeserializeOwned>(
+pub(super) async fn fetch_json<T: FileTrait + DeserializeOwned>(
     version: &Version,
     cache: &Path,
     data: &T::UrlData,
@@ -75,7 +73,7 @@ async fn fetch_json<T: FileTrait + DeserializeOwned>(
 /// # Errors
 /// Errors if the file can't be read from the cache, downloaded, or parsed.
 #[expect(dead_code)]
-async fn fetch_yaml<T: FileTrait + DeserializeOwned>(
+pub(super) async fn fetch_yaml<T: FileTrait + DeserializeOwned>(
     version: &Version,
     cache: &Path,
     data: &T::UrlData,

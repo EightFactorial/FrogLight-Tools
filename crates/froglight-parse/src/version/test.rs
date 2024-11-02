@@ -6,7 +6,7 @@ proptest! {
     #[test]
     fn parse_release(major in 0u64.., minor in 0u64.., patch in proptest::option::of(0u64..)) {
         let version = if let Some(patch) = patch { format!("{major}.{minor}.{patch}") } else { format!("{major}.{minor}") };
-        let Some(Version::Release(release)) = crate::version::parse_release(&version) else {
+        let Some(Version::Release(release)) = super::regex::parse_release(&version) else {
             panic!("Failed to parse Version::Release -> `{version}`")
         };
 
@@ -18,7 +18,7 @@ proptest! {
     #[test]
     fn parse_release_candidate(major in 0u64.., minor in 0u64.., patch in proptest::option::of(0u64..), rc in 0u64..) {
         let version = if let Some(patch) = patch { format!("{major}.{minor}.{patch}-rc{rc}") } else { format!("{major}.{minor}-rc{rc}") };
-        let Some(Version::ReleaseCandidate(release_candidate)) = crate::version::parse_release_candidate(&version) else {
+        let Some(Version::ReleaseCandidate(release_candidate)) = super::regex::parse_release_candidate(&version) else {
             panic!("Failed to parse Version::ReleaseCandidate -> `{version}`")
         };
 
@@ -31,7 +31,7 @@ proptest! {
     #[test]
     fn parse_pre_release(major in 0u64.., minor in 0u64.., patch in proptest::option::of(0u64..), pre in 0u64..) {
         let version = if let Some(patch) = patch { format!("{major}.{minor}.{patch}-pre{pre}") } else { format!("{major}.{minor}-pre{pre}") };
-        let Some(Version::PreRelease(pre_release)) = crate::version::parse_pre_release(&version) else {
+        let Some(Version::PreRelease(pre_release)) = super::regex::parse_pre_release(&version) else {
             panic!("Failed to parse Version::PreRelease -> `{version}`")
         };
 
@@ -44,7 +44,7 @@ proptest! {
     #[test]
     fn parse_snapshot(year in 0u64..99u64, week in 0u64..99u64, patch in "[a-z]") {
         let version = format!("{year:02}w{week:02}{patch}");
-        let Some(Version::Snapshot(snapshot)) = crate::version::parse_snapshot(&version) else {
+        let Some(Version::Snapshot(snapshot)) = super::regex::parse_snapshot(&version) else {
             panic!("Failed to parse Version::Snapshot -> `{version}`")
         };
 
@@ -64,7 +64,7 @@ const EXAMPLE_RELEASES: &[&str] = &[
 fn release_ordering() {
     let releases: Vec<Version> = EXAMPLE_RELEASES
         .iter()
-        .map(|&version| crate::version::parse_release(version).unwrap())
+        .map(|&version| super::regex::parse_release(version).unwrap())
         .collect();
 
     for (index, release) in releases.iter().enumerate() {
@@ -103,7 +103,7 @@ const EXAMPLE_RELEASE_CANDIDATES: &[&str] = &[
 fn release_candidate_ordering() {
     let release_candidates: Vec<Version> = EXAMPLE_RELEASE_CANDIDATES
         .iter()
-        .map(|&version| crate::version::parse_release_candidate(version).unwrap())
+        .map(|&version| super::regex::parse_release_candidate(version).unwrap())
         .collect();
 
     for (index, release_candidate) in release_candidates.iter().enumerate() {
@@ -148,7 +148,7 @@ const EXAMPLE_PRE_RELEASES: &[&str] = &[
 fn pre_release_ordering() {
     let pre_releases: Vec<Version> = EXAMPLE_PRE_RELEASES
         .iter()
-        .map(|&version| crate::version::parse_pre_release(version).unwrap())
+        .map(|&version| super::regex::parse_pre_release(version).unwrap())
         .collect();
 
     for (index, pre_release) in pre_releases.iter().enumerate() {
@@ -172,7 +172,7 @@ const EXAMPLE_SNAPSHOTS: &[&str] = &[
 fn snapshot_ordering() {
     let snapshots: Vec<Version> = EXAMPLE_SNAPSHOTS
         .iter()
-        .map(|&version| crate::version::parse_snapshot(version).unwrap())
+        .map(|&version| super::regex::parse_snapshot(version).unwrap())
         .collect();
 
     for (index, snapshot) in snapshots.iter().enumerate() {

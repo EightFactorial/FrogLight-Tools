@@ -281,13 +281,19 @@ dependencies = [
 name = "froglight-parse"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "compact_str",
  "derive_more",
  "hashbrown",
  "proptest",
  "regex",
+ "reqwest",
  "semver",
  "serde",
+ "serde_json",
+ "serde_yml",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

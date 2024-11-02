@@ -1,49 +1,18 @@
-use std::path::{Path, PathBuf};
-
-use froglight_parse::{files::DataPaths, Version};
 use reqwest::Client;
 
-use super::FileTrait;
-
-impl FileTrait for DataPaths {
-    type UrlData = ();
-    fn get_url(_: &Version, (): &Self::UrlData) -> String { Self::FILE_URL.to_string() }
-    fn get_path(_: &Version, cache: &Path) -> PathBuf { cache.join(Self::FILE_NAME) }
-
-    /// Fetch the data paths file, downloading it if it doesn't exist.
-    ///
-    /// # Note
-    /// Version is ignored because the data paths file is the same for all
-    /// versions.
-    fn fetch(
-        version: &Version,
-        cache: &Path,
-        data: &Self::UrlData,
-        redownload: bool,
-        client: &Client,
-    ) -> impl std::future::Future<Output = anyhow::Result<Self>> + Send + Sync {
-        super::fetch_json(version, cache, data, redownload, client)
-    }
-}
+use crate::{
+    file::{DataPath, FileTrait},
+    Version,
+};
 
 #[tokio::test]
 async fn fetch() {
-    // Find the target directory.
-    let mut cache = PathBuf::from(env!("CARGO_MANIFEST_DIR")).canonicalize().unwrap();
-    while !cache.join("target").exists() {
-        assert!(!cache.to_string_lossy().is_empty(), "Couldn't find target directory");
-        cache = cache.parent().unwrap().to_path_buf();
-    }
-
-    cache.push("target");
-    cache.push("froglight-generate");
-    tokio::fs::create_dir_all(&cache).await.unwrap();
+    let client = Client::new();
+    let cache = crate::file::target_dir().await;
 
     // Fetch the DataPaths
     let version = Version::new_release(1, 21, 1);
-    let client = Client::new();
-
-    let datapaths = DataPaths::fetch(&version, &cache, &(), false, &client).await.unwrap();
+    let datapaths = DataPath::fetch(&version, &cache, &(), false, &client).await.unwrap();
 
     assert_eq!(
         datapaths.get_java_proto(&Version::new_release(1, 20, 0)).as_deref(),

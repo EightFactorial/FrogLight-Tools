@@ -11,25 +11,26 @@ use serde::{
 
 /// A map of types used in the protocol.
 #[derive(Debug, Clone, PartialEq, Eq, Deref, DerefMut, Serialize, Deserialize)]
-pub struct TypesMap(HashMap<CompactString, DataType>);
+#[serde(transparent)]
+pub struct ProtocolTypeMap(HashMap<CompactString, ProtocolType>);
 
 /// A data type used in the protocol.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DataType {
+pub enum ProtocolType {
     Named(CompactString),
-    Inline(CompactString, DataTypeArgs),
+    Inline(CompactString, ProtocolTypeArgs),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum DataTypeArgs {
+pub enum ProtocolTypeArgs {
     Array(ArrayArgs),
-    Bitfield(Vec<BitfieldArgs>),
+    Bitfield(Vec<BitfieldArg>),
     Buffer(BufferArgs),
-    Container(Vec<ContainerArgs>),
+    Container(Vec<ContainerArg>),
     EntityMetadata(EntityMetadataArgs),
     Mapper(MapperArgs),
-    Option(Box<DataType>),
+    Option(Box<ProtocolType>),
     PString(BufferArgs),
     Switch(SwitchArgs),
 }
@@ -39,30 +40,30 @@ pub struct ArrayArgs {
     #[serde(rename = "countType")]
     pub count_type: CompactString,
     #[serde(rename = "type")]
-    pub kind: Box<DataType>,
+    pub kind: Box<ProtocolType>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct BitfieldArgs {
+pub struct BitfieldArg {
     pub name: CompactString,
     pub size: u32,
     pub signed: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct BufferArgs {
-    #[serde(default)]
-    pub count: Option<u32>,
-    #[serde(default, rename = "countType")]
-    pub count_type: Option<CompactString>,
+pub enum BufferArgs {
+    #[serde(rename = "count")]
+    Count(u32),
+    #[serde(rename = "countType")]
+    CountType(CompactString),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct ContainerArgs {
+pub struct ContainerArg {
     #[serde(default)]
     pub name: Option<CompactString>,
     #[serde(rename = "type")]
-    pub kind: DataType,
+    pub kind: ProtocolType,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -70,13 +71,13 @@ pub struct EntityMetadataArgs {
     #[serde(rename = "endVal")]
     pub end_val: u32,
     #[serde(rename = "type")]
-    pub kind: Box<DataType>,
+    pub kind: Box<ProtocolType>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MapperArgs {
     #[serde(rename = "type")]
-    pub kind: Box<DataType>,
+    pub kind: Box<ProtocolType>,
     pub mappings: HashMap<CompactString, CompactString>,
 }
 
@@ -84,17 +85,17 @@ pub struct MapperArgs {
 pub struct SwitchArgs {
     #[serde(rename = "compareTo")]
     pub compare_to: CompactString,
-    pub fields: HashMap<CompactString, DataType>,
+    pub fields: HashMap<CompactString, ProtocolType>,
 }
 
-impl Serialize for DataType {
+impl Serialize for ProtocolType {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
         match self {
-            DataType::Named(name) => name.serialize(serializer),
-            DataType::Inline(kind, args) => {
+            ProtocolType::Named(name) => name.serialize(serializer),
+            ProtocolType::Inline(kind, args) => {
                 let mut seq = serializer.serialize_seq(Some(2))?;
                 seq.serialize_element(kind)?;
                 seq.serialize_element(args)?;
@@ -103,14 +104,14 @@ impl Serialize for DataType {
         }
     }
 }
-impl<'de> Deserialize<'de> for DataType {
+impl<'de> Deserialize<'de> for ProtocolType {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        struct DataTypeVisitor;
-        impl<'de> serde::de::Visitor<'de> for DataTypeVisitor {
-            type Value = DataType;
+        struct ProtocolTypeVisitor;
+        impl<'de> serde::de::Visitor<'de> for ProtocolTypeVisitor {
+            type Value = ProtocolType;
 
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                 formatter.write_str("a string or array")
@@ -120,13 +121,13 @@ impl<'de> Deserialize<'de> for DataType {
             where
                 E: Error,
             {
-                Ok(DataType::Named(CompactString::from(v)))
+                Ok(ProtocolType::Named(CompactString::from(v)))
             }
             fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
             where
                 E: serde::de::Error,
             {
-                Ok(DataType::Named(CompactString::from(value)))
+                Ok(ProtocolType::Named(CompactString::from(value)))
             }
 
             fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -137,39 +138,39 @@ impl<'de> Deserialize<'de> for DataType {
                     seq.next_element()?.ok_or_else(|| A::Error::custom("missing name"))?;
 
                 let args = match kind.as_str() {
-                    "array" => DataTypeArgs::Array(
+                    "array" => ProtocolTypeArgs::Array(
                         seq.next_element()?
                             .ok_or_else(|| A::Error::custom("missing array args"))?,
                     ),
-                    "bitfield" => DataTypeArgs::Bitfield(
+                    "bitfield" => ProtocolTypeArgs::Bitfield(
                         seq.next_element()?
                             .ok_or_else(|| A::Error::custom("missing bitfield args"))?,
                     ),
-                    "buffer" => DataTypeArgs::Buffer(
+                    "buffer" => ProtocolTypeArgs::Buffer(
                         seq.next_element()?
                             .ok_or_else(|| A::Error::custom("missing buffer args"))?,
                     ),
-                    "container" => DataTypeArgs::Container(
+                    "container" => ProtocolTypeArgs::Container(
                         seq.next_element()?
                             .ok_or_else(|| A::Error::custom("missing container args"))?,
                     ),
-                    "entityMetadataLoop" => DataTypeArgs::EntityMetadata(
+                    "entityMetadataLoop" => ProtocolTypeArgs::EntityMetadata(
                         seq.next_element()?
                             .ok_or_else(|| A::Error::custom("missing entityMetadataLoop args"))?,
                     ),
-                    "mapper" => DataTypeArgs::Mapper(
+                    "mapper" => ProtocolTypeArgs::Mapper(
                         seq.next_element()?
                             .ok_or_else(|| A::Error::custom("missing mapper args"))?,
                     ),
-                    "option" => DataTypeArgs::Option(
+                    "option" => ProtocolTypeArgs::Option(
                         seq.next_element()?
                             .ok_or_else(|| A::Error::custom("missing option args"))?,
                     ),
-                    "pstring" => DataTypeArgs::PString(
+                    "pstring" => ProtocolTypeArgs::PString(
                         seq.next_element()?
                             .ok_or_else(|| A::Error::custom("missing pstring args"))?,
                     ),
-                    "switch" => DataTypeArgs::Switch(
+                    "switch" => ProtocolTypeArgs::Switch(
                         seq.next_element()?
                             .ok_or_else(|| A::Error::custom("missing switch args"))?,
                     ),
@@ -178,10 +179,10 @@ impl<'de> Deserialize<'de> for DataType {
                     }
                 };
 
-                Ok(DataType::Inline(kind, args))
+                Ok(ProtocolType::Inline(kind, args))
             }
         }
 
-        deserializer.deserialize_any(DataTypeVisitor)
+        deserializer.deserialize_any(ProtocolTypeVisitor)
     }
 }

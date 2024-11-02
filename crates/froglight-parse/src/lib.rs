@@ -1,9 +1,6 @@
 //! TODO
 
-pub mod files;
+pub mod file;
 
 mod version;
 pub use version::Version;
-
-#[cfg(test)]
-mod test;
