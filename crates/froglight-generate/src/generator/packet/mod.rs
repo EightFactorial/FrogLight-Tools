@@ -3,19 +3,24 @@ use std::path::PathBuf;
 use compact_str::CompactString;
 use convert_case::{Case, Casing};
 use froglight_parse::file::protocol::{
-    ArrayArgs, BitfieldArg, BufferArgs, ProtocolPackets, ProtocolType, ProtocolTypeArgs,
+    ArrayArgs, BitfieldArg, BufferArgs, ContainerArg, EntityMetadataArgs, MapperArgs,
+    ProtocolPackets, ProtocolType, ProtocolTypeArgs, SwitchArgs, TopBitSetTerminatedArrayArgs,
 };
 use proc_macro2::Span;
 use syn::{
     punctuated::Punctuated, Field, FieldMutability, Fields, FieldsNamed, File, Generics, Ident,
-    Item, ItemEnum, ItemStruct, Token, Variant, Visibility,
+    Item, ItemEnum, ItemStruct, Token, Visibility,
 };
 
 use crate::{cli::CliArgs, datamap::DataMap};
 
+mod parent;
+use parent::ParentStack;
+
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PacketGenerator;
 
+#[allow(clippy::unnecessary_wraps)]
 impl PacketGenerator {
     pub async fn generate(datamap: &DataMap, _args: &CliArgs) -> anyhow::Result<()> {
         let dataset = datamap.version_data.iter().next().unwrap().1;
@@ -33,7 +38,8 @@ impl PacketGenerator {
                 .chain(state.serverbound.iter())
                 .filter(|(n, _)| n.starts_with("packet_"))
             {
-                Self::generate_type(name, proto, &mut file)?;
+                let mut parents = ParentStack::new();
+                Self::generate_type(name, proto, &mut parents, &mut file)?;
             }
 
             // Write the file to disk
@@ -46,171 +52,214 @@ impl PacketGenerator {
         Ok(())
     }
 
-    fn generate_type(name: &str, proto: &ProtocolType, file: &mut File) -> anyhow::Result<String> {
-        match proto {
-            // Return the named type
-            ProtocolType::Named(string) => Ok(string.to_string()),
-            ProtocolType::Inline(_, type_args) => match type_args {
-                // Generate the struct
-                ProtocolTypeArgs::Array(..)
-                | ProtocolTypeArgs::Buffer(..)
-                | ProtocolTypeArgs::Container(..) => Self::generate_struct(name, proto, file),
-                // Generate the bitfield
-                ProtocolTypeArgs::Bitfield(args) => Self::generate_bitfield(name, args, file),
-                // Wrap the generated struct in an Option
-                ProtocolTypeArgs::Option(proto) => {
-                    Self::generate_type(name, proto, file).map(|ty| format!("Option<{ty}>"))
-                }
-                // Generate the enum
-                ProtocolTypeArgs::Mapper(..) | ProtocolTypeArgs::Switch(..) => {
-                    Self::generate_enum(name, proto, file)
-                }
-                // TODO: Implement these
-                // ProtocolTypeArgs::EntityMetadata(entity_metadata_args) => todo!(),
-                // ProtocolTypeArgs::PString(buffer_args) => todo!(),
-                // ProtocolTypeArgs::TopBitSetTerminatedArray(array_args) => todo!(),
-                _ => Ok(String::from("Unsupported")),
-            },
-        }
-    }
-
-    fn create_item_name(name: &str) -> String {
-        let mut name = name.split('/').last().unwrap();
-        if let Some((_, striped)) = name.split_once(':') {
-            name = striped;
-        }
-        name.replace(['.', ':'], "_").to_case(Case::Pascal)
-    }
-
-    fn generate_struct(
-        name: &str,
+    fn generate_type(
+        field: &str,
         proto: &ProtocolType,
+        parents: &mut ParentStack,
+        file: &mut File,
+    ) -> anyhow::Result<Option<String>> {
+        match proto {
+            ProtocolType::Named(name) => Ok(Some(name.to_string())),
+            ProtocolType::Inline(.., type_args) => {
+                Self::generate_type_args(field, type_args, parents, file)
+            }
+        }
+    }
+
+    fn generate_type_args(
+        field: &str,
+        proto_args: &ProtocolTypeArgs,
+        parents: &mut ParentStack,
+        file: &mut File,
+    ) -> anyhow::Result<Option<String>> {
+        match proto_args {
+            ProtocolTypeArgs::Array(array_args) => {
+                Self::handle_array(field, array_args, parents, file)
+            }
+            ProtocolTypeArgs::Bitfield(bitfield_args) => {
+                Self::handle_bitfield(field, bitfield_args, parents, file).map(Some)
+            }
+            ProtocolTypeArgs::Buffer(buffer_args) => Self::handle_buffer(buffer_args).map(Some),
+            ProtocolTypeArgs::Container(container_args) => {
+                Self::handle_container(field, container_args, parents, file).map(Some)
+            }
+            ProtocolTypeArgs::EntityMetadata(entity_metadata_args) => {
+                Self::handle_entity_metadata(field, entity_metadata_args, parents, file).map(Some)
+            }
+            ProtocolTypeArgs::Mapper(mapper_args) => {
+                Self::handle_mapper(field, mapper_args, parents, file).map(Some)
+            }
+            ProtocolTypeArgs::Option(protocol_type) => {
+                Self::handle_option(field, protocol_type, parents, file).map(Some)
+            }
+            ProtocolTypeArgs::PString(buffer_args) => Self::handle_pstring(buffer_args).map(Some),
+            ProtocolTypeArgs::Switch(switch_args) => {
+                Self::handle_switch(field, switch_args, parents, file)?;
+                Ok(None)
+            }
+            ProtocolTypeArgs::TopBitSetTerminatedArray(bitset_args) => {
+                Self::handle_top_bitset_terminated_array(field, bitset_args, parents, file)
+                    .map(Some)
+            }
+        }
+    }
+
+    fn handle_container(
+        field: &str,
+        container_args: &[ContainerArg],
+        parents: &mut ParentStack,
         file: &mut File,
     ) -> anyhow::Result<String> {
-        let struct_name = Self::create_item_name(name);
-        let ProtocolType::Inline(_, args) = proto else {
-            unreachable!("ProtocolType::Named can't be passed to generate_enum");
-        };
+        let struct_name = Self::create_item_name(field);
 
-        match args {
-            // Create an array
-            ProtocolTypeArgs::Array(array_args) => match array_args {
-                // TODO: Remove other field and replace with Vec?
-                ArrayArgs::CountField { .. } => Ok(String::from("Unsupported")),
-                // Wrap the generated struct in a Vec
-                ArrayArgs::Count { count_type, kind } => {
-                    if count_type != "varint" {
-                        anyhow::bail!(
-                            "PacketGenerator: Array has unsupported count type, \"{}\"",
-                            count_type
-                        );
-                    }
+        // Push a new struct to the parent stack
+        parents.push(ItemStruct {
+            attrs: Vec::new(),
+            vis: Visibility::Public(<Token![pub]>::default()),
+            struct_token: <Token![struct]>::default(),
+            ident: Ident::new(&struct_name, Span::call_site()),
+            generics: Generics::default(),
+            fields: Fields::Named(FieldsNamed {
+                brace_token: syn::token::Brace::default(),
+                named: Punctuated::new(),
+            }),
+            semi_token: None,
+        });
 
-                    let array_type =
-                        Self::generate_type(&format!("{struct_name}Item"), kind, file)?;
-                    Ok(format!("Vec<{array_type}>"))
+        for (index, container_arg) in container_args.iter().enumerate() {
+            let arg_name = container_arg
+                .name
+                .as_ref()
+                .map_or(format!("field_{index}"), CompactString::to_string);
+
+            if let Some(arg_type) =
+                Self::generate_type(&arg_name, &container_arg.kind, parents, file)?
+            {
+                // Add the field to the current struct
+                if let Fields::Named(fields) = &mut parents.fields {
+                    fields.named.push(Self::create_field(&arg_name, &arg_type)?);
                 }
-            },
-            // Create a buffer
-            ProtocolTypeArgs::Buffer(buffer_args) => match buffer_args {
-                // Use the count as the size of the buffer
-                BufferArgs::Count(count) => Ok(format!("[u8; {count}]")),
-                // This is always a Vec<u8>
-                BufferArgs::CountType(count_type) => {
-                    if count_type != "varint" {
-                        anyhow::bail!(
-                            "PacketGenerator: Buffer has unsupported count type, \"{}\"",
-                            count_type
-                        );
-                    }
-
-                    Ok(String::from("Vec<u8>"))
-                }
-            },
-            // Create a new struct
-            ProtocolTypeArgs::Container(container_args) => {
-                let mut fields = Punctuated::new();
-                for (index, arg) in container_args.iter().enumerate() {
-                    let arg_name =
-                        arg.name.as_ref().map_or(format!("arg{index}"), CompactString::to_string);
-                    let arg_type = Self::generate_type(&arg_name, &arg.kind, file)?;
-
-                    fields.push(Field {
-                        attrs: Vec::new(),
-                        vis: Visibility::Public(<Token![pub]>::default()),
-                        mutability: FieldMutability::None,
-                        ident: Some(Ident::new(&arg_name, Span::call_site())),
-                        colon_token: None,
-                        ty: syn::parse_str(&arg_type).unwrap(),
-                    });
-                }
-
-                file.items.push(Item::Struct(ItemStruct {
-                    attrs: Vec::new(),
-                    vis: Visibility::Public(<Token![pub]>::default()),
-                    struct_token: <Token![struct]>::default(),
-                    ident: Ident::new(&struct_name, Span::call_site()),
-                    generics: Generics::default(),
-                    semi_token: None,
-                    fields: Fields::Named(FieldsNamed {
-                        brace_token: syn::token::Brace::default(),
-                        named: fields,
-                    }),
-                }));
-
-                Ok(struct_name)
             }
-            _ => unreachable!("Only Array, Buffer, and Container are supported for structs"),
+        }
+
+        // Pop the struct from the parent stack and add it to the file
+        if let Some(item_struct) = parents.pop() {
+            file.items.push(Item::Struct(item_struct));
+        }
+
+        Ok(struct_name)
+    }
+
+    fn handle_switch(
+        _field: &str,
+        switch_args: &SwitchArgs,
+        parents: &mut ParentStack,
+        file: &mut File,
+    ) -> anyhow::Result<()> {
+        let _field = parents.get_field(&switch_args.compare_to, file)?;
+
+        Ok(())
+    }
+
+    fn handle_array(
+        field: &str,
+        array_args: &ArrayArgs,
+        parents: &mut ParentStack,
+        file: &mut File,
+    ) -> anyhow::Result<Option<String>> {
+        match array_args {
+            ArrayArgs::Count { count_type, kind } => {
+                if count_type != "varint" {
+                    anyhow::bail!("ArrayArgs: Unsupported type \"{count_type}\"");
+                }
+
+                Ok(Self::generate_type(field, kind, parents, file)?.map(|ty| format!("Vec<{ty}>")))
+            }
+            ArrayArgs::CountField { count_field: _, kind: _ } => {
+                Ok(Some(String::from("Vec<Unsupported>")))
+            }
         }
     }
 
-    #[expect(clippy::unnecessary_wraps)]
-    fn generate_bitfield(
-        _name: &str,
-        _args: &[BitfieldArg],
-        _file: &mut File,
+    fn handle_bitfield(
+        field: &str,
+        bitfield_args: &[BitfieldArg],
+        parents: &mut ParentStack,
+        file: &mut File,
     ) -> anyhow::Result<String> {
-        Ok(String::from("Unsupported"))
+        let bitfield_name = Self::create_item_name(field) + "BitField";
+
+        // Push a new struct to the parent stack
+        parents.push(ItemStruct {
+            attrs: Vec::new(),
+            vis: Visibility::Public(<Token![pub]>::default()),
+            struct_token: <Token![struct]>::default(),
+            ident: Ident::new(&bitfield_name, Span::call_site()),
+            generics: Generics::default(),
+            fields: Fields::Named(FieldsNamed {
+                brace_token: syn::token::Brace::default(),
+                named: Punctuated::new(),
+            }),
+            semi_token: None,
+        });
+
+        // Add the bitfield arguments as fields to the struct
+        for bitfield_arg in bitfield_args {
+            if let Fields::Named(fields) = &mut parents.fields {
+                fields.named.push(Self::create_field(&bitfield_arg.name, "bool")?);
+            }
+        }
+
+        // Pop the struct from the parent stack and add it to the file
+        if let Some(item_struct) = parents.pop() {
+            file.items.push(Item::Struct(item_struct));
+        }
+        Ok(bitfield_name)
     }
 
-    fn generate_enum(name: &str, proto: &ProtocolType, file: &mut File) -> anyhow::Result<String> {
-        let enum_name = Self::create_item_name(name);
-        let ProtocolType::Inline(_, args) = proto else {
-            unreachable!("ProtocolType::Named can't be passed to generate_enum");
+    fn handle_buffer(buffer_args: &BufferArgs) -> anyhow::Result<String> {
+        match buffer_args {
+            BufferArgs::Count(count) => Ok(format!("[u8; {count}]")),
+            BufferArgs::CountType(count_type) => {
+                if count_type != "varint" {
+                    anyhow::bail!("BufferArgs: Unsupported type \"{count_type}\"");
+                }
+
+                Ok(String::from("Vec<u8>"))
+            }
+        }
+    }
+
+    fn handle_entity_metadata(
+        _field: &str,
+        _metadata_args: &EntityMetadataArgs,
+        _parents: &mut ParentStack,
+        _file: &mut File,
+    ) -> anyhow::Result<String> {
+        Ok(String::from("EntityMetadata<Unsupported>"))
+    }
+
+    fn handle_mapper(
+        field: &str,
+        mapper_args: &MapperArgs,
+        parents: &mut ParentStack,
+        file: &mut File,
+    ) -> anyhow::Result<String> {
+        let enum_name = parents.ident.to_string() + &Self::create_item_name(field);
+        let Some(mapper_type) = Self::generate_type(field, &mapper_args.kind, parents, file)?
+        else {
+            anyhow::bail!("MapperArgs: Missing type");
         };
 
+        if mapper_type != "varint" {
+            anyhow::bail!("MapperArgs: Unsupported type \"{mapper_type}\"");
+        }
+
         let mut variants = Punctuated::new();
-        match args {
-            // Read a `varint` and map it to an enum variant
-            ProtocolTypeArgs::Mapper(mapper_args) => {
-                // Ensure the enum id is mapped to a varint
-                if *mapper_args.kind != ProtocolType::Named(CompactString::const_new("varint")) {
-                    anyhow::bail!(
-                        "PacketGenerator: Enum has unsupported type, \"{:?}\"",
-                        mapper_args.kind
-                    );
-                }
-
-                // Sort the variants by id
-                let mut mappings = Vec::with_capacity(mapper_args.mappings.len());
-                mappings.extend(mapper_args.mappings.iter());
-                mappings.sort_by(|(a, _), (b, _)| a.cmp(b));
-
-                for (_, variant) in mappings {
-                    let variant = Self::create_item_name(variant);
-                    match syn::parse_str::<Variant>(&variant) {
-                        Ok(variant) => variants.push(variant),
-                        Err(err) => {
-                            anyhow::bail!(
-                                "PacketGenerator: Failed to parse variant, \"{variant}\": {err}",
-                            );
-                        }
-                    }
-                }
-            }
-            // TODO: Remove other field and replace with an enum?
-            ProtocolTypeArgs::Switch(..) => return Ok(String::from("Unsupported")),
-            _ => unreachable!("Only Mapper and Switch are supported for enums"),
+        for (_case, result) in &mapper_args.mappings {
+            let variant = Ident::new(&Self::create_item_name(result), Span::call_site());
+            variants.push(syn::parse_quote! { #variant
+            });
         }
 
         file.items.push(Item::Enum(ItemEnum {
@@ -222,7 +271,55 @@ impl PacketGenerator {
             brace_token: syn::token::Brace::default(),
             variants,
         }));
-
         Ok(enum_name)
+    }
+
+    fn handle_option(
+        field: &str,
+        proto: &ProtocolType,
+        parents: &mut ParentStack,
+        file: &mut File,
+    ) -> anyhow::Result<String> {
+        match Self::generate_type(field, proto, parents, file) {
+            Ok(Some(ty)) => Ok(format!("Option<{ty}>")),
+            Ok(None) => Ok(String::from("Option<Unsupported>")),
+            Err(err) => Err(err),
+        }
+    }
+
+    fn handle_pstring(_buffer_args: &BufferArgs) -> anyhow::Result<String> {
+        Ok(String::from("String"))
+    }
+
+    fn handle_top_bitset_terminated_array(
+        _field: &str,
+        _bitset_args: &TopBitSetTerminatedArrayArgs,
+        _parents: &mut ParentStack,
+        _file: &mut File,
+    ) -> anyhow::Result<String> {
+        Ok(String::from("BitSetArray<Unsupported>"))
+    }
+
+    fn create_item_name(name: &str) -> String {
+        let mut name = name.split('/').last().unwrap();
+        if let Some((_, striped)) = name.split_once(':') {
+            name = striped;
+        }
+        name.replace(['.', ':'], "_").to_case(Case::Pascal)
+    }
+
+    /// Create a [`Field`] from an [`Ident`] and a [`Type`](syn::Type).
+    fn create_field(ident: &str, ty: &str) -> anyhow::Result<Field> {
+        match syn::parse_str(ty) {
+            Err(err) => anyhow::bail!("Failed to parse field \"{ident}: {ty}\": {err}"),
+            Ok(ty) => Ok(Field {
+                attrs: Vec::new(),
+                vis: Visibility::Public(<Token![pub]>::default()),
+                mutability: FieldMutability::None,
+                ident: Some(Ident::new(ident, Span::call_site())),
+                colon_token: Some(<Token![:]>::default()),
+                ty,
+            }),
+        }
     }
 }
