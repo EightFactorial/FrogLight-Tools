@@ -12,7 +12,7 @@ mod test;
 mod traits;
 
 /// Data paths for Minecraft version data.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DataPath {
     /// [`EditionDataPath`] for the Java edition.
     pub pc: EditionDataPath,
@@ -42,12 +42,12 @@ impl DataPath {
 }
 
 /// Data paths for a specific edition.
-#[derive(Debug, Clone, Deref, DerefMut, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deref, DerefMut, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct EditionDataPath(HashMap<Version, VersionDataPath>);
 
 /// Data paths for a specific version.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[allow(missing_docs)]
 pub struct VersionDataPath {
     #[serde(default)]

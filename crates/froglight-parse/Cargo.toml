@@ -12,7 +12,12 @@ readme.workspace = true
 workspace = true
 
 [dev-dependencies]
+convert_case = "0.6"
+prettyplease = "0.2"
+proc-macro2 = "1.0"
 proptest = "1.5.0"
+quote = "1.0"
+syn = { version = "2.0", features = ["full"] }
 
 [dependencies]
 anyhow = { workspace = true }
@@ -23,6 +28,7 @@ chrono = { version = "0.4.38", default-features = false, features = [
 compact_str = { workspace = true, features = ["serde"] }
 derive_more = { workspace = true }
 hashbrown = { workspace = true, features = ["serde"] }
+quick-xml = { version = "0.37.0", features = ["serialize"] }
 regex = "1.11"
 reqwest = { workspace = true }
 semver = "1.0"
@@ -31,4 +37,3 @@ serde_json = { version = "1.0", features = ["preserve_order"] }
 serde_yml = "0.0.12"
 tokio = { workspace = true, features = ["fs", "macros", "process"] }
 tracing = { workspace = true }
-quick-xml = { version = "0.37.0", features = ["serialize"] }

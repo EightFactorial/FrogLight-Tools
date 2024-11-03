@@ -21,6 +21,19 @@ pub struct VersionManifest {
     pub versions: VersionManifestMap,
 }
 
+impl VersionManifest {
+    /// Compare two [`Version`]s for who was released first.
+    ///
+    /// Returns `None` if either version is not in the manifest.
+    #[must_use]
+    pub fn compare(&self, a: &Version, b: &Version) -> Option<std::cmp::Ordering> {
+        match (self.versions.get(a), self.versions.get(b)) {
+            (Some(a), Some(b)) => Some(a.release_time.cmp(&b.release_time)),
+            _ => None,
+        }
+    }
+}
+
 /// The latest [`Version`]s in the [`VersionManifest`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct VersionManifestLatest {

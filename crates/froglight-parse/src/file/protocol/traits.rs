@@ -14,8 +14,8 @@ impl super::VersionProtocol {
 
 impl FileTrait for super::VersionProtocol {
     type UrlData = DataPath;
-    fn get_url(version: &Version, data: &Self::UrlData) -> String {
-        data.get_java_protocol(version).expect("Version not found")
+    fn get_url(version: &Version, data: &Self::UrlData) -> Option<String> {
+        data.get_java_protocol(version)
     }
 
     fn get_path(version: &Version, cache: &Path) -> PathBuf {

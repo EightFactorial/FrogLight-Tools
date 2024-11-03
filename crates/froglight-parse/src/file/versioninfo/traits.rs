@@ -9,8 +9,8 @@ use crate::{
 
 impl FileTrait for super::VersionInfo {
     type UrlData = VersionManifest;
-    fn get_url(version: &Version, data: &Self::UrlData) -> String {
-        data.versions.get(version).unwrap().url.clone().into()
+    fn get_url(version: &Version, data: &Self::UrlData) -> Option<String> {
+        data.versions.get(version).map(|v| v.url.to_string())
     }
 
     fn get_path(version: &Version, cache: &Path) -> PathBuf {

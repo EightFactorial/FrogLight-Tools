@@ -11,7 +11,7 @@ pub trait FileTrait: Sized + Send + Sync {
     type UrlData;
 
     /// Get the URL of the file.
-    fn get_url(version: &Version, data: &Self::UrlData) -> String;
+    fn get_url(version: &Version, data: &Self::UrlData) -> Option<String>;
 
     /// Get the path to the file.
     fn get_path(version: &Version, cache: &Path) -> PathBuf;
@@ -100,7 +100,10 @@ pub(super) async fn fetch_file<T: FileTrait>(
     }
 
     // Get the URL of the file.
-    let url = T::get_url(version, data);
+    let Some(url) = T::get_url(version, data) else {
+        let type_name = std::any::type_name::<T>();
+        anyhow::bail!("URL not found for: {type_name} v{version}");
+    };
     tracing::warn!("Downloading: \"{url}\"");
 
     // Download the file.

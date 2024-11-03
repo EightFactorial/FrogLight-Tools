@@ -11,8 +11,8 @@ use crate::{
 
 impl FileTrait for super::GeneratorData {
     type UrlData = VersionInfo;
-    fn get_url(_: &Version, data: &Self::UrlData) -> String {
-        data.downloads.server.url.to_string()
+    fn get_url(_: &Version, data: &Self::UrlData) -> Option<String> {
+        Some(data.downloads.server.url.to_string())
     }
     fn get_path(version: &Version, cache: &Path) -> PathBuf {
         cache.join(format!("v{version}")).join("server.jar")

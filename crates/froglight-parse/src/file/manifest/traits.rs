@@ -13,7 +13,9 @@ impl super::VersionManifest {
 
 impl FileTrait for super::VersionManifest {
     type UrlData = ();
-    fn get_url(_: &Version, (): &Self::UrlData) -> String { Self::FILE_URL.to_string() }
+    fn get_url(_: &Version, (): &Self::UrlData) -> Option<String> {
+        Some(Self::FILE_URL.to_string())
+    }
     fn get_path(_: &Version, cache: &Path) -> PathBuf { cache.join(Self::FILE_NAME) }
 
     /// Fetch the manifest file, downloading it if it doesn't exist.
