@@ -12,14 +12,16 @@ readme.workspace = true
 workspace = true
 
 [dev-dependencies]
+convert_case = "0.6"
+prettyplease = "0.2"
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "2.0", features = ["full"] }
 tokio = { workspace = true, features = ["full"] }
 
 [dependencies]
 anyhow = { workspace = true }
 froglight-parse = { version = "0.1.0", path = "../froglight-parse" }
 reqwest = { workspace = true }
-serde = { workspace = true }
-serde_json = { version = "1.0", features = ["preserve_order"] }
-serde_yml = "0.0.12"
 tokio = { workspace = true, features = ["fs", "macros"] }
 tracing = { workspace = true }

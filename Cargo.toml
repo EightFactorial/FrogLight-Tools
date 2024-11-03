@@ -1,10 +1,6 @@
 [workspace]
 resolver = "2"
-members = [
-    "crates/froglight-parse",
-    "crates/froglight-generate",
-    "crates/froglight-tools",
-]
+members = ["crates/froglight-parse", "crates/froglight-generate"]
 
 [workspace.lints.rust]
 missing_docs = "warn"

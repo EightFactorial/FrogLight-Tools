@@ -13,3 +13,6 @@
 
 # VS Code project files
 /.vscode
+
+# Example output files
+**/examples/*.output
