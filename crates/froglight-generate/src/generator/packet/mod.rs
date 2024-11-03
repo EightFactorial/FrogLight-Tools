@@ -8,8 +8,8 @@ use froglight_parse::file::protocol::{
 };
 use proc_macro2::Span;
 use syn::{
-    punctuated::Punctuated, Field, FieldMutability, Fields, FieldsNamed, File, Generics, Ident,
-    Item, ItemEnum, ItemStruct, Token, Visibility,
+    punctuated::Punctuated, AttrStyle, Attribute, Field, FieldMutability, Fields, FieldsNamed,
+    File, Generics, Ident, Item, ItemEnum, ItemStruct, Token, Visibility,
 };
 
 use crate::{cli::CliArgs, datamap::DataMap};
@@ -126,18 +126,21 @@ impl PacketGenerator {
             semi_token: None,
         });
 
+        // Iterate over the container arguments
         for (index, container_arg) in container_args.iter().enumerate() {
+            // Get the name of the field
             let arg_name = container_arg
                 .name
                 .as_ref()
                 .map_or(format!("field_{index}"), CompactString::to_string);
 
+            // Generate the type of the field, if needed
             if let Some(arg_type) =
                 Self::generate_type(&arg_name, &container_arg.kind, parents, file)?
             {
                 // Add the field to the current struct
                 if let Fields::Named(fields) = &mut parents.fields {
-                    fields.named.push(Self::create_field(&arg_name, &arg_type)?);
+                    fields.named.push(Self::create_field(None, &arg_name, &arg_type)?);
                 }
             }
         }
@@ -173,9 +176,11 @@ impl PacketGenerator {
                     anyhow::bail!("ArrayArgs: Unsupported type \"{count_type}\"");
                 }
 
+                // Generate the type needed for the array, if needed
                 Ok(Self::generate_type(field, kind, parents, file)?.map(|ty| format!("Vec<{ty}>")))
             }
-            ArrayArgs::CountField { count_field: _, kind: _ } => {
+            ArrayArgs::CountField { count_field, kind: _ } => {
+                let _field = parents.get_field(count_field, file)?;
                 Ok(Some(String::from("Vec<Unsupported>")))
             }
         }
@@ -206,7 +211,7 @@ impl PacketGenerator {
         // Add the bitfield arguments as fields to the struct
         for bitfield_arg in bitfield_args {
             if let Fields::Named(fields) = &mut parents.fields {
-                fields.named.push(Self::create_field(&bitfield_arg.name, "bool")?);
+                fields.named.push(Self::create_field(None, &bitfield_arg.name, "bool")?);
             }
         }
 
@@ -255,6 +260,7 @@ impl PacketGenerator {
             anyhow::bail!("MapperArgs: Unsupported type \"{mapper_type}\"");
         }
 
+        // Build a set of variants for the enum
         let mut variants = Punctuated::new();
         for (_case, result) in &mapper_args.mappings {
             let variant = Ident::new(&Self::create_item_name(result), Span::call_site());
@@ -262,6 +268,7 @@ impl PacketGenerator {
             });
         }
 
+        // Create the enum and add it to the file
         file.items.push(Item::Enum(ItemEnum {
             attrs: Vec::new(),
             vis: Visibility::Public(<Token![pub]>::default()),
@@ -300,6 +307,8 @@ impl PacketGenerator {
         Ok(String::from("BitSetArray<Unsupported>"))
     }
 
+    /// Format a string into a suitable item name.
+    #[must_use]
     fn create_item_name(name: &str) -> String {
         let mut name = name.split('/').last().unwrap();
         if let Some((_, striped)) = name.split_once(':') {
@@ -309,17 +318,36 @@ impl PacketGenerator {
     }
 
     /// Create a [`Field`] from an [`Ident`] and a [`Type`](syn::Type).
-    fn create_field(ident: &str, ty: &str) -> anyhow::Result<Field> {
-        match syn::parse_str(ty) {
-            Err(err) => anyhow::bail!("Failed to parse field \"{ident}: {ty}\": {err}"),
-            Ok(ty) => Ok(Field {
-                attrs: Vec::new(),
-                vis: Visibility::Public(<Token![pub]>::default()),
-                mutability: FieldMutability::None,
-                ident: Some(Ident::new(ident, Span::call_site())),
-                colon_token: Some(<Token![:]>::default()),
-                ty,
-            }),
+    fn create_field(attrs: Option<&[&str]>, ident: &str, ty: &str) -> anyhow::Result<Field> {
+        // Parse the type
+        let ty = syn::parse_str(ty)
+            .map_err(|err| anyhow::anyhow!("Failed to parse field \"{ident}: {ty}\": {err}"))?;
+
+        // Parse the attributes
+        let mut attributes = Vec::new();
+        if let Some(attrs) = attrs {
+            for attr in attrs {
+                let meta = syn::parse_str(attr).map_err(|err| {
+                    anyhow::anyhow!("Failed to parse attribute \"{attr}\": {err}")
+                })?;
+
+                attributes.push(Attribute {
+                    pound_token: <Token![#]>::default(),
+                    style: AttrStyle::Outer,
+                    bracket_token: syn::token::Bracket::default(),
+                    meta,
+                });
+            }
         }
+
+        // Create the field
+        Ok(Field {
+            attrs: attributes,
+            vis: Visibility::Public(<Token![pub]>::default()),
+            mutability: FieldMutability::None,
+            ident: Some(Ident::new(ident, Span::call_site())),
+            colon_token: Some(<Token![:]>::default()),
+            ty,
+        })
     }
 }
