@@ -31,18 +31,28 @@ impl FileTrait for super::GeneratorData {
         let generator_cache = path.parent().unwrap().join("generator-cache");
         let generator = path.parent().unwrap().join("generator");
 
-        // Run the data generator.
+        // Remove the existing cached data if redownload is set.
+        if redownload {
+            tokio::fs::remove_dir_all(&generator_cache).await?;
+            tokio::fs::remove_dir_all(&generator).await?;
+        }
+
+        // Run the data generator if the data doesn't exist.
         if !generator.exists() {
             tokio::fs::create_dir_all(&generator_cache).await?;
+            tokio::fs::create_dir_all(&generator).await?;
+
             let mut child = Command::new("java")
                 .current_dir(generator_cache)
                 .stdout(std::io::stderr())
                 .arg("-DbundlerMainClass=net.minecraft.data.Main")
                 .arg("-jar")
-                .arg(path)
+                // Relative to `generator_cache`
+                .arg("../server.jar")
                 .arg("--all")
                 .arg("--output")
-                .arg(&generator)
+                // Relative to `generator_cache`
+                .arg("../generator")
                 .spawn()?;
 
             // Wait for the generator to finish, bail if it fails.
