@@ -22,34 +22,6 @@ impl Default for FileWrapper {
 impl FileWrapper {
     /// Push an [`Item`] into the [`FileWrapper`]
     pub fn push(&mut self, item: impl Into<Item>) { self.0.items.push(item.into()); }
-
-    /// Get the last [`Item`] in the [`FileWrapper`]
-    ///
-    /// # Panics
-    /// This method will panic if the [`FileWrapper`] is empty.
-    #[must_use]
-    pub fn last(&self) -> &Item { self.0.items.last().expect("FileWrapper is empty!") }
-    /// Get the last [`Item`] in the [`FileWrapper`] mutably
-    ///
-    /// # Panics
-    /// This method will panic if the [`FileWrapper`] is empty.
-    #[must_use]
-    pub fn last_mut(&mut self) -> &mut Item {
-        self.0.items.last_mut().expect("FileWrapper is empty!")
-    }
-
-    /// Get the last [`Ident`] in the [`FileWrapper`]
-    ///
-    /// # Panics
-    /// This method will panic if the [`FileWrapper`] is empty,
-    /// or if the last [`Item`] is not an [`ItemEnum`] or [`ItemStruct`].
-    pub fn last_ident(&self) -> &Ident {
-        match self.last() {
-            Item::Enum(item_enum) => &item_enum.ident,
-            Item::Struct(item_struct) => &item_struct.ident,
-            _ => panic!("Last item is not an ItemEnum or ItemStruct"),
-        }
-    }
 }
 
 impl FileWrapper {
@@ -195,6 +167,41 @@ impl FileWrapper {
                 ident: Some(Ident::new(field_ident, Span::call_site())),
                 colon_token: None,
                 ty: syn::parse_str(field_type).expect("Failed to parse type"),
+            });
+        }
+    }
+
+    /// Create a new [`ItemEnum`] with the given identifier.
+    pub fn push_enum(&mut self, ident: &str) {
+        self.push(Item::Enum(ItemEnum {
+            attrs: Vec::new(),
+            vis: Visibility::Public(<Token![pub]>::default()),
+            enum_token: <Token![enum]>::default(),
+            ident: Ident::new(ident, Span::call_site()),
+            generics: Generics::default(),
+            brace_token: token::Brace::default(),
+            variants: Punctuated::new(),
+        }));
+    }
+
+    /// Push a new [`Variant`] into an [`ItemEnum`] with the given identifier.
+    pub fn push_variant(
+        &mut self,
+        enum_ident: &str,
+        variant_ident: &str,
+        variant_desc: Option<&str>,
+    ) {
+        if let Some(item_enum) = self.get_enum_mut(enum_ident) {
+            item_enum.variants.push(Variant {
+                attrs: Vec::new(),
+                ident: Ident::new(variant_ident, Span::call_site()),
+                fields: Fields::Unit,
+                discriminant: variant_desc.map(|desc| {
+                    (
+                        <Token![=]>::default(),
+                        syn::parse_str(desc).expect("Failed to parse discriminant"),
+                    )
+                }),
             });
         }
     }
