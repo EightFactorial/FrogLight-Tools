@@ -36,8 +36,13 @@ impl PacketGenerator {
     ) -> anyhow::Result<()> {
         // Create a new file
         let mut file = FileWrapper::default();
-        for (name, packet) in packets.iter().filter(|(name, _)| name.starts_with("packet_")) {
-            Self::generate_type(name, packet, &mut file)?;
+        for (packet_name, packet_type) in
+            packets.iter().filter(|(name, _)| name.starts_with("packet_"))
+        {
+            if let Err(err) = Self::generate_type(packet_name, packet_name, packet_type, &mut file)
+            {
+                tracing::error!("Error generating type for {packet_name}: {err}");
+            }
         }
 
         // If the file is empty, return early
@@ -58,50 +63,58 @@ impl PacketGenerator {
     /// Return the type of a [`ProtocolType`],
     /// generating the type if necessary.
     fn generate_type(
-        name: &str,
+        struct_ident: &str,
+        field_ident: &str,
         proto: &ProtocolType,
         file: &mut FileWrapper,
     ) -> anyhow::Result<Option<String>> {
         match proto {
             ProtocolType::Named(string) => Ok(Some(Self::format_type(string).to_string())),
-            ProtocolType::Inline(_, type_args) => Self::generate_args(name, type_args, file),
+            ProtocolType::Inline(_, type_args) => {
+                Self::generate_args(struct_ident, field_ident, type_args, file)
+            }
         }
     }
 
     fn generate_args(
-        name: &str,
+        struct_ident: &str,
+        field_ident: &str,
         type_args: &ProtocolTypeArgs,
         file: &mut FileWrapper,
     ) -> anyhow::Result<Option<String>> {
         match type_args {
-            ProtocolTypeArgs::Array(array_args) => Self::handle_array(name, array_args, file),
+            ProtocolTypeArgs::Array(array_args) => {
+                Self::handle_array(struct_ident, field_ident, array_args, file)
+            }
             ProtocolTypeArgs::Bitfield(bitfield_args) => {
-                Self::handle_bitfield(name, bitfield_args, file).map(Some)
+                Self::handle_bitfield(struct_ident, field_ident, bitfield_args, file).map(Some)
             }
             ProtocolTypeArgs::Buffer(buffer_args) => {
-                Self::handle_buffer(name, buffer_args, file).map(Some)
+                Self::handle_buffer(struct_ident, field_ident, buffer_args, file).map(Some)
             }
             ProtocolTypeArgs::Container(container_args) => {
-                Self::handle_container(name, container_args, file).map(Some)
+                Self::handle_container(struct_ident, field_ident, container_args, file).map(Some)
             }
             ProtocolTypeArgs::EntityMetadata(metadata_args) => {
-                Self::handle_entity_metadata(name, metadata_args, file).map(Some)
+                Self::handle_entity_metadata(struct_ident, field_ident, metadata_args, file)
+                    .map(Some)
             }
             ProtocolTypeArgs::Mapper(mapper_args) => {
-                Self::handle_mapper(name, mapper_args, file).map(Some)
+                Self::handle_mapper(struct_ident, field_ident, mapper_args, file).map(Some)
             }
             ProtocolTypeArgs::Option(option_type) => {
-                Self::handle_option(name, option_type, file).map(Some)
+                Self::handle_option(struct_ident, field_ident, option_type, file).map(Some)
             }
             ProtocolTypeArgs::PString(buffer_args) => {
-                Self::handle_pstring(name, buffer_args, file).map(Some)
+                Self::handle_pstring(struct_ident, field_ident, buffer_args, file).map(Some)
             }
             ProtocolTypeArgs::Switch(switch_args) => {
-                Self::handle_switch(name, switch_args, file)?;
+                Self::handle_switch(struct_ident, field_ident, switch_args, file)?;
                 Ok(None)
             }
             ProtocolTypeArgs::TopBitSetTerminatedArray(bitset_array_args) => {
-                Self::handle_bitset_array(name, bitset_array_args, file).map(Some)
+                Self::handle_bitset_array(struct_ident, field_ident, bitset_array_args, file)
+                    .map(Some)
             }
         }
     }
@@ -111,7 +124,8 @@ impl PacketGenerator {
 #[allow(clippy::unnecessary_wraps)]
 impl PacketGenerator {
     fn handle_array(
-        name: &str,
+        struct_ident: &str,
+        field_ident: &str,
         args: &ArrayArgs,
         file: &mut FileWrapper,
     ) -> anyhow::Result<Option<String>> {
@@ -120,38 +134,38 @@ impl PacketGenerator {
             // which is always a `varint`.
             ArrayArgs::Count { count_type, kind } => {
                 assert_eq!(count_type, "varint", "ArrayArgs::Count type must be varint");
-                Self::generate_type(&format!("{name}Item"), kind, file)
+                Self::generate_type(struct_ident, &format!("{field_ident}Item"), kind, file)
                     .map(|ty| ty.map(|ty| format!("Vec<{ty}>")))
             }
             // Create an array with a size determined by a field,
             // need to figure out how to handle this.
             ArrayArgs::CountField { count_field, kind } => {
-                if let Some(field_type) = file.resolve_field_type(count_field) {
-                    if field_type == "varint" {
-                        // TODO: Create an enum?
-                        return Ok(None);
-                    } else if let Some(item) = file.get_struct_mut(&field_type.to_string()) {
-                        // TODO: Do something with the struct?
-                        return Ok(None);
-                    }
-                }
+                let count_field = Self::format_field_name(count_field);
+                let field_type = file.resolve_field_type(struct_ident, &count_field)?.to_string();
 
-                // anyhow::bail!(
-                //     "ArrayArgs::CountField unknown field: {} -> {count_field}",
-                //     file.last_ident()
-                // );
-                Ok(None)
+                if field_type == "VarInt" {
+                    // TODO: Create an enum?
+                    Ok(None)
+                } else if let Some(item) = file.get_struct_mut(&field_type) {
+                    // TODO: Do something with the struct?
+                    Ok(None)
+                } else {
+                    anyhow::bail!(
+                        "ArrayArgs::CountField unknown field: {struct_ident} -> {count_field}: {field_type}",
+                    );
+                }
             }
         }
     }
 
     /// Create a struct for the bitfield
     fn handle_bitfield(
-        name: &str,
+        struct_ident: &str,
+        field_ident: &str,
         args: &[BitfieldArg],
         file: &mut FileWrapper,
     ) -> anyhow::Result<String> {
-        let bitfield_name = Self::format_item_name(name) + "Bitfield";
+        let bitfield_name = Self::format_item_name(field_ident) + "Bitfield";
 
         // Create a new struct for the bitfield
         // TODO: Add field attributes
@@ -166,7 +180,8 @@ impl PacketGenerator {
 
     /// This always returns either `[u8; N]` or `Vec<u8>`
     fn handle_buffer(
-        name: &str,
+        struct_ident: &str,
+        field_ident: &str,
         args: &BufferArgs,
         file: &mut FileWrapper,
     ) -> anyhow::Result<String> {
@@ -181,11 +196,12 @@ impl PacketGenerator {
 
     /// Create a struct for the container
     fn handle_container(
-        name: &str,
+        struct_ident: &str,
+        field_ident: &str,
         args: &[ContainerArg],
         file: &mut FileWrapper,
     ) -> anyhow::Result<String> {
-        let struct_name = Self::format_item_name(name);
+        let struct_name = Self::format_item_name(field_ident);
 
         // Create a new struct for the container
         file.push_struct(&struct_name);
@@ -198,7 +214,7 @@ impl PacketGenerator {
             };
 
             // Get the type of the field, generating it if necessary
-            if let Some(arg_type) = Self::generate_type(&arg_name, kind, file)? {
+            if let Some(arg_type) = Self::generate_type(&struct_name, &arg_name, kind, file)? {
                 file.push_field(&struct_name, &arg_name, &arg_type);
             }
         }
@@ -208,7 +224,8 @@ impl PacketGenerator {
 
     /// TODO: What is this?
     fn handle_entity_metadata(
-        name: &str,
+        struct_ident: &str,
+        field_ident: &str,
         args: &EntityMetadataArgs,
         file: &mut FileWrapper,
     ) -> anyhow::Result<String> {
@@ -217,11 +234,12 @@ impl PacketGenerator {
 
     /// Create an enum for the mapper
     fn handle_mapper(
-        name: &str,
+        struct_ident: &str,
+        field_ident: &str,
         args: &MapperArgs,
         file: &mut FileWrapper,
     ) -> anyhow::Result<String> {
-        let enum_name = Self::format_item_name(name) + "Enum";
+        let enum_name = Self::format_item_name(field_ident) + "Enum";
 
         // Create a new enum for the mapper
         file.push_enum(&enum_name);
@@ -242,11 +260,12 @@ impl PacketGenerator {
 
     /// Wrap the inner type in an [`Option`]
     fn handle_option(
-        name: &str,
+        struct_ident: &str,
+        field_ident: &str,
         opt: &ProtocolType,
         file: &mut FileWrapper,
     ) -> anyhow::Result<String> {
-        match Self::generate_type(name, opt, file) {
+        match Self::generate_type(struct_ident, field_ident, opt, file) {
             Ok(Some(opt)) => Ok(format!("Option<{opt}>")),
             Ok(None) => Ok(String::from("Option<Unsupported>")),
             Err(err) => Err(err),
@@ -256,32 +275,27 @@ impl PacketGenerator {
     /// This is always a [`String`]
     #[expect(clippy::unnecessary_wraps)]
     fn handle_pstring(
-        _name: &str,
+        _struct_ident: &str,
+        _field_ident: &str,
         _args: &BufferArgs,
         _file: &mut FileWrapper,
     ) -> anyhow::Result<String> {
         Ok(String::from("String"))
     }
 
-    fn handle_switch(name: &str, args: &SwitchArgs, file: &mut FileWrapper) -> anyhow::Result<()> {
-        // let Some(field_type) = file.resolve_field_type(&args.compare_to) else {
-        //     anyhow::bail!("SwitchArgs unknown field: {name} -> {}", args.compare_to);
-        // };
-
-        // if field_type == "varint" {
-        //     // TODO: Create an enum?
-        //     return Ok(());
-        // } else if let Some(item) = file.get_enum_mut(&field_type.to_string()) {
-        //     // TODO: Do something with the struct?
-        //     return Ok(());
-        // }
-
-        Ok(())
+    fn handle_switch(
+        struct_ident: &str,
+        field_ident: &str,
+        args: &SwitchArgs,
+        file: &mut FileWrapper,
+    ) -> anyhow::Result<()> {
+        file.convert_or_modify_enum(struct_ident, args)
     }
 
     /// TODO: How should this be handled?
     fn handle_bitset_array(
-        name: &str,
+        struct_ident: &str,
+        field_ident: &str,
         args: &TopBitSetTerminatedArrayArgs,
         file: &mut FileWrapper,
     ) -> anyhow::Result<String> {
