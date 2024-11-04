@@ -1,26 +1,17 @@
-use std::path::PathBuf;
-
-use compact_str::CompactString;
 use convert_case::{Case, Casing};
 use froglight_parse::file::protocol::{
     ArrayArgs, BitfieldArg, BufferArgs, ContainerArg, EntityMetadataArgs, MapperArgs,
     ProtocolPackets, ProtocolType, ProtocolTypeArgs, SwitchArgs, TopBitSetTerminatedArrayArgs,
 };
-use proc_macro2::Span;
-use syn::{
-    punctuated::Punctuated, AttrStyle, Attribute, Field, FieldMutability, Fields, FieldsNamed,
-    File, Generics, Ident, Item, ItemEnum, ItemStruct, Token, Visibility,
-};
 
 use crate::{cli::CliArgs, datamap::DataMap};
 
-mod parent;
-use parent::ParentStack;
+mod wrapper;
+use wrapper::FileWrapper;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PacketGenerator;
 
-#[allow(clippy::unnecessary_wraps)]
 impl PacketGenerator {
     pub async fn generate(datamap: &DataMap, _args: &CliArgs) -> anyhow::Result<()> {
         let dataset = datamap.version_data.iter().next().unwrap().1;
@@ -28,326 +19,254 @@ impl PacketGenerator {
     }
 
     async fn generate_packets(packets: &ProtocolPackets) -> anyhow::Result<()> {
-        for (name, state) in packets.iter() {
-            let mut file = File { shebang: None, attrs: Vec::new(), items: Vec::new() };
+        for (state_name, state_packets) in packets.iter() {
+            // Create a new file for each state
+            let mut file = FileWrapper::default();
 
-            // Generate structs and enums
-            for (name, proto) in state
+            // Generate the packet types
+            for (packet_name, packet_type) in state_packets
                 .clientbound
                 .iter()
-                .chain(state.serverbound.iter())
-                .filter(|(n, _)| n.starts_with("packet_"))
+                .chain(state_packets.serverbound.iter())
+                .filter(|(name, _)| name.starts_with("packet_"))
             {
-                let mut parents = ParentStack::new();
-                Self::generate_type(name, proto, &mut parents, &mut file)?;
+                Self::generate_type(packet_name, packet_type, &mut file)?;
             }
 
             // Write the file to disk
-            let file_output = prettyplease::unparse(&file);
-            let file_path =
-                PathBuf::from(file!()).parent().unwrap().join(format!("packets.{name}.rs"));
-            tokio::fs::write(file_path, file_output).await?;
+            let path = std::path::PathBuf::from(file!());
+            let path = path.parent().unwrap().join(format!("packets.{state_name}.rs"));
+
+            let unparsed = prettyplease::unparse(&file.into_inner());
+            tokio::fs::write(path, unparsed).await?;
         }
 
         Ok(())
     }
 
+    /// Return the type of a [`ProtocolType`],
+    /// generating the type if necessary.
     fn generate_type(
-        field: &str,
+        name: &str,
         proto: &ProtocolType,
-        parents: &mut ParentStack,
-        file: &mut File,
+        file: &mut FileWrapper,
     ) -> anyhow::Result<Option<String>> {
         match proto {
-            ProtocolType::Named(name) => Ok(Some(name.to_string())),
-            ProtocolType::Inline(.., type_args) => {
-                Self::generate_type_args(field, type_args, parents, file)
-            }
+            ProtocolType::Named(string) => Ok(Some(Self::format_type(string).to_string())),
+            ProtocolType::Inline(_, type_args) => Self::generate_args(name, type_args, file),
         }
     }
 
-    fn generate_type_args(
-        field: &str,
-        proto_args: &ProtocolTypeArgs,
-        parents: &mut ParentStack,
-        file: &mut File,
+    fn generate_args(
+        name: &str,
+        type_args: &ProtocolTypeArgs,
+        file: &mut FileWrapper,
     ) -> anyhow::Result<Option<String>> {
-        match proto_args {
-            ProtocolTypeArgs::Array(array_args) => {
-                Self::handle_array(field, array_args, parents, file)
-            }
+        match type_args {
+            ProtocolTypeArgs::Array(array_args) => Self::handle_array(name, array_args, file),
             ProtocolTypeArgs::Bitfield(bitfield_args) => {
-                Self::handle_bitfield(field, bitfield_args, parents, file).map(Some)
+                Self::handle_bitfield(name, bitfield_args, file).map(Some)
             }
-            ProtocolTypeArgs::Buffer(buffer_args) => Self::handle_buffer(buffer_args).map(Some),
+            ProtocolTypeArgs::Buffer(buffer_args) => {
+                Self::handle_buffer(name, buffer_args, file).map(Some)
+            }
             ProtocolTypeArgs::Container(container_args) => {
-                Self::handle_container(field, container_args, parents, file).map(Some)
+                Self::handle_container(name, container_args, file).map(Some)
             }
-            ProtocolTypeArgs::EntityMetadata(entity_metadata_args) => {
-                Self::handle_entity_metadata(field, entity_metadata_args, parents, file).map(Some)
+            ProtocolTypeArgs::EntityMetadata(metadata_args) => {
+                Self::handle_entity_metadata(name, metadata_args, file).map(Some)
             }
             ProtocolTypeArgs::Mapper(mapper_args) => {
-                Self::handle_mapper(field, mapper_args, parents, file).map(Some)
+                Self::handle_mapper(name, mapper_args, file).map(Some)
             }
-            ProtocolTypeArgs::Option(protocol_type) => {
-                Self::handle_option(field, protocol_type, parents, file).map(Some)
+            ProtocolTypeArgs::Option(option_type) => {
+                Self::handle_option(name, option_type, file).map(Some)
             }
-            ProtocolTypeArgs::PString(buffer_args) => Self::handle_pstring(buffer_args).map(Some),
+            ProtocolTypeArgs::PString(buffer_args) => {
+                Self::handle_pstring(name, buffer_args, file).map(Some)
+            }
             ProtocolTypeArgs::Switch(switch_args) => {
-                Self::handle_switch(field, switch_args, parents, file)?;
-                Ok(None)
+                Self::handle_switch(name, switch_args, file).map(Some)
             }
-            ProtocolTypeArgs::TopBitSetTerminatedArray(bitset_args) => {
-                Self::handle_top_bitset_terminated_array(field, bitset_args, parents, file)
-                    .map(Some)
+            ProtocolTypeArgs::TopBitSetTerminatedArray(bitset_array_args) => {
+                Self::handle_bitset_array(name, bitset_array_args, file).map(Some)
             }
         }
     }
+}
 
-    fn handle_container(
-        field: &str,
-        container_args: &[ContainerArg],
-        parents: &mut ParentStack,
-        file: &mut File,
-    ) -> anyhow::Result<String> {
-        let struct_name = Self::create_item_name(field);
-
-        // Push a new struct to the parent stack
-        parents.push(ItemStruct {
-            attrs: Vec::new(),
-            vis: Visibility::Public(<Token![pub]>::default()),
-            struct_token: <Token![struct]>::default(),
-            ident: Ident::new(&struct_name, Span::call_site()),
-            generics: Generics::default(),
-            fields: Fields::Named(FieldsNamed {
-                brace_token: syn::token::Brace::default(),
-                named: Punctuated::new(),
-            }),
-            semi_token: None,
-        });
-
-        // Iterate over the container arguments
-        for (index, container_arg) in container_args.iter().enumerate() {
-            // Get the name of the field
-            let arg_name = container_arg
-                .name
-                .as_ref()
-                .map_or(format!("field_{index}"), CompactString::to_string);
-
-            // Generate the type of the field, if needed
-            if let Some(arg_type) =
-                Self::generate_type(&arg_name, &container_arg.kind, parents, file)?
-            {
-                // Add the field to the current struct
-                if let Fields::Named(fields) = &mut parents.fields {
-                    fields.named.push(Self::create_field(None, &arg_name, &arg_type)?);
-                }
-            }
-        }
-
-        // Pop the struct from the parent stack and add it to the file
-        if let Some(item_struct) = parents.pop() {
-            file.items.push(Item::Struct(item_struct));
-        }
-
-        Ok(struct_name)
-    }
-
-    fn handle_switch(
-        _field: &str,
-        switch_args: &SwitchArgs,
-        parents: &mut ParentStack,
-        file: &mut File,
-    ) -> anyhow::Result<()> {
-        let _field = parents.get_field(&switch_args.compare_to, file)?;
-
-        Ok(())
-    }
-
+#[allow(unused_variables, dead_code)]
+#[allow(clippy::unnecessary_wraps)]
+impl PacketGenerator {
     fn handle_array(
-        field: &str,
-        array_args: &ArrayArgs,
-        parents: &mut ParentStack,
-        file: &mut File,
+        name: &str,
+        args: &ArrayArgs,
+        file: &mut FileWrapper,
     ) -> anyhow::Result<Option<String>> {
-        match array_args {
+        match args {
+            // Create an array with a size determined by `count_type`,
+            // which is always a `varint`.
             ArrayArgs::Count { count_type, kind } => {
-                if count_type != "varint" {
-                    anyhow::bail!("ArrayArgs: Unsupported type \"{count_type}\"");
+                assert_eq!(count_type, "varint", "ArrayArgs::Count type must be varint");
+                Self::generate_type(&format!("{name}Item"), kind, file)
+                    .map(|ty| ty.map(|ty| format!("Vec<{ty}>")))
+            }
+            // Create an array with a size determined by a field,
+            // need to figure out how to handle this.
+            ArrayArgs::CountField { count_field, kind } => {
+                if let Some(field_type) = file.resolve_field_type(count_field) {
+                    if field_type == "varint" {
+                        // TODO: Create an enum?
+                        return Ok(None);
+                    } else if let Some(item) = file.get_struct_mut(&field_type.to_string()) {
+                        // TODO: Do something with the struct?
+                        return Ok(None);
+                    }
                 }
 
-                // Generate the type needed for the array, if needed
-                Ok(Self::generate_type(field, kind, parents, file)?.map(|ty| format!("Vec<{ty}>")))
-            }
-            ArrayArgs::CountField { count_field, kind: _ } => {
-                let _field = parents.get_field(count_field, file)?;
-                Ok(Some(String::from("Vec<Unsupported>")))
+                // anyhow::bail!(
+                //     "ArrayArgs::CountField unknown field: {} -> {count_field}",
+                //     file.last_ident()
+                // );
+                Ok(None)
             }
         }
     }
 
     fn handle_bitfield(
-        field: &str,
-        bitfield_args: &[BitfieldArg],
-        parents: &mut ParentStack,
-        file: &mut File,
+        name: &str,
+        args: &[BitfieldArg],
+        file: &mut FileWrapper,
     ) -> anyhow::Result<String> {
-        let bitfield_name = Self::create_item_name(field) + "BitField";
-
-        // Push a new struct to the parent stack
-        parents.push(ItemStruct {
-            attrs: Vec::new(),
-            vis: Visibility::Public(<Token![pub]>::default()),
-            struct_token: <Token![struct]>::default(),
-            ident: Ident::new(&bitfield_name, Span::call_site()),
-            generics: Generics::default(),
-            fields: Fields::Named(FieldsNamed {
-                brace_token: syn::token::Brace::default(),
-                named: Punctuated::new(),
-            }),
-            semi_token: None,
-        });
-
-        // Add the bitfield arguments as fields to the struct
-        for bitfield_arg in bitfield_args {
-            if let Fields::Named(fields) = &mut parents.fields {
-                fields.named.push(Self::create_field(None, &bitfield_arg.name, "bool")?);
-            }
-        }
-
-        // Pop the struct from the parent stack and add it to the file
-        if let Some(item_struct) = parents.pop() {
-            file.items.push(Item::Struct(item_struct));
-        }
-        Ok(bitfield_name)
+        Ok(String::from("Unsupported"))
     }
 
-    fn handle_buffer(buffer_args: &BufferArgs) -> anyhow::Result<String> {
-        match buffer_args {
-            BufferArgs::Count(count) => Ok(format!("[u8; {count}]")),
-            BufferArgs::CountType(count_type) => {
-                if count_type != "varint" {
-                    anyhow::bail!("BufferArgs: Unsupported type \"{count_type}\"");
-                }
+    fn handle_buffer(
+        name: &str,
+        args: &BufferArgs,
+        file: &mut FileWrapper,
+    ) -> anyhow::Result<String> {
+        Ok(String::from("Unsupported"))
+    }
 
-                Ok(String::from("Vec<u8>"))
+    fn handle_container(
+        name: &str,
+        args: &[ContainerArg],
+        file: &mut FileWrapper,
+    ) -> anyhow::Result<String> {
+        let struct_name = Self::format_item_name(name);
+
+        // Create a new struct for the container
+        file.push_struct(&struct_name);
+        for (index, ContainerArg { name, kind }) in args.iter().enumerate() {
+            // Format the existing field name or generate a new one
+            let arg_name = if let Some(name) = name {
+                Self::format_field_name(name)
+            } else {
+                format!("field_{index}")
+            };
+
+            // Get the type of the field, generating it if necessary
+            if let Some(arg_type) = Self::generate_type(&arg_name, kind, file)? {
+                file.push_field(&struct_name, &arg_name, &arg_type);
             }
         }
+
+        Ok(struct_name)
     }
 
     fn handle_entity_metadata(
-        _field: &str,
-        _metadata_args: &EntityMetadataArgs,
-        _parents: &mut ParentStack,
-        _file: &mut File,
+        name: &str,
+        args: &EntityMetadataArgs,
+        file: &mut FileWrapper,
     ) -> anyhow::Result<String> {
-        Ok(String::from("EntityMetadata<Unsupported>"))
+        Ok(String::from("Unsupported"))
     }
 
     fn handle_mapper(
-        field: &str,
-        mapper_args: &MapperArgs,
-        parents: &mut ParentStack,
-        file: &mut File,
+        name: &str,
+        args: &MapperArgs,
+        file: &mut FileWrapper,
     ) -> anyhow::Result<String> {
-        let enum_name = parents.ident.to_string() + &Self::create_item_name(field);
-        let Some(mapper_type) = Self::generate_type(field, &mapper_args.kind, parents, file)?
-        else {
-            anyhow::bail!("MapperArgs: Missing type");
-        };
-
-        if mapper_type != "varint" {
-            anyhow::bail!("MapperArgs: Unsupported type \"{mapper_type}\"");
-        }
-
-        // Build a set of variants for the enum
-        let mut variants = Punctuated::new();
-        for (_case, result) in &mapper_args.mappings {
-            let variant = Ident::new(&Self::create_item_name(result), Span::call_site());
-            variants.push(syn::parse_quote! { #variant
-            });
-        }
-
-        // Create the enum and add it to the file
-        file.items.push(Item::Enum(ItemEnum {
-            attrs: Vec::new(),
-            vis: Visibility::Public(<Token![pub]>::default()),
-            enum_token: <Token![enum]>::default(),
-            ident: Ident::new(&enum_name, Span::call_site()),
-            generics: Generics::default(),
-            brace_token: syn::token::Brace::default(),
-            variants,
-        }));
-        Ok(enum_name)
+        Ok(String::from("Unsupported"))
     }
 
+    /// Wrap the inner type in an [`Option`]
     fn handle_option(
-        field: &str,
-        proto: &ProtocolType,
-        parents: &mut ParentStack,
-        file: &mut File,
+        name: &str,
+        opt: &ProtocolType,
+        file: &mut FileWrapper,
     ) -> anyhow::Result<String> {
-        match Self::generate_type(field, proto, parents, file) {
-            Ok(Some(ty)) => Ok(format!("Option<{ty}>")),
+        match Self::generate_type(name, opt, file) {
+            Ok(Some(opt)) => Ok(format!("Option<{opt}>")),
             Ok(None) => Ok(String::from("Option<Unsupported>")),
             Err(err) => Err(err),
         }
     }
 
-    fn handle_pstring(_buffer_args: &BufferArgs) -> anyhow::Result<String> {
+    /// This is always a [`String`]
+    #[expect(clippy::unnecessary_wraps)]
+    fn handle_pstring(
+        _name: &str,
+        _args: &BufferArgs,
+        _file: &mut FileWrapper,
+    ) -> anyhow::Result<String> {
         Ok(String::from("String"))
     }
 
-    fn handle_top_bitset_terminated_array(
-        _field: &str,
-        _bitset_args: &TopBitSetTerminatedArrayArgs,
-        _parents: &mut ParentStack,
-        _file: &mut File,
+    fn handle_switch(
+        name: &str,
+        args: &SwitchArgs,
+        file: &mut FileWrapper,
     ) -> anyhow::Result<String> {
-        Ok(String::from("BitSetArray<Unsupported>"))
+        Ok(String::from("Unsupported"))
     }
 
-    /// Format a string into a suitable item name.
-    #[must_use]
-    fn create_item_name(name: &str) -> String {
+    fn handle_bitset_array(
+        name: &str,
+        args: &TopBitSetTerminatedArrayArgs,
+        file: &mut FileWrapper,
+    ) -> anyhow::Result<String> {
+        Ok(String::from("Unsupported"))
+    }
+}
+
+impl PacketGenerator {
+    /// Format a field name to be valid in Rust
+    fn format_field_name(field: &str) -> String {
+        match field {
+            "match" => String::from("match_"),
+            "mod" => String::from("mod_"),
+            "ref" => String::from("ref_"),
+            "type" => String::from("type_"),
+            other => other.to_case(Case::Snake),
+        }
+    }
+
+    /// Format type names to match Rust conventions
+    fn format_type(ty: &str) -> &str {
+        match ty {
+            "anonOptionalNbt" => "Option<Nbt>",
+            "anonymousNbt" => "Nbt",
+            "position" => "Position",
+            "restBuffer" => "UnsizedBuffer",
+            "string" => "String",
+            "UUID" => "Uuid",
+            "varint" => "VarInt",
+            "vec2f" => "Vec2",
+            "vec2f64" => "DVec2",
+            "vec3f" => "Vec3",
+            "vec3f64" => "DVec3",
+            other => other,
+        }
+    }
+
+    /// Format item names to match Rust conventions
+    fn format_item_name(name: &str) -> String {
         let mut name = name.split('/').last().unwrap();
         if let Some((_, striped)) = name.split_once(':') {
             name = striped;
         }
         name.replace(['.', ':'], "_").to_case(Case::Pascal)
-    }
-
-    /// Create a [`Field`] from an [`Ident`] and a [`Type`](syn::Type).
-    fn create_field(attrs: Option<&[&str]>, ident: &str, ty: &str) -> anyhow::Result<Field> {
-        // Parse the type
-        let ty = syn::parse_str(ty)
-            .map_err(|err| anyhow::anyhow!("Failed to parse field \"{ident}: {ty}\": {err}"))?;
-
-        // Parse the attributes
-        let mut attributes = Vec::new();
-        if let Some(attrs) = attrs {
-            for attr in attrs {
-                let meta = syn::parse_str(attr).map_err(|err| {
-                    anyhow::anyhow!("Failed to parse attribute \"{attr}\": {err}")
-                })?;
-
-                attributes.push(Attribute {
-                    pound_token: <Token![#]>::default(),
-                    style: AttrStyle::Outer,
-                    bracket_token: syn::token::Bracket::default(),
-                    meta,
-                });
-            }
-        }
-
-        // Create the field
-        Ok(Field {
-            attrs: attributes,
-            vis: Visibility::Public(<Token![pub]>::default()),
-            mutability: FieldMutability::None,
-            ident: Some(Ident::new(ident, Span::call_site())),
-            colon_token: Some(<Token![:]>::default()),
-            ty,
-        })
     }
 }
