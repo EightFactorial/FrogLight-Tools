@@ -1,8 +1,8 @@
 use convert_case::{Case, Casing};
 use froglight_parse::file::protocol::{
-    ArrayArgs, BitfieldArg, BufferArgs, ContainerArg, EntityMetadataArgs, MapperArgs,
-    ProtocolPackets, ProtocolStatePackets, ProtocolType, ProtocolTypeArgs, SwitchArgs,
-    TopBitSetTerminatedArrayArgs,
+    ArrayArgs, ArrayWithLengthOffsetArgs, BitfieldArg, BufferArgs, ContainerArg,
+    EntityMetadataArgs, MapperArgs, ProtocolPackets, ProtocolStatePackets, ProtocolType,
+    ProtocolTypeArgs, SwitchArgs, TopBitSetTerminatedArrayArgs,
 };
 
 use crate::{cli::CliArgs, datamap::DataMap};
@@ -69,7 +69,10 @@ impl PacketGenerator {
         file: &mut FileWrapper,
     ) -> anyhow::Result<Option<String>> {
         match proto {
-            ProtocolType::Named(string) => Ok(Some(Self::format_type(string).to_string())),
+            ProtocolType::Named(string) => match string.as_str() {
+                "void" => Ok(None),
+                other => Ok(Some(Self::format_type(other).to_string())),
+            },
             ProtocolType::Inline(_, type_args) => {
                 Self::generate_args(struct_ident, field_ident, type_args, file)
             }
@@ -85,6 +88,10 @@ impl PacketGenerator {
         match type_args {
             ProtocolTypeArgs::Array(array_args) => {
                 Self::handle_array(struct_ident, field_ident, array_args, file)
+            }
+            ProtocolTypeArgs::ArrayWithLengthOffset(array_args) => {
+                Self::handle_array_with_length_offset(struct_ident, field_ident, array_args, file)
+                    .map(Some)
             }
             ProtocolTypeArgs::Bitfield(bitfield_args) => {
                 Self::handle_bitfield(struct_ident, field_ident, bitfield_args, file).map(Some)
@@ -156,6 +163,15 @@ impl PacketGenerator {
                 }
             }
         }
+    }
+
+    fn handle_array_with_length_offset(
+        struct_ident: &str,
+        field_ident: &str,
+        args: &ArrayWithLengthOffsetArgs,
+        file: &mut FileWrapper,
+    ) -> anyhow::Result<String> {
+        Ok(String::from("Unsupported"))
     }
 
     /// Create a struct for the bitfield
@@ -239,7 +255,7 @@ impl PacketGenerator {
         args: &MapperArgs,
         file: &mut FileWrapper,
     ) -> anyhow::Result<String> {
-        let enum_name = Self::format_item_name(field_ident) + "Enum";
+        let enum_name = struct_ident.to_string() + &Self::format_item_name(field_ident);
 
         // Create a new enum for the mapper
         file.push_enum(&enum_name);
@@ -329,6 +345,9 @@ impl PacketGenerator {
             "vec2f64" => "DVec2",
             "vec3f" => "Vec3",
             "vec3f64" => "DVec3",
+            "minecraft_simple_recipe_format" => "CraftingRecipe",
+            "minecraft_smelting_format" => "SmeltingRecipe",
+            "ingredient" => "RecipeIngredient",
             other => other,
         }
     }

@@ -25,6 +25,7 @@ pub enum ProtocolType {
 #[serde(untagged)]
 pub enum ProtocolTypeArgs {
     Array(ArrayArgs),
+    ArrayWithLengthOffset(ArrayWithLengthOffsetArgs),
     Bitfield(Vec<BitfieldArg>),
     Buffer(BufferArgs),
     Container(Vec<ContainerArg>),
@@ -61,6 +62,16 @@ impl ArrayArgs {
             ArrayArgs::CountField { kind, .. } | ArrayArgs::Count { kind, .. } => kind,
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ArrayWithLengthOffsetArgs {
+    #[serde(rename = "count")]
+    pub count_field: CompactString,
+    #[serde(rename = "type")]
+    pub kind: Box<ProtocolType>,
+    #[serde(rename = "lengthOffset")]
+    pub length_offset: i32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -106,6 +117,7 @@ pub struct SwitchArgs {
     #[serde(rename = "compareTo")]
     pub compare_to: CompactString,
     pub fields: HashMap<CompactString, ProtocolType>,
+    pub default: Option<Box<ProtocolType>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -168,6 +180,11 @@ impl<'de> Deserialize<'de> for ProtocolType {
                         seq.next_element()?
                             .ok_or_else(|| A::Error::custom("missing array args"))?,
                     ),
+                    "arrayWithLengthOffset" => {
+                        ProtocolTypeArgs::ArrayWithLengthOffset(seq.next_element()?.ok_or_else(
+                            || A::Error::custom("missing arrayWithLengthOffset args"),
+                        )?)
+                    }
                     "bitfield" => ProtocolTypeArgs::Bitfield(
                         seq.next_element()?
                             .ok_or_else(|| A::Error::custom("missing bitfield args"))?,

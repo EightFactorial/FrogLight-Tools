@@ -209,10 +209,16 @@ impl FileWrapper {
         }
     }
 
-    pub fn push_variant_field(&mut self, enum_ident: &str, variant_ident: &str, field_type: &str) {
+    pub fn push_variant_field(
+        &mut self,
+        enum_ident: &str,
+        variant_ident: &str,
+        field_type: &str,
+        variant_desc: Option<&str>,
+    ) {
         // If the variant does not exist, create it.
         if self.get_enum_variant(enum_ident, variant_ident).is_none() {
-            self.push_variant(enum_ident, variant_ident, None);
+            self.push_variant(enum_ident, variant_ident, variant_desc);
         }
 
         // Push the field into the variant.
@@ -387,7 +393,9 @@ impl FileWrapper {
         let field_type = self.resolve_field_type(struct_ident, &switch_args.compare_to)?;
         match field_type.to_string().as_str() {
             "bool" => self.create_bool_enum(struct_ident, switch_args),
-            "VarInt" | "varint" | "u8" | "i8" => self.create_int_enum(struct_ident, switch_args),
+            "VarInt" | "u8" | "u16" | "u32" | "i8" | "i16" | "i32" => {
+                self.create_int_enum(struct_ident, switch_args)
+            }
             existing => self.extend_existing_enum(existing, switch_args),
         }
     }
@@ -408,7 +416,7 @@ impl FileWrapper {
             .sort_by_key(|(key, _)| matches!(key.to_ascii_lowercase().as_str(), "true" | "0"));
 
         // Push the variants into the Enum
-        for (switch_case, switch_type) in collection {
+        for (index, (switch_case, switch_type)) in collection.into_iter().enumerate() {
             let mut case_ident = PacketGenerator::format_item_name(switch_case);
             if case_ident.chars().next().unwrap_or_default().is_numeric() {
                 case_ident = enum_ident.clone() + &case_ident;
@@ -417,7 +425,14 @@ impl FileWrapper {
             if let Some(case_type) =
                 PacketGenerator::generate_type(&enum_ident, &case_ident, switch_type, self)?
             {
-                self.push_variant_field(&enum_ident, &case_ident, &case_type);
+                self.push_variant_field(
+                    &enum_ident,
+                    &case_ident,
+                    &case_type,
+                    Some(&index.to_string()),
+                );
+            } else {
+                self.push_variant(&enum_ident, &case_ident, Some(&index.to_string()));
             }
         }
 
@@ -444,7 +459,7 @@ impl FileWrapper {
             .sort_by_key(|(key, _)| key.parse::<i32>().expect("Invalid Integer Enum Discriminant"));
 
         // Push the variants into the Enum
-        for (switch_case, switch_type) in collection {
+        for (index, (switch_case, switch_type)) in collection.into_iter().enumerate() {
             let mut case_ident = PacketGenerator::format_item_name(switch_case);
             if case_ident.chars().next().unwrap_or_default().is_numeric() {
                 case_ident = enum_ident.clone() + &case_ident;
@@ -453,7 +468,14 @@ impl FileWrapper {
             if let Some(case_type) =
                 PacketGenerator::generate_type(&enum_ident, &case_ident, switch_type, self)?
             {
-                self.push_variant_field(&enum_ident, &case_ident, &case_type);
+                self.push_variant_field(
+                    &enum_ident,
+                    &case_ident,
+                    &case_type,
+                    Some(&index.to_string()),
+                );
+            } else {
+                self.push_variant(&enum_ident, &case_ident, Some(&index.to_string()));
             }
         }
 
@@ -469,7 +491,7 @@ impl FileWrapper {
         existing: &str,
         switch_args: &SwitchArgs,
     ) -> anyhow::Result<()> {
-        for (switch_case, switch_type) in &switch_args.fields {
+        for (index, (switch_case, switch_type)) in switch_args.fields.iter().enumerate() {
             let mut case_ident = PacketGenerator::format_item_name(switch_case);
             if case_ident.chars().next().unwrap_or_default().is_numeric() {
                 case_ident = existing.to_string() + &case_ident;
@@ -478,7 +500,14 @@ impl FileWrapper {
             if let Some(case_type) =
                 PacketGenerator::generate_type(existing, &case_ident, switch_type, self)?
             {
-                self.push_variant_field(existing, &case_ident, &case_type);
+                self.push_variant_field(
+                    existing,
+                    &case_ident,
+                    &case_type,
+                    Some(&index.to_string()),
+                );
+            } else {
+                self.push_variant(existing, &case_ident, Some(&index.to_string()));
             }
         }
         Ok(())

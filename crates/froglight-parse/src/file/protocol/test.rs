@@ -122,6 +122,11 @@ fn assert_valid_type(data: &ProtocolType, types: &ProtocolTypeMap) {
                 }
             }
         }
+        ProtocolType::Inline(type_name, ProtocolTypeArgs::ArrayWithLengthOffset(array_args)) => {
+            assert_eq!(type_name, "arrayWithLengthOffset");
+            assert_eq!(array_args.count_field, "type");
+            assert_valid_type(&array_args.kind, types);
+        }
         ProtocolType::Inline(type_name, ProtocolTypeArgs::Bitfield(..)) => {
             assert_eq!(type_name, "bitfield");
         }
