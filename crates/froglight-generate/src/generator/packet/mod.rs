@@ -147,19 +147,15 @@ impl PacketGenerator {
             // Create an array with a size determined by a field,
             // need to figure out how to handle this.
             ArrayArgs::CountField { count_field, kind } => {
-                let count_field = Self::format_field_name(count_field);
-                let field_type = file.resolve_field_type(struct_ident, &count_field)?.to_string();
+                let field_type = file.resolve_field_type(struct_ident, count_field)?;
+                assert!(field_type == "VarInt", "ArrayArgs::CountField type must be VarInt");
 
-                if field_type == "VarInt" {
-                    // TODO: Create an enum?
-                    Ok(None)
-                } else if let Some(item) = file.get_struct_mut(&field_type) {
-                    // TODO: Do something with the struct?
-                    Ok(None)
+                if let Some(count_type) =
+                    Self::generate_type(struct_ident, &format!("{field_ident}Item"), kind, file)?
+                {
+                    Ok(Some(format!("Vec<{count_type}>")))
                 } else {
-                    anyhow::bail!(
-                        "ArrayArgs::CountField unknown field: {struct_ident} -> {count_field}: {field_type}",
-                    );
+                    anyhow::bail!("ArrayArgs::CountField type must be a valid type");
                 }
             }
         }

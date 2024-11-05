@@ -1,9 +1,11 @@
+use compact_str::CompactString;
 use derive_more::derive::{From, Into};
-use froglight_parse::file::protocol::SwitchArgs;
+use froglight_parse::file::protocol::{ProtocolType, SwitchArgs};
 use proc_macro2::Span;
 use syn::{
-    punctuated::Punctuated, token, Field, FieldMutability, Fields, FieldsNamed, FieldsUnnamed,
-    File, Generics, Ident, Item, ItemEnum, ItemStruct, Token, Type, Variant, Visibility,
+    punctuated::Punctuated, token, AttrStyle, Attribute, Field, FieldMutability, Fields,
+    FieldsNamed, FieldsUnnamed, File, Generics, Ident, Item, ItemEnum, ItemStruct, Token, Type,
+    Variant, Visibility,
 };
 
 use super::PacketGenerator;
@@ -170,6 +172,18 @@ impl FileWrapper {
                 ident: Some(Ident::new(field_ident, Span::call_site())),
                 colon_token: None,
                 ty: syn::parse_str(field_type).expect("Failed to parse type"),
+            });
+        }
+    }
+
+    /// Push a new [`Attribute`] into a [`Field`] with the given identifier.
+    pub fn push_field_attribute(&mut self, struct_ident: &str, field_ident: &str, attribute: &str) {
+        if let Some(field) = self.get_struct_field_mut(struct_ident, field_ident) {
+            field.attrs.push(Attribute {
+                pound_token: <Token![#]>::default(),
+                style: AttrStyle::Outer,
+                bracket_token: token::Bracket::default(),
+                meta: syn::parse_str(attribute).expect("Failed to parse attribute"),
             });
         }
     }
@@ -400,6 +414,13 @@ impl FileWrapper {
         }
     }
 
+    const BOOL_FALSE: (&CompactString, &ProtocolType) = (
+        &CompactString::const_new("false"),
+        &ProtocolType::Named(CompactString::const_new("void")),
+    );
+    const BOOL_TRUE: (&CompactString, &ProtocolType) =
+        (&CompactString::const_new("true"), &ProtocolType::Named(CompactString::const_new("void")));
+
     fn create_bool_enum(
         &mut self,
         struct_ident: &str,
@@ -410,8 +431,18 @@ impl FileWrapper {
             struct_ident.to_string() + &PacketGenerator::format_item_name(&switch_args.compare_to);
         self.push_enum(&enum_ident);
 
-        // Sort the variants
         let mut collection: Vec<_> = switch_args.fields.iter().collect();
+
+        // If there is only `true` or `false`, add the other variant
+        if collection.len() == 1 {
+            if collection.first().unwrap().0 == "true" {
+                collection.push(Self::BOOL_FALSE);
+            } else {
+                collection.push(Self::BOOL_TRUE);
+            }
+        }
+
+        // Sort the variants
         collection
             .sort_by_key(|(key, _)| matches!(key.to_ascii_lowercase().as_str(), "true" | "0"));
 
@@ -459,7 +490,7 @@ impl FileWrapper {
             .sort_by_key(|(key, _)| key.parse::<i32>().expect("Invalid Integer Enum Discriminant"));
 
         // Push the variants into the Enum
-        for (index, (switch_case, switch_type)) in collection.into_iter().enumerate() {
+        for (switch_case, switch_type) in collection {
             let mut case_ident = PacketGenerator::format_item_name(switch_case);
             if case_ident.chars().next().unwrap_or_default().is_numeric() {
                 case_ident = enum_ident.clone() + &case_ident;
@@ -468,14 +499,9 @@ impl FileWrapper {
             if let Some(case_type) =
                 PacketGenerator::generate_type(&enum_ident, &case_ident, switch_type, self)?
             {
-                self.push_variant_field(
-                    &enum_ident,
-                    &case_ident,
-                    &case_type,
-                    Some(&index.to_string()),
-                );
+                self.push_variant_field(&enum_ident, &case_ident, &case_type, Some(switch_case));
             } else {
-                self.push_variant(&enum_ident, &case_ident, Some(&index.to_string()));
+                self.push_variant(&enum_ident, &case_ident, Some(switch_case));
             }
         }
 
@@ -491,7 +517,7 @@ impl FileWrapper {
         existing: &str,
         switch_args: &SwitchArgs,
     ) -> anyhow::Result<()> {
-        for (index, (switch_case, switch_type)) in switch_args.fields.iter().enumerate() {
+        for (switch_case, switch_type) in &switch_args.fields {
             let mut case_ident = PacketGenerator::format_item_name(switch_case);
             if case_ident.chars().next().unwrap_or_default().is_numeric() {
                 case_ident = existing.to_string() + &case_ident;
@@ -500,14 +526,9 @@ impl FileWrapper {
             if let Some(case_type) =
                 PacketGenerator::generate_type(existing, &case_ident, switch_type, self)?
             {
-                self.push_variant_field(
-                    existing,
-                    &case_ident,
-                    &case_type,
-                    Some(&index.to_string()),
-                );
+                self.push_variant_field(existing, &case_ident, &case_type, None);
             } else {
-                self.push_variant(existing, &case_ident, Some(&index.to_string()));
+                self.push_variant(existing, &case_ident, None);
             }
         }
         Ok(())
