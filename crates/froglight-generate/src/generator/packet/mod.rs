@@ -1,19 +1,28 @@
-use convert_case::{Case, Casing};
 use froglight_parse::file::protocol::{
     ArrayArgs, ArrayWithLengthOffsetArgs, BitfieldArg, BufferArgs, ContainerArg,
     EntityMetadataArgs, MapperArgs, ProtocolPackets, ProtocolStatePackets, ProtocolType,
     ProtocolTypeArgs, SwitchArgs, TopBitSetTerminatedArrayArgs,
 };
+use proc_macro2::Span;
+use quote::quote;
+use syn::Ident;
 
 use crate::{cli::CliArgs, datamap::DataMap};
 
+mod result;
+use result::Result;
+
+mod state;
+use state::State;
+
 mod wrapper;
-use wrapper::FileWrapper;
+use wrapper::File;
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PacketGenerator;
 
 impl PacketGenerator {
+    /// Generate packets from the given [`DataMap`].
     pub async fn generate(datamap: &DataMap, _args: &CliArgs) -> anyhow::Result<()> {
         let dataset = datamap.version_data.iter().next().unwrap().1;
         Self::generate_packets(&dataset.proto.packets).await
@@ -30,16 +39,24 @@ impl PacketGenerator {
     }
 
     async fn generate_state_packets(
-        state: &str,
-        direction: &str,
+        proto_state: &str,
+        proto_direction: &str,
         packets: &ProtocolStatePackets,
     ) -> anyhow::Result<()> {
         // Create a new file
-        let mut file = FileWrapper::default();
+        let mut file = File::default();
+
+        // Create a state, only needed for calling `generate_type`
+        let root = Ident::new("_", Span::call_site());
+        let state = State::new(&root, &root);
+
+        // Generate types for each packet
         for (packet_name, packet_type) in
             packets.iter().filter(|(name, _)| name.starts_with("packet_"))
         {
-            if let Err(err) = Self::generate_type(packet_name, packet_name, packet_type, &mut file)
+            let packet_ident = Ident::new(packet_name, Span::call_site());
+            if let Result::Err(err) =
+                Self::generate_type(state.with_item(&packet_ident), packet_type, &mut file)
             {
                 tracing::error!("Error generating type for {packet_name}: {err}");
             }
@@ -53,307 +70,196 @@ impl PacketGenerator {
 
         // Write the file to disk
         let path = std::path::PathBuf::from(file!());
-        let path = path.parent().unwrap().join(format!("packets.{state}.{direction}.rs"));
+        let path =
+            path.parent().unwrap().join(format!("packets.{proto_state}.{proto_direction}.rs"));
 
         let unparsed = prettyplease::unparse(&file);
         tokio::fs::write(path, unparsed).await?;
         Ok(())
-    }
-
-    /// Return the type of a [`ProtocolType`],
-    /// generating the type if necessary.
-    fn generate_type(
-        struct_ident: &str,
-        field_ident: &str,
-        proto: &ProtocolType,
-        file: &mut FileWrapper,
-    ) -> anyhow::Result<Option<String>> {
-        match proto {
-            ProtocolType::Named(string) => match string.as_str() {
-                "void" => Ok(None),
-                other => Ok(Some(Self::format_type(other).to_string())),
-            },
-            ProtocolType::Inline(_, type_args) => {
-                Self::generate_args(struct_ident, field_ident, type_args, file)
-            }
-        }
-    }
-
-    fn generate_args(
-        struct_ident: &str,
-        field_ident: &str,
-        type_args: &ProtocolTypeArgs,
-        file: &mut FileWrapper,
-    ) -> anyhow::Result<Option<String>> {
-        match type_args {
-            ProtocolTypeArgs::Array(array_args) => {
-                Self::handle_array(struct_ident, field_ident, array_args, file)
-            }
-            ProtocolTypeArgs::ArrayWithLengthOffset(array_args) => {
-                Self::handle_array_with_length_offset(struct_ident, field_ident, array_args, file)
-                    .map(Some)
-            }
-            ProtocolTypeArgs::Bitfield(bitfield_args) => {
-                Self::handle_bitfield(struct_ident, field_ident, bitfield_args, file).map(Some)
-            }
-            ProtocolTypeArgs::Buffer(buffer_args) => {
-                Self::handle_buffer(struct_ident, field_ident, buffer_args, file).map(Some)
-            }
-            ProtocolTypeArgs::Container(container_args) => {
-                Self::handle_container(struct_ident, field_ident, container_args, file).map(Some)
-            }
-            ProtocolTypeArgs::EntityMetadata(metadata_args) => {
-                Self::handle_entity_metadata(struct_ident, field_ident, metadata_args, file)
-                    .map(Some)
-            }
-            ProtocolTypeArgs::Mapper(mapper_args) => {
-                Self::handle_mapper(struct_ident, field_ident, mapper_args, file).map(Some)
-            }
-            ProtocolTypeArgs::Option(option_type) => {
-                Self::handle_option(struct_ident, field_ident, option_type, file).map(Some)
-            }
-            ProtocolTypeArgs::PString(buffer_args) => {
-                Self::handle_pstring(struct_ident, field_ident, buffer_args, file).map(Some)
-            }
-            ProtocolTypeArgs::Switch(switch_args) => {
-                Self::handle_switch(struct_ident, field_ident, switch_args, file)?;
-                Ok(None)
-            }
-            ProtocolTypeArgs::TopBitSetTerminatedArray(bitset_array_args) => {
-                Self::handle_bitset_array(struct_ident, field_ident, bitset_array_args, file)
-                    .map(Some)
-            }
-        }
     }
 }
 
 #[allow(unused_variables, dead_code)]
 #[allow(clippy::unnecessary_wraps)]
 impl PacketGenerator {
-    fn handle_array(
-        struct_ident: &str,
-        field_ident: &str,
-        args: &ArrayArgs,
-        file: &mut FileWrapper,
-    ) -> anyhow::Result<Option<String>> {
-        match args {
-            // Create an array with a size determined by `count_type`,
-            // which is always a `varint`.
-            ArrayArgs::Count { count_type, kind } => {
-                assert_eq!(count_type, "varint", "ArrayArgs::Count type must be varint");
-                Self::generate_type(struct_ident, &format!("{field_ident}Item"), kind, file)
-                    .map(|ty| ty.map(|ty| format!("Vec<{ty}>")))
-            }
-            // Create an array with a size determined by a field,
-            // need to figure out how to handle this.
-            ArrayArgs::CountField { count_field, kind } => {
-                let field_type = file.resolve_field_type(struct_ident, count_field)?;
-                assert!(field_type == "VarInt", "ArrayArgs::CountField type must be VarInt");
+    /// Return the type of a [`ProtocolType`],
+    /// generating the type if necessary.
+    ///
+    /// # Note
+    /// This may pass back attributes for the type.
+    #[must_use]
+    fn generate_type(state: State<'_, '_>, proto: &ProtocolType, file: &mut File) -> Result {
+        match proto {
+            ProtocolType::Named(native) => match native.as_str() {
+                "void" => Result::Void,
+                other => Result::kind_str(other),
+            },
+            ProtocolType::Inline(_, type_args) => Self::generate_args(state, type_args, file),
+        }
+    }
 
-                if let Some(count_type) =
-                    Self::generate_type(struct_ident, &format!("{field_ident}Item"), kind, file)?
-                {
-                    Ok(Some(format!("Vec<{count_type}>")))
-                } else {
-                    anyhow::bail!("ArrayArgs::CountField type must be a valid type");
-                }
+    /// Generate the type specified by the [`ProtocolTypeArgs`].
+    ///
+    /// # Note
+    /// This may pass back attributes for the type.
+    #[must_use]
+    fn generate_args(state: State<'_, '_>, args: &ProtocolTypeArgs, file: &mut File) -> Result {
+        match args {
+            ProtocolTypeArgs::Array(args) => Self::handle_array(state, args, file),
+            ProtocolTypeArgs::ArrayWithLengthOffset(args) => Self::handle_offset(state, args, file),
+            ProtocolTypeArgs::Bitfield(args) => Self::handle_bitfield(state, args, file),
+            ProtocolTypeArgs::Buffer(args) => Self::handle_buffer(state, args, file),
+            ProtocolTypeArgs::Container(args) => Self::handle_container(state, args, file),
+            ProtocolTypeArgs::EntityMetadata(args) => Self::handle_metadata(state, args, file),
+            ProtocolTypeArgs::Mapper(args) => Self::handle_mapper(state, args, file),
+            ProtocolTypeArgs::Option(option) => Self::handle_option(state, option, file),
+            ProtocolTypeArgs::PString(args) => Self::handle_pstring(state, args, file),
+            ProtocolTypeArgs::Switch(args) => Self::handle_switch(state, args, file),
+            ProtocolTypeArgs::TopBitSetTerminatedArray(args) => {
+                Self::handle_bitset(state, args, file)
             }
         }
     }
 
-    fn handle_array_with_length_offset(
-        struct_ident: &str,
-        field_ident: &str,
+    /// Handle [`ProtocolTypeArgs::Array`] [`ArrayArgs`]
+    #[must_use]
+    fn handle_array(state: State<'_, '_>, args: &ArrayArgs, file: &mut File) -> Result {
+        Result::unsupported()
+    }
+
+    /// Handle [`ProtocolTypeArgs::ArrayWithLengthOffset`]
+    /// [`ArrayWithLengthOffsetArgs`]
+    #[must_use]
+    fn handle_offset(
+        state: State<'_, '_>,
         args: &ArrayWithLengthOffsetArgs,
-        file: &mut FileWrapper,
-    ) -> anyhow::Result<String> {
-        Ok(String::from("Unsupported"))
+        file: &mut File,
+    ) -> Result {
+        Result::unsupported()
     }
 
-    /// Create a struct for the bitfield
-    fn handle_bitfield(
-        struct_ident: &str,
-        field_ident: &str,
-        args: &[BitfieldArg],
-        file: &mut FileWrapper,
-    ) -> anyhow::Result<String> {
-        let bitfield_name = Self::format_item_name(field_ident) + "Bitfield";
+    /// Handle [`ProtocolTypeArgs::Bitfield`] [`BitfieldArg`]
+    #[must_use]
+    fn handle_bitfield(state: State<'_, '_>, args: &[BitfieldArg], file: &mut File) -> Result {
+        // Create the bitfield struct
+        let bitfield = state.combined();
+        file.create_struct(&bitfield);
 
-        // Create a new struct for the bitfield
-        // TODO: Add field attributes
-        file.push_struct(&bitfield_name);
+        let state = state.with_item(&bitfield);
         for arg in args {
+            // Format the field name
             let field_name = Self::format_field_name(&arg.name);
-            file.push_field(&bitfield_name, &field_name, "bool");
+
+            // Get the field state
+            let field_ident = Ident::new(field_name, Span::call_site());
+            let field_state = state.with_field(&field_ident);
+
+            // Push the field and attributes
+            let size = arg.size;
+            file.push_struct_field_str(field_state, "bool")?;
+            file.push_field_attr_tokens(field_state, quote! { #[frog(size = #size)] });
         }
 
-        Ok(bitfield_name)
+        Result::kind_string(&bitfield)
     }
 
-    /// This always returns either `[u8; N]` or `Vec<u8>`
-    fn handle_buffer(
-        struct_ident: &str,
-        field_ident: &str,
-        args: &BufferArgs,
-        file: &mut FileWrapper,
-    ) -> anyhow::Result<String> {
-        match args {
-            BufferArgs::Count(count) => Ok(format!("[u8; {count}]")),
-            BufferArgs::CountType(count_type) => {
-                assert_eq!(count_type, "varint", "BufferArgs::CountType type must be varint");
-                Ok(String::from("Vec<u8>"))
-            }
-        }
+    /// Handle [`ProtocolTypeArgs::Buffer`] [`BufferArgs`]
+    #[must_use]
+    fn handle_buffer(state: State<'_, '_>, args: &BufferArgs, file: &mut File) -> Result {
+        Result::unsupported()
     }
 
-    /// Create a struct for the container
-    fn handle_container(
-        struct_ident: &str,
-        field_ident: &str,
-        args: &[ContainerArg],
-        file: &mut FileWrapper,
-    ) -> anyhow::Result<String> {
-        let struct_name = Self::format_item_name(field_ident);
+    /// Handle [`ProtocolTypeArgs::Container`] [`ContainerArg`]
+    #[must_use]
+    fn handle_container(state: State<'_, '_>, args: &[ContainerArg], file: &mut File) -> Result {
+        // Create the container struct
+        let container = state.combined();
+        file.create_struct(&container);
 
-        // Create a new struct for the container
-        file.push_struct(&struct_name);
-        for (index, ContainerArg { name, kind }) in args.iter().enumerate() {
-            // Format the existing field name or generate a new one
-            let arg_name = if let Some(name) = name {
-                Self::format_field_name(name)
+        let state = state.with_item(&container);
+        for (index, arg) in args.iter().enumerate() {
+            // Format the field name or create one
+            let field_name = if let Some(field_name) = arg.name.as_ref() {
+                Self::format_field_name(field_name).to_string()
             } else {
                 format!("field_{index}")
             };
 
-            // Get the type of the field, generating it if necessary
-            if let Some(arg_type) = Self::generate_type(&struct_name, &arg_name, kind, file)? {
-                file.push_field(&struct_name, &arg_name, &arg_type);
+            // Get the field state
+            let field_ident = Ident::new(&field_name, Span::call_site());
+            let field_state = state.with_field(&field_ident);
+
+            // If a type is returned, push it and any attributes
+            if let Result::Item { kind, attrs } = Self::generate_type(field_state, &arg.kind, file)?
+            {
+                file.push_struct_field_type(field_state, kind)?;
+                file.push_field_attrs(field_state, attrs);
             }
         }
 
-        Ok(struct_name)
+        Result::kind_string(&container)
     }
 
-    /// TODO: What is this?
-    fn handle_entity_metadata(
-        struct_ident: &str,
-        field_ident: &str,
-        args: &EntityMetadataArgs,
-        file: &mut FileWrapper,
-    ) -> anyhow::Result<String> {
-        Ok(String::from("Unsupported"))
+    /// Handle [`ProtocolTypeArgs::EntityMetadata`] [`EntityMetadataArgs`]
+    #[must_use]
+    fn handle_metadata(state: State<'_, '_>, args: &EntityMetadataArgs, file: &mut File) -> Result {
+        Result::unsupported()
     }
 
-    /// Create an enum for the mapper
-    fn handle_mapper(
-        struct_ident: &str,
-        field_ident: &str,
-        args: &MapperArgs,
-        file: &mut FileWrapper,
-    ) -> anyhow::Result<String> {
-        let enum_name = struct_ident.to_string() + &Self::format_item_name(field_ident);
-
-        // Create a new enum for the mapper
-        file.push_enum(&enum_name);
-
-        // Sort the mappings by corresponding case
-        let mut collection: Vec<_> = args.mappings.iter().collect();
-        collection
-            .sort_by_key(|(case, _)| case.parse::<u32>().expect("Mapper case must be a number"));
-
-        // Add each variant to the enum
-        for (case, name) in collection {
-            let variant = Self::format_item_name(name);
-            file.push_variant(&enum_name, &variant, Some(case));
-        }
-
-        Ok(enum_name)
+    /// Handle [`ProtocolTypeArgs::Mapper`] [`MapperArgs`]
+    #[must_use]
+    fn handle_mapper(state: State<'_, '_>, args: &MapperArgs, file: &mut File) -> Result {
+        Result::unsupported()
     }
 
-    /// Wrap the inner type in an [`Option`]
-    fn handle_option(
-        struct_ident: &str,
-        field_ident: &str,
-        opt: &ProtocolType,
-        file: &mut FileWrapper,
-    ) -> anyhow::Result<String> {
-        match Self::generate_type(struct_ident, field_ident, opt, file) {
-            Ok(Some(opt)) => Ok(format!("Option<{opt}>")),
-            Ok(None) => Ok(String::from("Option<Unsupported>")),
-            Err(err) => Err(err),
-        }
+    /// Handle [`ProtocolTypeArgs::Option`] [`ProtocolType`]
+    ///
+    /// Always maps to `Option<T>`
+    #[must_use]
+    fn handle_option(state: State<'_, '_>, opt: &ProtocolType, file: &mut File) -> Result {
+        Self::generate_type(state, opt, file).map(|ty| format!("Option<{ty}>"))
     }
 
-    /// This is always a [`String`]
-    #[expect(clippy::unnecessary_wraps)]
-    fn handle_pstring(
-        _struct_ident: &str,
-        _field_ident: &str,
-        _args: &BufferArgs,
-        _file: &mut FileWrapper,
-    ) -> anyhow::Result<String> {
-        Ok(String::from("String"))
+    /// Handle [`ProtocolTypeArgs::PString`] [`BufferArgs`]
+    ///
+    /// Always returns `String`
+    #[must_use]
+    fn handle_pstring(_state: State<'_, '_>, _args: &BufferArgs, _file: &mut File) -> Result {
+        Result::kind_str("String")
     }
 
-    fn handle_switch(
-        struct_ident: &str,
-        field_ident: &str,
-        args: &SwitchArgs,
-        file: &mut FileWrapper,
-    ) -> anyhow::Result<()> {
-        file.convert_or_modify_enum(struct_ident, args)
+    /// Handle [`ProtocolTypeArgs::Switch`] [`SwitchArgs`]
+    #[must_use]
+    fn handle_switch(state: State<'_, '_>, args: &SwitchArgs, file: &mut File) -> Result {
+        Result::unsupported()
     }
 
-    /// TODO: How should this be handled?
-    fn handle_bitset_array(
-        struct_ident: &str,
-        field_ident: &str,
+    /// Handle [`ProtocolTypeArgs::TopBitSetTerminatedArray`]
+    /// [`TopBitSetTerminatedArrayArgs`]
+    #[must_use]
+    fn handle_bitset(
+        state: State<'_, '_>,
         args: &TopBitSetTerminatedArrayArgs,
-        file: &mut FileWrapper,
-    ) -> anyhow::Result<String> {
-        Ok(String::from("Unsupported"))
+        file: &mut File,
+    ) -> Result {
+        Result::unsupported()
     }
 }
 
 impl PacketGenerator {
-    /// Format a field name to be valid in Rust
-    fn format_field_name(field: &str) -> String {
-        match field {
-            "match" => String::from("match_"),
-            "mod" => String::from("mod_"),
-            "ref" => String::from("ref_"),
-            "type" => String::from("type_"),
-            other => other.to_case(Case::Snake),
-        }
-    }
-
-    /// Format type names to match Rust conventions
-    fn format_type(ty: &str) -> &str {
-        match ty {
-            "anonOptionalNbt" => "Option<Nbt>",
-            "anonymousNbt" => "Nbt",
-            "position" => "Position",
-            "restBuffer" => "UnsizedBuffer",
-            "string" => "String",
-            "UUID" => "Uuid",
-            "varint" => "VarInt",
-            "vec2f" => "Vec2",
-            "vec2f64" => "DVec2",
-            "vec3f" => "Vec3",
-            "vec3f64" => "DVec3",
-            "minecraft_simple_recipe_format" => "CraftingRecipe",
-            "minecraft_smelting_format" => "SmeltingRecipe",
-            "ingredient" => "RecipeIngredient",
+    /// Format a field name to prevent conflicts with Rust keywords.
+    #[must_use]
+    fn format_field_name(field_name: &str) -> &str {
+        match field_name {
+            "fn" => "fn_",
+            "gen" => "gen_",
+            "in" => "in_",
+            "match" => "match_",
+            "mod" => "mod_",
+            "mut" => "mut_",
+            "ref" => "ref_",
+            "type" => "type_",
             other => other,
         }
-    }
-
-    /// Format item names to match Rust conventions
-    fn format_item_name(name: &str) -> String {
-        let mut name = name.split('/').last().unwrap();
-        if let Some((_, striped)) = name.split_once(':') {
-            name = striped;
-        }
-        name.replace(['.', ':'], "_").to_case(Case::Pascal)
     }
 }

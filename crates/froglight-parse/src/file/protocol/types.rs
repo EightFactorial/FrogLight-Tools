@@ -66,10 +66,8 @@ impl ArrayArgs {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ArrayWithLengthOffsetArgs {
-    #[serde(rename = "count")]
-    pub count_field: CompactString,
-    #[serde(rename = "type")]
-    pub kind: Box<ProtocolType>,
+    #[serde(flatten)]
+    pub array: ArrayArgs,
     #[serde(rename = "lengthOffset")]
     pub length_offset: i32,
 }

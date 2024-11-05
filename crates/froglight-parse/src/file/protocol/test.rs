@@ -109,23 +109,23 @@ fn assert_valid_type(data: &ProtocolType, types: &ProtocolTypeMap) {
         }
         ProtocolType::Inline(type_name, ProtocolTypeArgs::Array(array_args)) => {
             assert_eq!(type_name, "array");
-            match array_args {
-                ArrayArgs::CountField { kind, .. } => {
-                    assert_valid_type(kind, types);
-                }
-                ArrayArgs::Count { count_type, kind } => {
-                    assert!(
-                        types.contains_key(count_type),
-                        "Unknown array count protocol type: \"{count_type}\"",
-                    );
-                    assert_valid_type(kind, types);
-                }
+            if let ArrayArgs::Count { count_type, .. } = array_args {
+                assert!(
+                    types.contains_key(count_type),
+                    "Unknown array count protocol type: \"{count_type}\"",
+                );
             }
+            assert_valid_type(array_args.kind(), types);
         }
         ProtocolType::Inline(type_name, ProtocolTypeArgs::ArrayWithLengthOffset(array_args)) => {
             assert_eq!(type_name, "arrayWithLengthOffset");
-            assert_eq!(array_args.count_field, "type");
-            assert_valid_type(&array_args.kind, types);
+            if let ArrayArgs::Count { count_type, .. } = &array_args.array {
+                assert!(
+                    types.contains_key(count_type),
+                    "Unknown arrayWithLengthOffset count protocol type: \"{count_type}\"",
+                );
+            }
+            assert_valid_type(array_args.array.kind(), types);
         }
         ProtocolType::Inline(type_name, ProtocolTypeArgs::Bitfield(..)) => {
             assert_eq!(type_name, "bitfield");

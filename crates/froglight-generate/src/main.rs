@@ -1,5 +1,6 @@
 //! TODO
 #![allow(unreachable_pub)]
+#![feature(try_trait_v2)]
 
 mod cli;
 use cli::CliArgs;
