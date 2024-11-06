@@ -125,6 +125,28 @@ impl File {
         })
     }
 
+    /// Get the [`Type`] of a [`Field`] from the [`ItemStruct`] by [`Ident`].
+    ///
+    /// # Note
+    /// Use the [`State`] to specify the [`Item`] and [`Field`] to retrieve.
+    pub fn get_struct_field_type(&self, state: State<'_, '_>) -> anyhow::Result<&Ident> {
+        let Some(field) = self.get_struct_field(state) else {
+            anyhow::bail!("File: Field not found, \"{}.{}\"", state.item, state.field);
+        };
+
+        match &field.ty {
+            Type::Path(type_path) => {
+                let last = type_path.path.segments.last().unwrap();
+                Ok(&last.ident)
+            }
+            _ => anyhow::bail!(
+                "File: Field type is not a TypePath, \"{}.{}\"",
+                state.item,
+                state.field
+            ),
+        }
+    }
+
     /// Get a mutable [`Field`] from the [`ItemStruct`] by [`Ident`].
     ///
     /// # Note

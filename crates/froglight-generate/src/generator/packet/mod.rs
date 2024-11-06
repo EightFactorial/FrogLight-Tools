@@ -3,9 +3,9 @@ use froglight_parse::file::protocol::{
     EntityMetadataArgs, MapperArgs, ProtocolPackets, ProtocolStatePackets, ProtocolType,
     ProtocolTypeArgs, SwitchArgs, TopBitSetTerminatedArrayArgs,
 };
-use proc_macro2::Span;
-use quote::quote;
-use syn::{Ident, LitInt, Type};
+use proc_macro2::{Span, TokenStream};
+use quote::{quote, ToTokens};
+use syn::{Expr, Ident, Lit, LitInt, Type};
 
 use crate::{cli::CliArgs, datamap::DataMap};
 
@@ -185,8 +185,8 @@ impl PacketGenerator {
 
             // Push the field and attributes
             file.push_struct_field_str(field_state, arg_type)?;
-            let bitsize = LitInt::new(&arg.size.to_string(), Span::call_site());
-            file.push_field_attr_tokens(field_state, quote! { #[frog(bitsize = #bitsize)] });
+            let field_size = LitInt::new(&arg.size.to_string(), Span::call_site());
+            file.push_field_attr_tokens(field_state, quote! { #[frog(field_size = #field_size)] });
         }
 
         Result::kind_string(&bitfield)
@@ -238,6 +238,7 @@ impl PacketGenerator {
     /// Handle [`ProtocolTypeArgs::EntityMetadata`] [`EntityMetadataArgs`]
     #[must_use]
     fn handle_metadata(state: State<'_, '_>, args: &EntityMetadataArgs, file: &mut File) -> Result {
+        tracing::error!("MetadataArgs: Unsupported \"{}.{}\"", state.item, state.field);
         Result::unsupported()
     }
 
@@ -306,8 +307,8 @@ impl PacketGenerator {
         let compared_ident = Ident::new(compared_field, Span::call_site());
         let Some(struct_field) = file.get_struct_field(state.with_field(&compared_ident)) else {
             return Result::Err(anyhow::anyhow!(
-                "SwitchArgs: Field \"{}\" not found",
-                args.compare_to
+                "SwitchArgs: Field \"{}.{compared_field}\" not found ",
+                state.item,
             ));
         };
 
@@ -324,6 +325,9 @@ impl PacketGenerator {
                 "varint" | "u8" | "u16" | "u32" | "u64" | "i8" | "i16" | "i32" | "i64" => {
                     Self::handle_switch_integer(state, args, file)
                 }
+                field_enum if field_enum.ends_with('_') => {
+                    Self::handle_switch_enum(state, args, file)
+                }
                 unknown => {
                     Result::Err(anyhow::anyhow!("SwitchArgs: Unsupported type \"{unknown}\"",))
                 }
@@ -339,6 +343,7 @@ impl PacketGenerator {
 
     /// Handle [`ProtocolTypeArgs::Switch`] [`SwitchArgs`]
     /// with a boolean comparison
+    #[must_use]
     fn handle_switch_bool(state: State<'_, '_>, args: &SwitchArgs, file: &mut File) -> Result {
         // Create the switch enum
         let switch = state.combined();
@@ -355,10 +360,13 @@ impl PacketGenerator {
                 args.fields.iter().find_map(|(input, output)| (input == "false").then_some(output));
 
             let false_type = false_case.map(|ty| Self::generate_type(state, ty, file));
-            let mut false_tokens = if let Some(Result::Item { kind, attrs }) = &false_type {
-                quote!(#false_variant(#kind) = 0)
-            } else {
-                quote!(#false_variant = 0)
+            let mut false_tokens = match &false_type {
+                // Use the returned type
+                Some(Result::Item { kind, attrs }) => quote!(#false_variant(#(#attrs)* #kind) = 0),
+                // Return the error
+                Some(Result::Err(err)) => return false_type.unwrap(),
+                // Create a Unit variant
+                _ => quote!(#false_variant = 0),
             };
 
             if false_type == default_type {
@@ -374,10 +382,13 @@ impl PacketGenerator {
                 args.fields.iter().find_map(|(input, output)| (input == "true").then_some(output));
 
             let true_type = true_case.map(|ty| Self::generate_type(state, ty, file));
-            let mut true_tokens = if let Some(Result::Item { kind, attrs }) = &true_type {
-                quote!(#true_variant(#kind) = 1)
-            } else {
-                quote!(#true_variant = 1)
+            let mut true_tokens = match &true_type {
+                // Use the returned type
+                Some(Result::Item { kind, attrs }) => quote!(#true_variant(#(#attrs)* #kind) = 1),
+                // Return the error
+                Some(Result::Err(err)) => return true_type.unwrap(),
+                // Create a Unit variant
+                _ => quote!(#true_variant = 1),
             };
 
             if true_type == default_type {
@@ -390,7 +401,7 @@ impl PacketGenerator {
         if let Some(default_type) = args.default.as_ref() {
             let default = Ident::new("default", Span::call_site());
             if let Result::Item { kind, attrs } = Self::generate_type(state, default_type, file)? {
-                file.push_enum_variant_tokens(state, quote!(#default(varint, #kind)))?;
+                file.push_enum_variant_tokens(state, quote!(#default(varint, #(#attrs)* #kind)))?;
             } else {
                 file.push_enum_variant_tokens(state, quote!(#default(varint)))?;
             }
@@ -401,6 +412,7 @@ impl PacketGenerator {
 
     /// Handle [`ProtocolTypeArgs::Switch`] [`SwitchArgs`]
     /// with an integer comparison
+    #[must_use]
     fn handle_switch_integer(state: State<'_, '_>, args: &SwitchArgs, file: &mut File) -> Result {
         // Create the switch enum
         let switch = state.combined();
@@ -428,9 +440,12 @@ impl PacketGenerator {
             };
 
             // Generate the type and push the variant
-            let variant_type = Self::generate_type(state, output, file);
+            let variant_type = Self::generate_type(state, output, file)?;
             if let Result::Item { kind, attrs } = &variant_type {
-                file.push_enum_variant_tokens(state, quote!(#variant_ident(#kind) = #descriptor))?;
+                file.push_enum_variant_tokens(
+                    state,
+                    quote!(#variant_ident(#(#attrs)* #kind) = #descriptor),
+                )?;
             } else {
                 file.push_enum_variant_tokens(state, quote!(#variant_ident = #descriptor))?;
             };
@@ -442,11 +457,90 @@ impl PacketGenerator {
             if let Result::Item { kind, attrs } = Self::generate_type(state, default_type, file)? {
                 file.push_enum_variant_tokens(
                     state,
-                    quote! { #[frog(default)] #default(varint, #kind) },
+                    quote! { #[frog(default)] #default(varint, #(#attrs)* #kind) },
                 )?;
             } else {
                 file.push_enum_variant_tokens(state, quote! { #[frog(default)] #default(varint) })?;
             }
+        }
+
+        Result::kind_string(&switch)
+    }
+
+    /// Handle [`ProtocolTypeArgs::Switch`] [`SwitchArgs`]
+    /// with an enum comparison
+    #[must_use]
+    fn handle_switch_enum(state: State<'_, '_>, args: &SwitchArgs, file: &mut File) -> Result {
+        // Create the switch enum
+        let switch = state.combined();
+        file.create_enum(&switch);
+
+        let compared_field = Self::format_field_name(&args.compare_to);
+        let compared_ident = Ident::new(compared_field, Span::call_site());
+        let compared_state = state.with_field(&compared_ident);
+
+        let enum_type = file.get_struct_field_type(compared_state)?.clone();
+        let enum_state = state.with_item(&enum_type);
+
+        // Handle each case
+        let switch_state = state.with_item(&switch);
+        for (input, output) in &args.fields {
+            // Format the variant name
+            let variant_name = Self::format_variant_name(input);
+            let variant_ident = if variant_name.starts_with(char::is_numeric) {
+                Ident::new(&format!("when_{variant_name}"), Span::call_site())
+            } else {
+                Ident::new(&variant_name, Span::call_site())
+            };
+
+            // Get the variant descriptor
+            if let Some(enum_variant) = file.get_enum_variant(enum_state.with_field(&variant_ident))
+            {
+                let mut descriptor_tokens = TokenStream::new();
+                if let Some(descriptor) = enum_variant.discriminant.as_ref() {
+                    descriptor_tokens.extend(descriptor.0.to_token_stream());
+                    descriptor_tokens.extend(descriptor.1.to_token_stream());
+                }
+
+                // Generate the type and push the variant
+                let variant_type = Self::generate_type(state, output, file)?;
+                if let Result::Item { kind, attrs } = &variant_type {
+                    file.push_enum_variant_tokens(
+                        switch_state,
+                        quote!(#variant_ident(#(#attrs)* #kind) #descriptor_tokens),
+                    )?;
+                } else {
+                    file.push_enum_variant_tokens(
+                        switch_state,
+                        quote!(#variant_ident #descriptor_tokens),
+                    )?;
+                };
+            } else {
+                tracing::error!(
+                    "SwitchArgs: Variant \"{variant_ident}\" not found in \"{enum_type}\"",
+                );
+            }
+        }
+
+        // Sort the switch enum variants by discriminant
+        if let Some(item_enum) = file.get_enum_mut(&switch) {
+            // Take the variants from the enum
+            let mut variants: Vec<_> =
+                std::mem::take(&mut item_enum.variants).into_iter().collect();
+
+            // Sort the variants by discriminant
+            variants.sort_by_key(|variant| {
+                variant.discriminant.as_ref().map(|(_, expr)| match expr {
+                    Expr::Lit(expr_lit) => match &expr_lit.lit {
+                        Lit::Int(lit_int) => lit_int.base10_parse::<isize>().unwrap(),
+                        _ => panic!("SwitchArgs: Unsupported discriminant literal"),
+                    },
+                    _ => panic!("SwitchArgs: Unsupported discriminant expression"),
+                })
+            });
+
+            // Place the sorted variants back into the enum
+            item_enum.variants = variants.into_iter().collect();
         }
 
         Result::kind_string(&switch)
@@ -460,7 +554,9 @@ impl PacketGenerator {
         args: &TopBitSetTerminatedArrayArgs,
         file: &mut File,
     ) -> Result {
-        Result::unsupported()
+        Self::generate_type(state, &args.kind, file)
+            .with_attr_tokens(quote!(#[frog(terminated)]))
+            .map(|ty| format!("Vec<{ty}>"))
     }
 }
 
