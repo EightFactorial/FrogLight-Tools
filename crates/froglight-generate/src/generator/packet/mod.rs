@@ -5,7 +5,7 @@ use froglight_parse::file::protocol::{
 };
 use proc_macro2::Span;
 use quote::quote;
-use syn::Ident;
+use syn::{Ident, LitInt, Type};
 
 use crate::{cli::CliArgs, datamap::DataMap};
 
@@ -58,7 +58,7 @@ impl PacketGenerator {
             if let Result::Err(err) =
                 Self::generate_type(state.with_item(&packet_ident), packet_type, &mut file)
             {
-                tracing::error!("Error generating type for {packet_name}: {err}");
+                tracing::error!("Error generating type for \"{packet_name}\": {err}");
             }
         }
 
@@ -116,7 +116,7 @@ impl PacketGenerator {
             ProtocolTypeArgs::PString(args) => Self::handle_pstring(state, args, file),
             ProtocolTypeArgs::Switch(args) => Self::handle_switch(state, args, file),
             ProtocolTypeArgs::TopBitSetTerminatedArray(args) => {
-                Self::handle_bitset(state, args, file)
+                Self::handle_bitset_array(state, args, file)
             }
         }
     }
@@ -124,7 +124,24 @@ impl PacketGenerator {
     /// Handle [`ProtocolTypeArgs::Array`] [`ArrayArgs`]
     #[must_use]
     fn handle_array(state: State<'_, '_>, args: &ArrayArgs, file: &mut File) -> Result {
-        Result::unsupported()
+        match args {
+            ArrayArgs::CountField { count_field, kind } => {
+                let count_field = Self::format_field_name(count_field);
+                let count_ident = Ident::new(count_field, Span::call_site());
+
+                let count_state = state.with_field(&count_ident);
+
+                Self::generate_type(count_state, kind, file)
+                    .map(|ty| format!("Vec<{ty}>"))
+                    .with_attr_tokens(quote! {
+                        #[frog(length = #count_ident)]
+                    })
+            }
+            ArrayArgs::Count { count_type, kind } => {
+                assert_eq!(count_type, "varint", "ArrayArgs: Unsupported type \"{count_type}\"");
+                Self::generate_type(state, kind, file).map(|ty| format!("Vec<{ty}>"))
+            }
+        }
     }
 
     /// Handle [`ProtocolTypeArgs::ArrayWithLengthOffset`]
@@ -135,7 +152,9 @@ impl PacketGenerator {
         args: &ArrayWithLengthOffsetArgs,
         file: &mut File,
     ) -> Result {
-        Result::unsupported()
+        let offset = LitInt::new(&args.length_offset.to_string(), Span::call_site());
+        Self::handle_array(state, &args.array, file)
+            .with_attr_tokens(quote! { #[frog(offset = #offset)] })
     }
 
     /// Handle [`ProtocolTypeArgs::Bitfield`] [`BitfieldArg`]
@@ -154,10 +173,20 @@ impl PacketGenerator {
             let field_ident = Ident::new(field_name, Span::call_site());
             let field_state = state.with_field(&field_ident);
 
+            // Get the argument type
+            let arg_type = match arg.size {
+                1 => "bool",
+                2..=8 => "u8",
+                9..=16 => "u16",
+                17..=32 => "u32",
+                33..=64 => "u64",
+                _ => panic!("BitfieldArg: Unsupported size \"{}\"", arg.size),
+            };
+
             // Push the field and attributes
-            let size = arg.size;
-            file.push_struct_field_str(field_state, "bool")?;
-            file.push_field_attr_tokens(field_state, quote! { #[frog(size = #size)] });
+            file.push_struct_field_str(field_state, arg_type)?;
+            let bitsize = LitInt::new(&arg.size.to_string(), Span::call_site());
+            file.push_field_attr_tokens(field_state, quote! { #[frog(bitsize = #bitsize)] });
         }
 
         Result::kind_string(&bitfield)
@@ -166,7 +195,13 @@ impl PacketGenerator {
     /// Handle [`ProtocolTypeArgs::Buffer`] [`BufferArgs`]
     #[must_use]
     fn handle_buffer(state: State<'_, '_>, args: &BufferArgs, file: &mut File) -> Result {
-        Result::unsupported()
+        match args {
+            BufferArgs::Count(count) => Result::kind_str(format!("[u8; {count}]")),
+            BufferArgs::CountType(count_type) => {
+                assert_eq!(count_type, "varint", "BufferArgs: Unsupported type \"{count_type}\"");
+                Result::kind_str("Vec<u8>")
+            }
+        }
     }
 
     /// Handle [`ProtocolTypeArgs::Container`] [`ContainerArg`]
@@ -209,7 +244,31 @@ impl PacketGenerator {
     /// Handle [`ProtocolTypeArgs::Mapper`] [`MapperArgs`]
     #[must_use]
     fn handle_mapper(state: State<'_, '_>, args: &MapperArgs, file: &mut File) -> Result {
-        Result::unsupported()
+        // Create the mapper enum
+        let mapper = state.combined();
+        file.create_enum(&mapper);
+
+        let mut collection: Vec<_> = args.mappings.iter().collect();
+        collection.sort_by_key(|(key, _)| key.parse::<isize>().unwrap());
+
+        let state = state.with_item(&mapper);
+        for (input, output) in collection {
+            // Create the variant descriptor
+            let descriptor = LitInt::new(input, Span::call_site());
+
+            // Format the variant name
+            let variant_name = Self::format_variant_name(output);
+            let variant_ident = if variant_name.starts_with(char::is_numeric) {
+                Ident::new(&format!("when_{variant_name}"), Span::call_site())
+            } else {
+                Ident::new(&variant_name, Span::call_site())
+            };
+
+            // Push the variant
+            file.push_enum_variant_tokens(state, quote!(#variant_ident = #descriptor))?;
+        }
+
+        Result::kind_string(&mapper)
     }
 
     /// Handle [`ProtocolTypeArgs::Option`] [`ProtocolType`]
@@ -222,7 +281,7 @@ impl PacketGenerator {
 
     /// Handle [`ProtocolTypeArgs::PString`] [`BufferArgs`]
     ///
-    /// Always returns `String`
+    /// Always returns [`String`]
     #[must_use]
     fn handle_pstring(_state: State<'_, '_>, _args: &BufferArgs, _file: &mut File) -> Result {
         Result::kind_str("String")
@@ -231,13 +290,172 @@ impl PacketGenerator {
     /// Handle [`ProtocolTypeArgs::Switch`] [`SwitchArgs`]
     #[must_use]
     fn handle_switch(state: State<'_, '_>, args: &SwitchArgs, file: &mut File) -> Result {
-        Result::unsupported()
+        // Warn about unsupported comparison fields, but continue
+        if args.compare_to.contains('/') {
+            tracing::warn!(
+                "SwitchArgs: Unsupported comparison field \"{}.{}\": \"{}\"",
+                state.item,
+                state.field,
+                args.compare_to
+            );
+            return Result::unsupported();
+        }
+
+        // Get the field to compare to
+        let compared_field = Self::format_field_name(&args.compare_to);
+        let compared_ident = Ident::new(compared_field, Span::call_site());
+        let Some(struct_field) = file.get_struct_field(state.with_field(&compared_ident)) else {
+            return Result::Err(anyhow::anyhow!(
+                "SwitchArgs: Field \"{}\" not found",
+                args.compare_to
+            ));
+        };
+
+        if let Type::Path(type_path) = &struct_field.ty {
+            let last = type_path.path.segments.last().unwrap();
+            let field_type = last.ident.to_string();
+
+            // TODO: Collapse `Void = 0, Data = N` into `Option<T>`
+            // TODO: Support matching on `Option`
+            // TODO: Support matching on enum types
+            // Pick the generation function by the field type
+            match field_type.as_str() {
+                "bool" => Self::handle_switch_bool(state, args, file),
+                "varint" | "u8" | "u16" | "u32" | "u64" | "i8" | "i16" | "i32" | "i64" => {
+                    Self::handle_switch_integer(state, args, file)
+                }
+                unknown => {
+                    Result::Err(anyhow::anyhow!("SwitchArgs: Unsupported type \"{unknown}\"",))
+                }
+            }
+            .with_attr_tokens(quote! { #[frog(match_on = #compared_ident)] })
+        } else {
+            Result::Err(anyhow::anyhow!(
+                "SwitchArgs: Unsupported type \"{}.{compared_field}\"",
+                state.item
+            ))
+        }
+    }
+
+    /// Handle [`ProtocolTypeArgs::Switch`] [`SwitchArgs`]
+    /// with a boolean comparison
+    fn handle_switch_bool(state: State<'_, '_>, args: &SwitchArgs, file: &mut File) -> Result {
+        // Create the switch enum
+        let switch = state.combined();
+        file.create_enum(&switch);
+
+        let state = state.with_item(&switch);
+
+        let default_type = args.default.as_ref().map(|ty| Self::generate_type(state, ty, file));
+
+        // Handle the `false` case
+        {
+            let false_variant = Ident::new("when_false", Span::call_site());
+            let false_case =
+                args.fields.iter().find_map(|(input, output)| (input == "false").then_some(output));
+
+            let false_type = false_case.map(|ty| Self::generate_type(state, ty, file));
+            let mut false_tokens = if let Some(Result::Item { kind, attrs }) = &false_type {
+                quote!(#false_variant(#kind) = 0)
+            } else {
+                quote!(#false_variant = 0)
+            };
+
+            if false_type == default_type {
+                false_tokens = quote!(#[frog(default)] #false_tokens);
+            }
+            file.push_enum_variant_tokens(state, false_tokens)?;
+        }
+
+        // Handle the `true` case
+        {
+            let true_variant = Ident::new("when_true", Span::call_site());
+            let true_case =
+                args.fields.iter().find_map(|(input, output)| (input == "true").then_some(output));
+
+            let true_type = true_case.map(|ty| Self::generate_type(state, ty, file));
+            let mut true_tokens = if let Some(Result::Item { kind, attrs }) = &true_type {
+                quote!(#true_variant(#kind) = 1)
+            } else {
+                quote!(#true_variant = 1)
+            };
+
+            if true_type == default_type {
+                true_tokens = quote!(#[frog(default)] #true_tokens);
+            }
+            file.push_enum_variant_tokens(state, true_tokens)?;
+        }
+
+        // Handle the `default` case, if it exists
+        if let Some(default_type) = args.default.as_ref() {
+            let default = Ident::new("default", Span::call_site());
+            if let Result::Item { kind, attrs } = Self::generate_type(state, default_type, file)? {
+                file.push_enum_variant_tokens(state, quote!(#default(varint, #kind)))?;
+            } else {
+                file.push_enum_variant_tokens(state, quote!(#default(varint)))?;
+            }
+        }
+
+        Result::kind_string(state.item)
+    }
+
+    /// Handle [`ProtocolTypeArgs::Switch`] [`SwitchArgs`]
+    /// with an integer comparison
+    fn handle_switch_integer(state: State<'_, '_>, args: &SwitchArgs, file: &mut File) -> Result {
+        // Create the switch enum
+        let switch = state.combined();
+        file.create_enum(&switch);
+
+        let state = state.with_item(&switch);
+
+        // Sort the fields by key
+        let mut collection: Vec<_> = args.fields.iter().collect();
+        collection.sort_by_key(|(key, _)| key.parse::<isize>().unwrap());
+
+        let default_type = args.default.as_ref().map(|ty| Self::generate_type(state, ty, file));
+
+        // Handle each case
+        for (input, output) in &collection {
+            // Create the variant descriptor
+            let descriptor = LitInt::new(input, Span::call_site());
+
+            // Format the variant name
+            let variant_name = Self::format_variant_name(input);
+            let variant_ident = if variant_name.starts_with(char::is_numeric) {
+                Ident::new(&format!("when_{variant_name}"), Span::call_site())
+            } else {
+                Ident::new(&variant_name, Span::call_site())
+            };
+
+            // Generate the type and push the variant
+            let variant_type = Self::generate_type(state, output, file);
+            if let Result::Item { kind, attrs } = &variant_type {
+                file.push_enum_variant_tokens(state, quote!(#variant_ident(#kind) = #descriptor))?;
+            } else {
+                file.push_enum_variant_tokens(state, quote!(#variant_ident = #descriptor))?;
+            };
+        }
+
+        // Handle the `default` case, if it exists
+        if let Some(default_type) = args.default.as_ref() {
+            let default = Ident::new("default", Span::call_site());
+            if let Result::Item { kind, attrs } = Self::generate_type(state, default_type, file)? {
+                file.push_enum_variant_tokens(
+                    state,
+                    quote! { #[frog(default)] #default(varint, #kind) },
+                )?;
+            } else {
+                file.push_enum_variant_tokens(state, quote! { #[frog(default)] #default(varint) })?;
+            }
+        }
+
+        Result::kind_string(&switch)
     }
 
     /// Handle [`ProtocolTypeArgs::TopBitSetTerminatedArray`]
     /// [`TopBitSetTerminatedArrayArgs`]
     #[must_use]
-    fn handle_bitset(
+    fn handle_bitset_array(
         state: State<'_, '_>,
         args: &TopBitSetTerminatedArrayArgs,
         file: &mut File,
@@ -261,5 +479,11 @@ impl PacketGenerator {
             "type" => "type_",
             other => other,
         }
+    }
+
+    /// Format a variant name to allow creating valid Rust [`Idents`](Ident).
+    #[must_use]
+    fn format_variant_name(variant_name: &str) -> String {
+        variant_name.split_once(':').map_or(variant_name, |(_, split)| split).replace(['.'], "_")
     }
 }

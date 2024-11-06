@@ -1,7 +1,8 @@
 use derive_more::derive::{From, Into};
 use proc_macro2::{Span, TokenStream};
 use syn::{
-    Attribute, Field, Fields, Generics, Ident, Item, ItemEnum, ItemStruct, Token, Type, Variant,
+    punctuated::Punctuated, token::Brace, Attribute, Field, Fields, Generics, Ident, Item,
+    ItemEnum, ItemStruct, Token, Type, Variant, Visibility,
 };
 
 use super::state::State;
@@ -82,15 +83,29 @@ impl File {
 }
 
 impl File {
+    /// Create a new [`ItemStruct`] with the given [`Ident`].
     pub fn create_struct(&mut self, ident: &Ident) {
         self.push_struct(ItemStruct {
             attrs: Vec::new(),
-            vis: syn::Visibility::Inherited,
+            vis: Visibility::Public(Token![pub](Span::call_site())),
             struct_token: Token![struct](Span::call_site()),
             ident: ident.clone(),
             generics: Generics::default(),
             fields: Fields::Unit,
             semi_token: Some(Token![;](Span::call_site())),
+        });
+    }
+
+    /// Create a new [`ItemEnum`] with the given [`Ident`].
+    pub fn create_enum(&mut self, ident: &Ident) {
+        self.push_enum(ItemEnum {
+            attrs: Vec::new(),
+            vis: Visibility::Public(Token![pub](Span::call_site())),
+            enum_token: Token![enum](Span::call_site()),
+            ident: ident.clone(),
+            generics: Generics::default(),
+            brace_token: Brace::default(),
+            variants: Punctuated::new(),
         });
     }
 }
@@ -234,6 +249,18 @@ impl File {
         tokens: TokenStream,
     ) -> anyhow::Result<()> {
         self.push_enum_variant(state, syn::parse_quote!(#tokens))
+    }
+
+    /// Push a [`Field`] into the [`ItemEnum`] by [`Ident`].
+    ///
+    /// # Note
+    /// Use the [`State`] to specify the [`Item`] to push the [`Field`] into.
+    pub fn push_enum_variant_str(
+        &mut self,
+        state: State<'_, '_>,
+        kind: &str,
+    ) -> anyhow::Result<()> {
+        self.push_enum_variant_tokens(state, syn::parse_str(kind)?)
     }
 }
 

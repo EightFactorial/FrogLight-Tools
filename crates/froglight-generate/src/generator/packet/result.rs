@@ -32,7 +32,7 @@ impl Result {
     /// # Note
     /// Prefer using [`Result::kind_str`] where possible.
     #[must_use]
-    pub fn kind_string(kind: impl ToString) -> Self { Self::kind_str(kind.to_string()) }
+    pub fn kind_string(kind: &impl ToString) -> Self { Self::kind_str(kind.to_string()) }
 }
 
 impl Result {
@@ -50,53 +50,67 @@ impl Result {
     }
 }
 
-#[expect(dead_code)]
 impl Result {
     /// Push an [`Attribute`] into the [`Result::Item`].
     ///
-    /// This does nothing if the variant is not [`Result::Item`].
+    /// This does nothing if the [`Result`] is not [`Result::Item`].
     pub fn push_attr(&mut self, attr: Attribute) {
         if let Self::Item { attrs, .. } = self {
             attrs.push(attr);
         }
     }
 
-    /// Chain the [`Result::Item`] with an [`Attribute`].
+    /// Push an [`Attribute`] into the [`Result::Item`].
     ///
-    /// This does nothing if the variant is not [`Result::Item`].
+    /// This does nothing if the [`Result`] is not [`Result::Item`].
+    ///
+    /// # Panics
+    /// This will panic if the [`TokenStream`] is not a valid [`Attribute`].
+    #[expect(dead_code)]
+    pub fn push_attr_tokens(&mut self, tokens: TokenStream) {
+        self.push_attr(syn::parse_quote!(#tokens));
+    }
+
+    /// Chain a [`Result::Item`] with an [`Attribute`].
+    ///
+    /// This does nothing if the [`Result`] is not [`Result::Item`].
     #[must_use]
     pub fn with_attr(mut self, attr: Attribute) -> Self {
         self.push_attr(attr);
         self
     }
 
+    /// Chain a [`Result::Item`] with an [`Attribute`].
+    ///
+    /// This does nothing if the [`Result`] is not [`Result::Item`].
+    ///
+    /// # Panics
+    /// This will panic if the [`TokenStream`] is not a valid [`Attribute`].
+    #[must_use]
+    pub fn with_attr_tokens(self, tokens: TokenStream) -> Self {
+        self.with_attr(syn::parse_quote!(#tokens))
+    }
+
     /// Push multiple [`Attribute`]s into the [`Result::Item`].
     ///
-    /// This does nothing if the variant is not [`Result::Item`].
+    /// This does nothing if the [`Result`] is not [`Result::Item`].
+    #[expect(dead_code)]
     pub fn extend_attrs(&mut self, attrs: impl IntoIterator<Item = Attribute>) {
         if let Self::Item { attrs: item_attrs, .. } = self {
             item_attrs.extend(attrs);
         }
     }
+}
 
-    /// Push an [`Attribute`] into the [`Result::Item`].
-    ///
-    /// # Panics
-    /// This will panic if the [`TokenStream`] is not a valid [`Attribute`].
-    pub fn push_attr_tokens(&mut self, tokens: TokenStream) {
-        if let Self::Item { attrs, .. } = self {
-            attrs.push(syn::parse_quote!(#tokens));
+impl PartialEq for Result {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Item { kind: l_kind, .. }, Self::Item { kind: r_kind, .. }) => {
+                l_kind.to_token_stream().to_string() == r_kind.to_token_stream().to_string()
+            }
+            (Self::Err(..), Self::Err(..)) => false,
+            _ => core::mem::discriminant(self) == core::mem::discriminant(other),
         }
-    }
-
-    /// Chain the [`Result::Item`] with an [`Attribute`].
-    ///
-    /// # Panics
-    /// This will panic if the [`TokenStream`] is not a valid [`Attribute`].
-    #[must_use]
-    pub fn with_attr_tokens(mut self, tokens: TokenStream) -> Self {
-        self.push_attr_tokens(tokens);
-        self
     }
 }
 
