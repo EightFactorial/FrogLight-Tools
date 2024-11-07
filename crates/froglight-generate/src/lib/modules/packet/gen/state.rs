@@ -3,32 +3,33 @@ use syn::Ident;
 
 /// A state machine for generating code.
 #[derive(Default, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct State<S: StateType> {
+pub(crate) struct State<S: StateType> {
     state: S,
 }
-pub trait StateType {}
+pub(crate) trait StateType {}
 
 impl State<Empty> {
     /// Create a new, empty [`State`].
     #[must_use]
-    pub const fn new() -> Self { Self { state: Empty } }
+    pub(crate) const fn new() -> Self { Self { state: Empty } }
 
     /// Create a new [`State`] with the given [`Item`](syn::Item).
     #[must_use]
     #[expect(clippy::unused_self)]
-    pub fn with_item<I: AsIdent>(self, item: I) -> State<Item> {
+    pub(crate) fn with_item<I: AsIdent>(self, item: I) -> State<Item> {
         State { state: Item { tree: vec![item.as_ident()] } }
     }
 }
 
+#[expect(dead_code)]
 impl State<Item> {
     /// Get the current [`Item`](syn::Item).
     #[must_use]
-    pub fn item(&self) -> &Ident { self.state.tree.last().expect("Guaranteed non-empty") }
+    pub(crate) fn item(&self) -> &Ident { self.state.tree.last().expect("Guaranteed non-empty") }
 
     /// Create a new [`State`] with the given [`Item`](syn::Item).
     #[must_use]
-    pub fn with_item<I: AsIdent>(&self, item: I) -> State<Item> {
+    pub(crate) fn with_item<I: AsIdent>(&self, item: I) -> State<Item> {
         let mut tree = self.state.tree.clone();
         tree.push(item.as_ident());
         State { state: Item { tree } }
@@ -36,7 +37,7 @@ impl State<Item> {
 
     /// Create a new [`State`] with the given target.
     #[must_use]
-    pub fn with_target<I: AsIdent>(&self, target: I) -> State<Target<'_>> {
+    pub(crate) fn with_target<I: AsIdent>(&self, target: I) -> State<Target<'_>> {
         State { state: Target { tree: &self.state.tree, target: target.as_ident() } }
     }
 }
@@ -44,11 +45,11 @@ impl State<Item> {
 impl State<Target<'_>> {
     /// Get the current [`Item`](syn::Item).
     #[must_use]
-    pub fn item(&self) -> &Ident { self.state.tree.last().expect("Guaranteed non-empty") }
+    pub(crate) fn item(&self) -> &Ident { self.state.tree.last().expect("Guaranteed non-empty") }
 
     /// Create a new [`State`] with the given [`Item`](syn::Item).
     #[must_use]
-    pub fn with_item<I: AsIdent>(&self, item: I) -> State<Item> {
+    pub(crate) fn with_item<I: AsIdent>(&self, item: I) -> State<Item> {
         let mut tree = self.state.tree.to_vec();
         tree.push(item.as_ident());
         State { state: Item { tree } }
@@ -57,33 +58,33 @@ impl State<Target<'_>> {
     /// Create a new [`State`],
     /// turning the current [`Target`] into an [`Item`](syn::Item).
     #[must_use]
-    pub fn create_item(&self) -> State<Item> {
+    pub(crate) fn create_item(&self) -> State<Item> {
         self.with_item(self.item().to_string() + "_" + self.target().to_string().as_str())
     }
 
     /// Get the current target.
     #[must_use]
-    pub fn target(&self) -> &Ident { &self.state.target }
+    pub(crate) fn target(&self) -> &Ident { &self.state.target }
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct Empty;
+pub(crate) struct Empty;
 impl StateType for Empty {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Item {
+pub(crate) struct Item {
     tree: Vec<Ident>,
 }
 impl StateType for Item {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Target<'a> {
+pub(crate) struct Target<'a> {
     tree: &'a [Ident],
     target: Ident,
 }
 impl StateType for Target<'_> {}
 
-pub trait AsIdent {
+pub(crate) trait AsIdent {
     fn as_ident(&self) -> Ident;
 }
 

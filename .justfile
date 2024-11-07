@@ -49,6 +49,13 @@ fmt:
 generate arg0="" arg1="" arg2="" arg3=""  arg4="" arg5="":
   cargo run --release --package froglight-generate -- --dir ../ --cache ../target/generate --config ../generator.toml {{arg0}} {{arg1}} {{arg2}} {{arg3}} {{arg4}} {{arg5}}
 
+# Run a specific example from the froglight code generator
+#
+# Uses the ../target directory as the cache,
+# as froglight-tools is a sub-repo under froglight
+example arg0="" arg1="" arg2="" arg3=""  arg4="" arg5="":
+  cargo run --release --example {{arg0}} -- --dir ../ --cache ../target/generate --config ../generator.toml {{arg1}} {{arg2}} {{arg3}} {{arg4}} {{arg5}}
+
 # Re-run `just` without the `tools` argument
 tools args="":
   @just {{args}}

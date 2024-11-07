@@ -9,7 +9,7 @@ use quote::{quote, ToTokens};
 use syn::LitInt;
 
 use super::{state::Target, File, Result, State};
-use crate::generator::PacketGenerator;
+use crate::modules::PacketGenerator;
 
 #[expect(unused_variables)]
 impl PacketGenerator {

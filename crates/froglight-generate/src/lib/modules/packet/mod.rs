@@ -1,36 +1,18 @@
-use froglight_parse::file::protocol::{ProtocolPackets, ProtocolStatePackets};
-
-use crate::{cli::CliArgs, datamap::DataMap};
+use froglight_parse::file::protocol::ProtocolStatePackets;
 
 mod gen;
 use gen::{File, Result, State};
 
+/// A packet generator.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct PacketGenerator;
 
 impl PacketGenerator {
-    /// Generate packets from the given [`DataMap`].
-    pub async fn generate(datamap: &DataMap, _args: &CliArgs) -> anyhow::Result<()> {
-        let dataset = datamap.version_data.iter().next().unwrap().1;
-        Self::generate_packets(&dataset.proto.packets).await
-    }
+    /// Generate the packets from the given [`ProtocolStatePackets`].
+    pub fn generate_state_file(packets: &ProtocolStatePackets) -> (syn::File, bool) {
+        let mut error = false;
 
-    async fn generate_packets(packets: &ProtocolPackets) -> anyhow::Result<()> {
-        for (state_name, state_packets) in packets.iter() {
-            Self::generate_state_packets(state_name, "toClient", &state_packets.clientbound)
-                .await?;
-            Self::generate_state_packets(state_name, "toServer", &state_packets.serverbound)
-                .await?;
-        }
-        Ok(())
-    }
-
-    async fn generate_state_packets(
-        proto_state: &str,
-        proto_direction: &str,
-        packets: &ProtocolStatePackets,
-    ) -> anyhow::Result<()> {
-        // Create a new file
+        // Create a new file and state
         let mut file = File::new();
         let state = State::new().with_item("_");
 
@@ -38,30 +20,19 @@ impl PacketGenerator {
         let mut collection: Vec<_> = packets.iter().collect();
         collection.sort_by_key(|(key, _)| key.as_str());
 
-        // Generate types for each packet
+        // Iterate over the packets, generating the types
         for (packet_name, packet_type) in
             collection.into_iter().filter(|(name, _)| name.starts_with("packet_"))
         {
             let packet_state = state.with_target(packet_name);
             if let Result::Err(err) = Self::generate_type(&packet_state, packet_type, &mut file) {
                 tracing::error!("Error generating type for \"{packet_name}\": {err}");
+                error = true;
             }
         }
 
-        // If the file is empty, return early
-        let file = file.into_inner();
-        if file.items.is_empty() {
-            return Ok(());
-        }
-
-        // Write the file to disk
-        let path = std::path::PathBuf::from(file!());
-        let path =
-            path.parent().unwrap().join(format!("packets.{proto_state}.{proto_direction}.rs"));
-
-        let unparsed = prettyplease::unparse(&file);
-        tokio::fs::write(path, unparsed).await?;
-        Ok(())
+        // Return the generated file, and if there was an error
+        (file.into_inner(), error)
     }
 }
 

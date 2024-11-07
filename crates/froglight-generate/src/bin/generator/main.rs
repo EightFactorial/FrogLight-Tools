@@ -1,18 +1,9 @@
 //! TODO
-#![allow(unreachable_pub)]
-#![feature(try_trait_v2)]
 
-mod cli;
-use cli::CliArgs;
+use froglight_generate::{CliArgs, DataMap, PacketGenerator};
 
-mod datamap;
-use datamap::DataMap;
-use generator::PacketGenerator;
-
-mod config;
-
-mod generator;
-// use generator::*;
+mod modules;
+use modules::ModuleGenerator;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

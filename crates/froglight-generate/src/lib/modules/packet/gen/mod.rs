@@ -3,10 +3,10 @@ use froglight_parse::file::protocol::{ProtocolType, ProtocolTypeArgs};
 mod handle;
 
 mod file;
-pub use file::File;
+pub(super) use file::File;
 
 mod result;
-pub use result::Result;
+pub(super) use result::Result;
 
 mod state;
 pub(super) use state::State;

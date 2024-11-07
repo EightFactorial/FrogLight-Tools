@@ -6,6 +6,7 @@ use tracing_log::AsTrace;
 
 use crate::config::Config;
 
+/// The command line arguments.
 #[derive(Debug, Parser)]
 pub struct CliArgs {
     /// The path to the configuration file
@@ -22,6 +23,7 @@ pub struct CliArgs {
     #[clap(short, long)]
     pub redownload: bool,
 
+    /// The verbosity level
     #[clap(flatten)]
     pub verbosity: Verbosity<WarnLevel>,
 }
@@ -31,6 +33,7 @@ impl CliArgs {
     ///
     /// Also initializes logging.
     #[inline]
+    #[expect(clippy::missing_errors_doc)]
     pub async fn parse() -> anyhow::Result<(Self, Config)> {
         // Parse the command line arguments
         let mut args = <Self as clap::Parser>::parse();

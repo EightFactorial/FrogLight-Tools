@@ -11,7 +11,7 @@ use super::{
 };
 
 #[derive(From, Into)]
-pub struct File(syn::File);
+pub(crate) struct File(syn::File);
 
 impl Default for File {
     fn default() -> Self { Self(syn::File { shebang: None, attrs: Vec::new(), items: Vec::new() }) }
@@ -19,15 +19,16 @@ impl Default for File {
 
 impl File {
     /// Create a new, empty [`File`].
-    pub fn new() -> Self { Self::default() }
+    pub(crate) fn new() -> Self { Self::default() }
 
     /// Get the inner [`syn::File`].
-    pub fn into_inner(self) -> syn::File { self.0 }
+    pub(crate) fn into_inner(self) -> syn::File { self.0 }
 }
 
+#[expect(dead_code)]
 impl File {
     /// Get an [`Item`] from the [`File`].
-    pub fn get_item(&self, state: &State<StateItem>) -> Option<&Item> {
+    pub(crate) fn get_item(&self, state: &State<StateItem>) -> Option<&Item> {
         self.get_item_internal(state.item())
     }
 
@@ -40,7 +41,7 @@ impl File {
     }
 
     /// Get a mutable [`Item`] from the [`File`].
-    pub fn get_item_mut(&mut self, state: &State<StateItem>) -> Option<&mut Item> {
+    pub(crate) fn get_item_mut(&mut self, state: &State<StateItem>) -> Option<&mut Item> {
         self.get_item_mut_internal(state.item())
     }
 
@@ -53,7 +54,7 @@ impl File {
     }
 
     /// Get a [`ItemStruct`] from the [`File`].
-    pub fn get_struct(&self, state: &State<StateItem>) -> Option<&ItemStruct> {
+    pub(crate) fn get_struct(&self, state: &State<StateItem>) -> Option<&ItemStruct> {
         self.get_item(state).and_then(|item| match item {
             Item::Struct(item) => Some(item),
             _ => None,
@@ -61,7 +62,7 @@ impl File {
     }
 
     /// Get a mutable [`ItemStruct`] from the [`File`].
-    pub fn get_struct_mut(&mut self, state: &State<StateItem>) -> Option<&mut ItemStruct> {
+    pub(crate) fn get_struct_mut(&mut self, state: &State<StateItem>) -> Option<&mut ItemStruct> {
         self.get_item_mut(state).and_then(|item| match item {
             Item::Struct(item) => Some(item),
             _ => None,
@@ -69,7 +70,7 @@ impl File {
     }
 
     /// Get a [`ItemEnum`] from the [`File`].
-    pub fn get_enum(&self, state: &State<StateItem>) -> Option<&ItemEnum> {
+    pub(crate) fn get_enum(&self, state: &State<StateItem>) -> Option<&ItemEnum> {
         self.get_item(state).and_then(|item| match item {
             Item::Enum(item) => Some(item),
             _ => None,
@@ -77,7 +78,7 @@ impl File {
     }
 
     /// Get a mutable [`ItemEnum`] from the [`File`].
-    pub fn get_enum_mut(&mut self, state: &State<StateItem>) -> Option<&mut ItemEnum> {
+    pub(crate) fn get_enum_mut(&mut self, state: &State<StateItem>) -> Option<&mut ItemEnum> {
         self.get_item_mut(state).and_then(|item| match item {
             Item::Enum(item) => Some(item),
             _ => None,
@@ -87,7 +88,7 @@ impl File {
 
 impl File {
     /// Create a new [`ItemStruct`] in the [`File`].
-    pub fn create_struct(&mut self, state: &State<StateItem>) {
+    pub(crate) fn create_struct(&mut self, state: &State<StateItem>) {
         self.create_struct_internal(state.item());
     }
 
@@ -104,7 +105,7 @@ impl File {
     }
 
     /// Push an [`Attribute`] into an [`ItemStruct`].
-    pub fn push_struct_attr(
+    pub(crate) fn push_struct_attr(
         &mut self,
         state: &State<StateItem>,
         attr: Attribute,
@@ -121,7 +122,7 @@ impl File {
     }
 
     /// Push an [`Attribute`] into an [`ItemStruct`].
-    pub fn push_struct_attr_tokens(
+    pub(crate) fn push_struct_attr_tokens(
         &mut self,
         state: &State<StateItem>,
         tokens: TokenStream,
@@ -130,9 +131,10 @@ impl File {
     }
 }
 
+#[expect(dead_code)]
 impl File {
     /// Get a [`Field`] from an [`ItemStruct`].
-    pub fn get_struct_field(&self, state: &State<StateTarget>) -> Option<&Field> {
+    pub(crate) fn get_struct_field(&self, state: &State<StateTarget>) -> Option<&Field> {
         self.get_item_internal(state.item()).and_then(|item| match item {
             Item::Struct(item) => item
                 .fields
@@ -143,7 +145,10 @@ impl File {
     }
 
     /// Get a mutable [`Field`] from an [`ItemStruct`].
-    pub fn get_struct_field_mut(&mut self, state: &State<StateTarget>) -> Option<&mut Field> {
+    pub(crate) fn get_struct_field_mut(
+        &mut self,
+        state: &State<StateTarget>,
+    ) -> Option<&mut Field> {
         self.get_item_mut_internal(state.item()).and_then(|item| match item {
             Item::Struct(item) => item
                 .fields
@@ -157,7 +162,7 @@ impl File {
     ///
     /// Will convert the [`ItemStruct`] `fields`
     /// into a [`Fields::Named`] if it is a [`Fields::Unit`].
-    pub fn push_struct_field(
+    pub(crate) fn push_struct_field(
         &mut self,
         state: &State<StateTarget>,
         kind: Type,
@@ -189,7 +194,7 @@ impl File {
     }
 
     /// Push a [`Field`] into an [`ItemStruct`].
-    pub fn push_struct_field_str(
+    pub(crate) fn push_struct_field_str(
         &mut self,
         state: &State<StateTarget>,
         kind: impl AsRef<str>,
@@ -207,7 +212,7 @@ impl File {
     }
 
     /// Push an [`Attribute`] into a [`Field`] in an [`ItemStruct`].
-    pub fn push_struct_field_attr(
+    pub(crate) fn push_struct_field_attr(
         &mut self,
         state: &State<StateTarget>,
         attr: Attribute,
@@ -225,7 +230,7 @@ impl File {
     }
 
     /// Push an [`Attribute`] into a [`Field`] in an [`ItemStruct`].
-    pub fn push_struct_field_attr_tokens(
+    pub(crate) fn push_struct_field_attr_tokens(
         &mut self,
         state: &State<StateTarget>,
         tokens: TokenStream,
@@ -234,7 +239,7 @@ impl File {
     }
 
     /// Push multiple [`Attribute`]s into a [`Field`] in an [`ItemStruct`].
-    pub fn push_struct_field_attrs(
+    pub(crate) fn push_struct_field_attrs(
         &mut self,
         state: &State<StateTarget>,
         attrs: impl IntoIterator<Item = Attribute>,
@@ -254,7 +259,7 @@ impl File {
 
 impl File {
     /// Create a new [`ItemEnum`] in the [`File`].
-    pub fn create_enum(&mut self, state: &State<StateItem>) {
+    pub(crate) fn create_enum(&mut self, state: &State<StateItem>) {
         self.create_enum_internal(state.item());
     }
 
@@ -271,9 +276,10 @@ impl File {
     }
 }
 
+#[expect(dead_code)]
 impl File {
     /// Get a [`Variant`] from an [`ItemEnum`].
-    pub fn get_enum_variant(&self, state: &State<StateTarget>) -> Option<&Variant> {
+    pub(crate) fn get_enum_variant(&self, state: &State<StateTarget>) -> Option<&Variant> {
         self.get_item_internal(state.item()).and_then(|item| match item {
             Item::Enum(item) => {
                 item.variants.iter().find(|variant| &variant.ident == state.target())
@@ -283,7 +289,10 @@ impl File {
     }
 
     /// Get a mutable [`Variant`] from an [`ItemEnum`].
-    pub fn get_enum_variant_mut(&mut self, state: &State<StateTarget>) -> Option<&mut Variant> {
+    pub(crate) fn get_enum_variant_mut(
+        &mut self,
+        state: &State<StateTarget>,
+    ) -> Option<&mut Variant> {
         self.get_item_mut_internal(state.item()).and_then(|item| match item {
             Item::Enum(item) => {
                 item.variants.iter_mut().find(|variant| &variant.ident == state.target())
@@ -293,7 +302,7 @@ impl File {
     }
 
     /// Push a [`Variant`] into an [`ItemEnum`].
-    pub fn push_enum_variant(
+    pub(crate) fn push_enum_variant(
         &mut self,
         state: &State<StateTarget>,
         discriminant: Option<TokenStream>,
@@ -318,7 +327,7 @@ impl File {
     }
 
     /// Get a [`Field`] from a [`Variant`] in an [`ItemEnum`].
-    pub fn get_enum_variant_field(&self, state: &State<StateTarget>) -> Option<&Field> {
+    pub(crate) fn get_enum_variant_field(&self, state: &State<StateTarget>) -> Option<&Field> {
         self.get_enum_variant(state).and_then(|variant| {
             variant
                 .fields
@@ -328,7 +337,10 @@ impl File {
     }
 
     /// Get a mutable [`Field`] from a [`Variant`] in an [`ItemEnum`].
-    pub fn get_enum_variant_field_mut(&mut self, state: &State<StateTarget>) -> Option<&mut Field> {
+    pub(crate) fn get_enum_variant_field_mut(
+        &mut self,
+        state: &State<StateTarget>,
+    ) -> Option<&mut Field> {
         self.get_enum_variant_mut(state).and_then(|variant| {
             variant
                 .fields
@@ -338,7 +350,7 @@ impl File {
     }
 
     /// Push a [`Field`] into a [`Variant`] in an [`ItemEnum`].
-    pub fn push_enum_variant_field(
+    pub(crate) fn push_enum_variant_field(
         &mut self,
         state: &State<StateTarget>,
         field: TokenStream,
