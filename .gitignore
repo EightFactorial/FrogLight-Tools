@@ -15,4 +15,4 @@
 /.vscode
 
 # Example output files
-**/examples/*.output
+**/examples/*/generated
