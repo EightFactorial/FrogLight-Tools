@@ -1,4 +1,4 @@
-use froglight_parse::file::protocol::ProtocolStatePackets;
+use froglight_parse::file::protocol::{ProtocolStatePackets, ProtocolTypeMap};
 
 mod gen;
 use gen::{File, Result, State};
@@ -8,8 +8,9 @@ use gen::{File, Result, State};
 pub struct PacketGenerator;
 
 impl PacketGenerator {
-    /// Generate the packets from the given [`ProtocolStatePackets`].
-    pub fn generate_state_file(packets: &ProtocolStatePackets) -> (syn::File, bool) {
+    /// Generate packets from the given [`ProtocolStatePackets`].
+    #[must_use]
+    pub fn generate_packets(packets: &ProtocolStatePackets) -> (syn::File, bool) {
         let mut error = false;
 
         // Create a new file and state
@@ -26,7 +27,33 @@ impl PacketGenerator {
         {
             let packet_state = state.with_target(packet_name);
             if let Result::Err(err) = Self::generate_type(&packet_state, packet_type, &mut file) {
-                tracing::error!("Error generating type for \"{packet_name}\": {err}");
+                tracing::error!("Error generating packet \"{packet_name}\": {err}");
+                error = true;
+            }
+        }
+
+        // Return the generated file, and if there was an error
+        (file.into_inner(), error)
+    }
+
+    /// Generate types from the given [`ProtocolTypeMap`].
+    #[must_use]
+    pub fn generate_types(types: &ProtocolTypeMap) -> (syn::File, bool) {
+        let mut error = false;
+
+        // Create a new file and state
+        let mut file = File::new();
+        let state = State::new().with_item("_");
+
+        // Sort the types by name
+        let mut collection: Vec<_> = types.iter().collect();
+        collection.sort_by_key(|(key, _)| key.as_str());
+
+        // Iterate over the types, generating structs and enums
+        for (type_name, protocol_type) in collection {
+            let packet_state = state.with_target(type_name);
+            if let Result::Err(err) = Self::generate_type(&packet_state, protocol_type, &mut file) {
+                tracing::error!("Error generating type \"{type_name}\": {err}");
                 error = true;
             }
         }

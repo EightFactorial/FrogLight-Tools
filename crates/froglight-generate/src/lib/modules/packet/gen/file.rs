@@ -131,7 +131,6 @@ impl File {
     }
 }
 
-#[expect(dead_code)]
 impl File {
     /// Get a [`Field`] from an [`ItemStruct`].
     pub(crate) fn get_struct_field(&self, state: &State<StateTarget>) -> Option<&Field> {
@@ -140,6 +139,14 @@ impl File {
                 .fields
                 .iter()
                 .find(|field| field.ident.as_ref().is_some_and(|field| field == state.target())),
+            _ => None,
+        })
+    }
+
+    /// Get the [`Type`]'s [`Ident`] from a [`Field`] in an [`ItemStruct`].
+    pub(crate) fn get_struct_field_type(&self, state: &State<StateTarget>) -> Option<&Ident> {
+        self.get_struct_field(state).and_then(|field| match &field.ty {
+            Type::Path(path) => path.path.segments.last().map(|segment| &segment.ident),
             _ => None,
         })
     }
@@ -327,12 +334,27 @@ impl File {
     }
 
     /// Get a [`Field`] from a [`Variant`] in an [`ItemEnum`].
-    pub(crate) fn get_enum_variant_field(&self, state: &State<StateTarget>) -> Option<&Field> {
+    pub(crate) fn get_enum_variant_field(
+        &self,
+        state: &State<StateTarget>,
+        ident: &Ident,
+    ) -> Option<&Field> {
         self.get_enum_variant(state).and_then(|variant| {
-            variant
-                .fields
-                .iter()
-                .find(|field| field.ident.as_ref().is_some_and(|field| field == state.target()))
+            variant.fields.iter().find(|field| {
+                if let Some(field_ident) = field.ident.as_ref() {
+                    // First, check if `ident` matches a field name
+                    field_ident == ident
+                } else if let Type::Path(field_type_path) = &field.ty {
+                    // If not, check if `ident` matches a field type
+                    if let Some(last) = field_type_path.path.segments.last() {
+                        last.ident == *ident
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            })
         })
     }
 
@@ -340,23 +362,33 @@ impl File {
     pub(crate) fn get_enum_variant_field_mut(
         &mut self,
         state: &State<StateTarget>,
+        ident: &Ident,
     ) -> Option<&mut Field> {
         self.get_enum_variant_mut(state).and_then(|variant| {
-            variant
-                .fields
-                .iter_mut()
-                .find(|field| field.ident.as_ref().is_some_and(|field| field == state.target()))
+            variant.fields.iter_mut().find(|field| {
+                if let Some(field_ident) = field.ident.as_ref() {
+                    // First, check if `ident` matches a field name
+                    field_ident == ident
+                } else if let Type::Path(field_type_path) = &field.ty {
+                    // If not, check if `ident` matches a field type
+                    if let Some(last) = field_type_path.path.segments.last() {
+                        last.ident == *ident
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            })
         })
     }
 
-    /// Push a [`Field`] into a [`Variant`] in an [`ItemEnum`].
     pub(crate) fn push_enum_variant_field(
         &mut self,
         state: &State<StateTarget>,
-        field: TokenStream,
+        field: Field,
     ) -> anyhow::Result<()> {
         if let Some(variant) = self.get_enum_variant_mut(state) {
-            let field: Field = syn::parse_quote!(#field);
             match &mut variant.fields {
                 Fields::Named(fields) => {
                     fields.named.push(field);
@@ -380,5 +412,16 @@ impl File {
                 state.target()
             );
         }
+    }
+
+    /// Push a [`Field`] into a [`Variant`] in an [`ItemEnum`].
+    pub(crate) fn push_enum_variant_field_type(
+        &mut self,
+        state: &State<StateTarget>,
+        kind: Type,
+        attrs: impl IntoIterator<Item = Attribute>,
+    ) -> anyhow::Result<()> {
+        let attrs = attrs.into_iter();
+        self.push_enum_variant_field(state, syn::parse_quote!(#(#attrs)* #kind))
     }
 }

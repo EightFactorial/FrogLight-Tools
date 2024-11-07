@@ -47,6 +47,13 @@ impl State<Target<'_>> {
     #[must_use]
     pub(crate) fn item(&self) -> &Ident { self.state.tree.last().expect("Guaranteed non-empty") }
 
+    /// Create a new [`State`],
+    /// turning the current [`Target`] into an [`Item`](syn::Item).
+    #[must_use]
+    pub(crate) fn create_item(&self) -> State<Item> {
+        self.with_item(self.item().to_string() + "_" + self.target().to_string().as_str())
+    }
+
     /// Create a new [`State`] with the given [`Item`](syn::Item).
     #[must_use]
     pub(crate) fn with_item<I: AsIdent>(&self, item: I) -> State<Item> {
@@ -55,16 +62,15 @@ impl State<Target<'_>> {
         State { state: Item { tree } }
     }
 
-    /// Create a new [`State`],
-    /// turning the current [`Target`] into an [`Item`](syn::Item).
-    #[must_use]
-    pub(crate) fn create_item(&self) -> State<Item> {
-        self.with_item(self.item().to_string() + "_" + self.target().to_string().as_str())
-    }
-
     /// Get the current target.
     #[must_use]
     pub(crate) fn target(&self) -> &Ident { &self.state.target }
+
+    /// Create a new [`State`] with the given target.
+    #[must_use]
+    pub(crate) fn with_target<I: AsIdent>(&self, target: I) -> State<Target<'_>> {
+        State { state: Target { tree: self.state.tree, target: target.as_ident() } }
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]

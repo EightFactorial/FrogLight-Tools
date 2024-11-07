@@ -88,11 +88,6 @@ impl Result {
     /// Map a [`Result::Item`] with the given function.
     ///
     /// Does nothing if the result is not [`Result::Item`].
-    ///
-    /// # Example
-    /// ```rust
-    /// use froglight_generate::generator::packet::gen::Result;
-    /// ```
     #[must_use]
     pub(crate) fn map_item(self, fun: impl FnOnce(String) -> String) -> Self {
         match self {
