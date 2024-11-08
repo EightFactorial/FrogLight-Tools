@@ -123,6 +123,6 @@ impl FromResidual<anyhow::Error> for Result {
 }
 impl FromResidual<std::result::Result<Infallible, anyhow::Error>> for Result {
     fn from_residual(res: std::result::Result<Infallible, anyhow::Error>) -> Self {
-        Self::Err(res.unwrap_err())
+        Result::Err(res.unwrap_err())
     }
 }

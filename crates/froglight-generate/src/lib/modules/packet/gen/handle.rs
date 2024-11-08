@@ -51,10 +51,21 @@ impl PacketGenerator {
         args: &ArrayWithLengthOffsetArgs,
         file: &mut File,
     ) -> Result {
-        // Process the array and label it with the offset
+        // Get the count field and kind
+        let (count_field, kind) = match &args.array {
+            ArrayArgs::CountField { count_field, kind } => (count_field, kind),
+            ArrayArgs::Count { count_type, kind } => (count_type, kind),
+        };
+        assert_eq!(
+            count_field, "type",
+            "ArrayWithLengthOffsetArgs: Invalid count field \"{count_field}\"",
+        );
+
+        // Generate the type and label it with the length offset
         let offset = LitInt::new(&args.length_offset.to_string(), Span::call_site());
-        Self::handle_array(state, &args.array, file)
+        Self::generate_type(state, kind, file)?
             .with_attr_tokens(quote! { #[frog(offset = #offset)] })
+            .map_item(|ty| format!("Vec<{ty}>"))
     }
 
     /// Handle [`ProtocolTypeArgs::Bitfield`] [`BitfieldArg`]
@@ -230,11 +241,12 @@ impl PacketGenerator {
     ) -> Result {
         let compared_field = Self::format_field_name(&args.compare_to);
         if compared_field.contains('/') {
-            return Result::Err(anyhow::anyhow!(
+            tracing::warn!(
                 "SwitchArgs: \"{}.{}\" references a nested field \"{compared_field}\"",
                 state.item(),
                 state.target()
-            ));
+            );
+            return Result::unsupported();
         }
 
         let compared_state = state.with_target(compared_field);
@@ -254,7 +266,7 @@ impl PacketGenerator {
             .with_attr_tokens(quote! { #[frog(match_on = #compared_field)] })
         } else {
             Result::Err(anyhow::anyhow!(
-                "SwitchArgs: Field \"{}.{}\" references an unknown field \"{}.{}\"",
+                "SwitchArgs: \"{}.{}\" references an unknown field \"{}.{}\"",
                 state.item(),
                 state.target(),
                 compared_state.item(),
@@ -269,6 +281,7 @@ impl PacketGenerator {
         // Condense this into an optional field
         if args.fields.len() == 1
             && matches!(args.fields.keys().next().unwrap().as_str(), "true" | "1" | "0x1")
+            && args.default.is_none()
         {
             return Self::handle_option(state, args.fields.values().next().unwrap(), file);
         }
@@ -296,6 +309,23 @@ impl PacketGenerator {
             file.push_enum_variant(&variant_state, Some(discriminant))?;
             if let Result::Item { kind, attrs } = Self::generate_type(&variant_state, value, file)?
             {
+                file.push_enum_variant_field_type(&variant_state, kind, attrs)?;
+            }
+        }
+
+        // Push the default variant, if any
+        if let Some(default) = &args.default {
+            let variant_state = state.with_target("default");
+            file.push_enum_variant(&variant_state, None)?;
+
+            if let Result::Item { kind, attrs } =
+                Self::generate_type(&variant_state, default, file)?
+            {
+                file.push_enum_variant_field_type(
+                    &variant_state,
+                    syn::parse_str("varint").unwrap(),
+                    Vec::new(),
+                )?;
                 file.push_enum_variant_field_type(&variant_state, kind, attrs)?;
             }
         }
@@ -329,6 +359,23 @@ impl PacketGenerator {
             }
         }
 
+        // Push the default variant, if any
+        if let Some(default) = &args.default {
+            let variant_state = state.with_target("default");
+            file.push_enum_variant(&variant_state, None)?;
+
+            if let Result::Item { kind, attrs } =
+                Self::generate_type(&variant_state, default, file)?
+            {
+                file.push_enum_variant_field_type(
+                    &variant_state,
+                    syn::parse_str("varint").unwrap(),
+                    Vec::new(),
+                )?;
+                file.push_enum_variant_field_type(&variant_state, kind, attrs)?;
+            }
+        }
+
         // Return the generated enum
         Result::item_from_state(state)
     }
@@ -353,7 +400,7 @@ impl PacketGenerator {
                 .get_enum_variant(&referenced_state.with_target(Self::format_variant_name(key)))
             else {
                 tracing::warn!(
-                    "SwitchArgs: Field \"{}.{}\" references an unknown enum variant \"{}.{}\"",
+                    "SwitchArgs: \"{}.{}\" references an unknown enum variant \"{}.{}\"",
                     state.item(),
                     state.target(),
                     variant_state.item(),
@@ -389,6 +436,23 @@ impl PacketGenerator {
             });
 
             item_enum.variants.extend(variants);
+        }
+
+        // Push the default variant, if any
+        if let Some(default) = &args.default {
+            let variant_state = enum_state.with_target("default");
+            file.push_enum_variant(&variant_state, None)?;
+
+            if let Result::Item { kind, attrs } =
+                Self::generate_type(&variant_state, default, file)?
+            {
+                file.push_enum_variant_field_type(
+                    &variant_state,
+                    syn::parse_str("varint").unwrap(),
+                    Vec::new(),
+                )?;
+                file.push_enum_variant_field_type(&variant_state, kind, attrs)?;
+            }
         }
 
         // Return the generated enum
