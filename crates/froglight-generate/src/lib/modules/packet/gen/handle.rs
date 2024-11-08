@@ -250,7 +250,7 @@ impl PacketGenerator {
         }
 
         let compared_state = state.with_target(compared_field);
-        let compared_field = Ident::new(compared_field, Span::call_site());
+        let compared_expr: Expr = syn::parse_str(compared_field).unwrap();
 
         if let Some(compared_type) = file.get_struct_field_type(&compared_state) {
             match compared_type.to_string().as_str() {
@@ -263,7 +263,7 @@ impl PacketGenerator {
                 }
                 _ => Result::unsupported(),
             }
-            .with_attr_tokens(quote! { #[frog(match_on = #compared_field)] })
+            .with_attr_tokens(quote! { #[frog(match_on = #compared_expr)] })
         } else {
             Result::Err(anyhow::anyhow!(
                 "SwitchArgs: \"{}.{}\" references an unknown field \"{}.{}\"",
@@ -316,16 +316,17 @@ impl PacketGenerator {
         // Push the default variant, if any
         if let Some(default) = &args.default {
             let variant_state = state.with_target("default");
+
             file.push_enum_variant(&variant_state, None)?;
+            file.push_enum_variant_field_type(
+                &variant_state,
+                syn::parse_str("varint").unwrap(),
+                Vec::new(),
+            )?;
 
             if let Result::Item { kind, attrs } =
                 Self::generate_type(&variant_state, default, file)?
             {
-                file.push_enum_variant_field_type(
-                    &variant_state,
-                    syn::parse_str("varint").unwrap(),
-                    Vec::new(),
-                )?;
                 file.push_enum_variant_field_type(&variant_state, kind, attrs)?;
             }
         }
@@ -338,8 +339,8 @@ impl PacketGenerator {
     /// when the compared field is an integer
     fn handle_switch_integer(state: &State<Target>, args: &SwitchArgs, file: &mut File) -> Result {
         // Create a new enum
-        let state = state.create_item();
-        file.create_enum(&state);
+        let integer_state = state.create_item();
+        file.create_enum(&integer_state);
 
         // Collect and sort the variants
         let mut collection: Vec<_> = args.fields.iter().collect();
@@ -348,7 +349,7 @@ impl PacketGenerator {
         // Iterate over the variants
         for (key, value) in &collection {
             // Create a new state and discriminant
-            let variant_state = state.with_target(format!("variant_{key}"));
+            let variant_state = integer_state.with_target(format!("variant_{key}"));
             let discriminant = LitInt::new(key, Span::call_site()).into_token_stream();
 
             // Push the variant, field, and attributes
@@ -361,23 +362,24 @@ impl PacketGenerator {
 
         // Push the default variant, if any
         if let Some(default) = &args.default {
-            let variant_state = state.with_target("default");
+            let variant_state = integer_state.with_target("default");
+
             file.push_enum_variant(&variant_state, None)?;
+            file.push_enum_variant_field_type(
+                &variant_state,
+                syn::parse_str("varint").unwrap(),
+                Vec::new(),
+            )?;
 
             if let Result::Item { kind, attrs } =
                 Self::generate_type(&variant_state, default, file)?
             {
-                file.push_enum_variant_field_type(
-                    &variant_state,
-                    syn::parse_str("varint").unwrap(),
-                    Vec::new(),
-                )?;
                 file.push_enum_variant_field_type(&variant_state, kind, attrs)?;
             }
         }
 
         // Return the generated enum
-        Result::item_from_state(state)
+        Result::item_from_state(integer_state)
     }
 
     /// Handle [`ProtocolTypeArgs::Switch`]
@@ -441,16 +443,17 @@ impl PacketGenerator {
         // Push the default variant, if any
         if let Some(default) = &args.default {
             let variant_state = enum_state.with_target("default");
+
             file.push_enum_variant(&variant_state, None)?;
+            file.push_enum_variant_field_type(
+                &variant_state,
+                syn::parse_str("varint").unwrap(),
+                Vec::new(),
+            )?;
 
             if let Result::Item { kind, attrs } =
                 Self::generate_type(&variant_state, default, file)?
             {
-                file.push_enum_variant_field_type(
-                    &variant_state,
-                    syn::parse_str("varint").unwrap(),
-                    Vec::new(),
-                )?;
                 file.push_enum_variant_field_type(&variant_state, kind, attrs)?;
             }
         }
@@ -467,6 +470,6 @@ impl PacketGenerator {
         args: &TopBitSetTerminatedArrayArgs,
         file: &mut File,
     ) -> Result {
-        Self::generate_type(state, &args.kind, file).map_item(|ty| format!("BitsetVec<{ty}>"))
+        Self::generate_type(state, &args.kind, file).map_item(|ty| format!("BitVec<{ty}>"))
     }
 }
