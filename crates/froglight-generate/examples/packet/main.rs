@@ -128,24 +128,20 @@ fn path_supported(path: &TypePath, file: &File) -> bool {
         } else {
             match &segment.arguments {
                 PathArguments::None => true,
-                PathArguments::AngleBracketed(angle_bracketed_generic_arguments) => {
-                    angle_bracketed_generic_arguments.args.iter().all(|arg| {
-                        if let GenericArgument::Type(Type::Path(type_path)) = arg {
-                            path_supported(type_path, file)
-                        } else {
-                            true
-                        }
-                    })
-                }
-                PathArguments::Parenthesized(parenthesized_generic_arguments) => {
-                    parenthesized_generic_arguments.inputs.iter().all(|arg| {
-                        if let Type::Path(type_path) = arg {
-                            path_supported(type_path, file)
-                        } else {
-                            true
-                        }
-                    })
-                }
+                PathArguments::AngleBracketed(args) => args.args.iter().all(|arg| {
+                    if let GenericArgument::Type(Type::Path(type_path)) = arg {
+                        path_supported(type_path, file)
+                    } else {
+                        true
+                    }
+                }),
+                PathArguments::Parenthesized(args) => args.inputs.iter().all(|arg| {
+                    if let Type::Path(type_path) = arg {
+                        path_supported(type_path, file)
+                    } else {
+                        true
+                    }
+                }),
             }
         }
     })
