@@ -75,10 +75,10 @@ impl PacketGenerator {
         args: &[BitfieldArg],
         file: &mut File,
     ) -> Result {
-        // Create a new struct and derive `FrogBitfield`
+        // Create a new struct and add the `bitfield` attribute
         let state = state.create_item();
         file.create_struct(&state);
-        file.push_struct_attr_tokens(&state, quote! { #[derive(FrogBitfield)] })?;
+        file.push_struct_attr_tokens(&state, quote! { #[frog(bitfield)] })?;
 
         // Iterate over the fields
         for arg in args {
