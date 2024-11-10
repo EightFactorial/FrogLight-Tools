@@ -16,7 +16,7 @@ proptest = "1.5"
 
 [dependencies]
 anyhow = { workspace = true }
-chrono = { version = "0.4.38", default-features = false, features = [
+chrono = { version = "0.4", default-features = false, features = [
     "serde",
     "std",
 ] }

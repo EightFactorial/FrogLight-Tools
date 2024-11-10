@@ -37,12 +37,12 @@ readme = "README.md"
 
 [workspace.dependencies]
 anyhow = "1.0"
-compact_str = "0.8.0"
-convert_case = "0.6.0"
+compact_str = "0.8"
+convert_case = "0.6"
 derive_more = { version = "1.0.0", features = ["full"] }
-hashbrown = "0.15.0"
-itertools = "0.13.0"
+hashbrown = "0.15"
+itertools = "0.13"
 reqwest = "0.12"
 serde = "1.0"
-tokio = "1.40"
+tokio = "1.41"
 tracing = "0.1"
