@@ -1,4 +1,7 @@
-use std::path::{Path, PathBuf};
+use std::{
+    cmp::Ordering,
+    path::{Path, PathBuf},
+};
 
 use reqwest::Client;
 use tokio::process::Command;
@@ -25,6 +28,20 @@ impl FileTrait for super::GeneratorData {
         redownload: bool,
         client: &Client,
     ) -> anyhow::Result<Self> {
+        // Emit a warning if the version is below `1.21.0`
+        match version.compare_relative(&Version::new_release(1, 21, 0)) {
+            Some(Ordering::Less) => {
+                tracing::warn!("Version v{version} is before v1.21.0, this may not work!");
+            }
+            None => {
+                tracing::warn!(
+                    "Version \"{version}\" is not a release version, this may not work!"
+                );
+            }
+            _ => {}
+        }
+
+        // Fetch the server jar.
         let path =
             crate::file::fetch_file::<Self>(version, cache, data, redownload, client).await?;
 
@@ -62,10 +79,16 @@ impl FileTrait for super::GeneratorData {
         }
 
         // Read the generated assets.
-        Ok(Self {
-            assets: GeneratedAssets::new(&generator.join("assets")).await?,
-            data: GeneratedData::new(&generator.join("data")).await?,
-            reports: GeneratedReports::new(&generator.join("reports")).await?,
-        })
+        tracing::trace!("Parsing Assets: {version}");
+        let assets = GeneratedAssets::new(&generator.join("assets")).await?;
+
+        tracing::trace!("Parsing Data: {version}");
+        let data = GeneratedData::new(&generator.join("data")).await?;
+
+        tracing::trace!("Parsing Reports: {version}");
+        let reports = GeneratedReports::new(&generator.join("reports")).await?;
+
+        tracing::trace!("Finished Parsing: {version}");
+        Ok(Self { assets, data, reports })
     }
 }

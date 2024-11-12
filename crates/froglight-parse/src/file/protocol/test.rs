@@ -67,10 +67,8 @@ async fn fetch() {
         assert_eq!(protocol, &deserialized);
 
         // Check that all native types are known.
-        for (name, data) in protocol.types.iter() {
-            if ProtocolType::Named("native".into()) == *data {
-                assert!(NATIVE_TYPES.contains(&name.as_str()), "Unknown native type: \"{name}\"");
-            }
+        for (name, _) in protocol.types.iter().filter(|(_, data)| data.is_native()) {
+            assert!(NATIVE_TYPES.contains(&name.as_str()), "Unknown native type: \"{name}\"");
         }
 
         // Check that all types are valid.

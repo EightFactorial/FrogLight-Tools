@@ -21,6 +21,18 @@ pub enum ProtocolType {
     Inline(CompactString, ProtocolTypeArgs),
 }
 
+impl ProtocolType {
+    /// Returns `true` if the type is a `native` type.
+    #[must_use]
+    pub fn is_native(&self) -> bool {
+        if let ProtocolType::Named(named) = self {
+            named.as_str() == "native"
+        } else {
+            false
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum ProtocolTypeArgs {
