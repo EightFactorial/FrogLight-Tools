@@ -180,14 +180,14 @@ impl File {
             match fields {
                 Fields::Named(fields) => {
                     let field = state.target();
-                    fields.named.push(syn::parse_quote!(#field: #kind));
+                    fields.named.push(syn::parse_quote!(pub #field: #kind));
                 }
                 Fields::Unnamed(fields) => {
-                    fields.unnamed.push(syn::parse_quote!(#kind));
+                    fields.unnamed.push(syn::parse_quote!(pub #kind));
                 }
                 Fields::Unit => {
                     let field = state.target();
-                    *fields = Fields::Named(syn::parse_quote!({ #field: #kind }));
+                    *fields = Fields::Named(syn::parse_quote!({ pub #field: #kind }));
                 }
             }
             Ok(())
