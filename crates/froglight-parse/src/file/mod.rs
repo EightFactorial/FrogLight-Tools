@@ -1,5 +1,8 @@
 //! TODO
 
+pub mod blocks;
+pub use blocks::VersionBlocks;
+
 pub mod datapath;
 pub use datapath::DataPath;
 

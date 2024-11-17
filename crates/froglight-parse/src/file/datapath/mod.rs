@@ -34,10 +34,22 @@ impl DataPath {
     }
 
     /// Get the URL for a Java edition `protocol.json` file.
+    ///
+    /// Used for fetching a
+    /// [`VersionProtocol`](crate::file::protocol::VersionProtocol) file.
     #[must_use]
     pub fn get_java_protocol(&self, version: &Version) -> Option<String> {
         let protocol = self.pc.get(version).and_then(|paths| paths.protocol.as_ref())?;
         Some(Self::FILE_URL.replace("dataPaths.json", protocol) + "/protocol.json")
+    }
+
+    /// Get the URL for a Java edition `blocks.json` file.
+    ///
+    /// Used for fetching a [`VersionBlocks`](crate::file::VersionBlocks) file.
+    #[must_use]
+    pub fn get_java_blocks(&self, version: &Version) -> Option<String> {
+        let blocks = self.pc.get(version).and_then(|paths| paths.blocks.as_ref())?;
+        Some(Self::FILE_URL.replace("dataPaths.json", blocks) + "/blocks.json")
     }
 }
 
