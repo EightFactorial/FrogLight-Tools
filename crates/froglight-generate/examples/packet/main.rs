@@ -20,7 +20,7 @@ async fn main() -> anyhow::Result<()> {
 
     if let Some(dataset) = datamap.version_data.get(&GENERATE_VERSION) {
         let output = PathBuf::from(file!()).parent().unwrap().to_path_buf().join("generated");
-        tracing::info!("Version: {GENERATE_VERSION}");
+        tracing::info!("Version: v{GENERATE_VERSION}");
 
         generate_types(&output, &dataset.proto.types).await?;
         for (state, packets) in dataset.proto.packets.iter() {
@@ -57,9 +57,9 @@ async fn generate_packets(
     let (mut generated, _) = PacketGenerator::generate_packets(packets);
 
     // Filter out unsupported items
-    let cloned = generated.clone();
+    let original = generated.clone();
     generated.items.retain(|item| {
-        if item_supported(item, &cloned) {
+        if item_supported(item, &original) {
             true
         } else {
             tracing::warn!(
