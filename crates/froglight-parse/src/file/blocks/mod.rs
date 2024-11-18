@@ -130,4 +130,16 @@ impl BlockSpecificationState {
             | Self::Int { num_values, .. } => *num_values,
         }
     }
+
+    const BOOL_VALUES: &'static [CompactString] =
+        &[CompactString::const_new("true"), CompactString::const_new("false")];
+
+    /// Returns the values of the state.
+    #[must_use]
+    pub fn values(&self) -> &[CompactString] {
+        match self {
+            Self::Enum { values, .. } | Self::Int { values, .. } => values,
+            Self::Bool { .. } => Self::BOOL_VALUES,
+        }
+    }
 }

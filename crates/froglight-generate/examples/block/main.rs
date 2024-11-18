@@ -5,7 +5,11 @@
 use std::path::{Path, PathBuf};
 
 use froglight_generate::{BlockGenerator, CliArgs, DataMap};
-use froglight_parse::{file::VersionBlocks, Version};
+use froglight_parse::{
+    file::{blocks::BlockSpecificationState, VersionBlocks},
+    Version,
+};
+use itertools::Itertools;
 
 /// The version to generate packets for.
 const GENERATE_VERSION: Version = Version::new_release(1, 21, 1);
@@ -19,6 +23,16 @@ async fn main() -> anyhow::Result<()> {
     if let Some(dataset) = datamap.version_data.get(&GENERATE_VERSION) {
         let output = PathBuf::from(file!()).parent().unwrap().to_path_buf().join("generated");
         tracing::info!("Version: v{GENERATE_VERSION}");
+
+        let mut counter = 0u32;
+        for block in dataset.blocks.iter() {
+            for state in
+                block.states.iter().map(BlockSpecificationState::values).multi_cartesian_product()
+            {
+                tracing::trace!("Block \"{}\" {counter}: {state:?}", block.display_name);
+                counter += 1;
+            }
+        }
 
         generate_blocks(&output, &dataset.blocks).await?;
     }

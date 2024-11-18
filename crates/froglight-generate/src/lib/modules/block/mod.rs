@@ -28,7 +28,8 @@ impl BlockGenerator {
         let mut items = Vec::with_capacity(blocks.len());
 
         for block in blocks.iter() {
-            let block_name = Ident::new(&block.name.to_case(Case::Pascal), Span::call_site());
+            let block_name = block.display_name.to_case(Case::Pascal).replace(['\''], "_");
+            let block_name = Ident::new(&block_name, Span::call_site());
 
             let mut block_fields = TokenStream::new();
             for state in &block.states {
