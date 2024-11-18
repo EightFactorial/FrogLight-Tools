@@ -73,7 +73,7 @@ pub struct BlockSpecification {
 }
 
 /// A block state.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "type", deny_unknown_fields)]
 pub enum BlockSpecificationState {
     /// A state based on a boolean.
@@ -110,4 +110,24 @@ pub enum BlockSpecificationState {
         /// Must be the same length as `num_values`.
         values: Vec<CompactString>,
     },
+}
+
+impl BlockSpecificationState {
+    /// Returns the name of the state.
+    #[must_use]
+    pub const fn name(&self) -> &CompactString {
+        match self {
+            Self::Bool { name, .. } | Self::Enum { name, .. } | Self::Int { name, .. } => name,
+        }
+    }
+
+    /// Returns the number of possible values for the state.
+    #[must_use]
+    pub const fn num_values(&self) -> u32 {
+        match self {
+            Self::Bool { num_values, .. }
+            | Self::Enum { num_values, .. }
+            | Self::Int { num_values, .. } => *num_values,
+        }
+    }
 }

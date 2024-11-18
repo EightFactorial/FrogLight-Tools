@@ -11,4 +11,4 @@ mod config;
 pub use config::Config;
 
 mod modules;
-pub use modules::PacketGenerator;
+pub use modules::{BlockGenerator, PacketGenerator};

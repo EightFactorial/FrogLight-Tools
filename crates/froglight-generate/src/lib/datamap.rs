@@ -1,7 +1,10 @@
 use std::path::Path;
 
 use froglight_parse::{
-    file::{DataPath, FileTrait, GeneratorData, VersionInfo, VersionManifest, VersionProtocol},
+    file::{
+        DataPath, FileTrait, GeneratorData, VersionBlocks, VersionInfo, VersionManifest,
+        VersionProtocol,
+    },
     Version,
 };
 use hashbrown::HashMap;
@@ -11,7 +14,7 @@ use crate::{cli::CliArgs, config::Config};
 
 /// A map of data containing the [`VersionManifest`], [`DataPath`],
 /// and data for each [`Version`] when created.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub struct DataMap {
     /// The version manifest.
     pub manifest: VersionManifest,
@@ -22,11 +25,12 @@ pub struct DataMap {
     pub version_data: HashMap<Version, DataSet>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DataSet {
     pub info: VersionInfo,
     pub generated: GeneratorData,
 
+    pub blocks: VersionBlocks,
     pub proto: VersionProtocol,
 }
 
@@ -67,11 +71,13 @@ impl DataMap {
             let generated =
                 GeneratorData::fetch(version, cache, &info, redownload, &client).await?;
 
+            // Get the VersionBlocks
+            let blocks = VersionBlocks::fetch(version, cache, &dat, redownload, &client).await?;
             // Get the VersionProtocol
             let proto = VersionProtocol::fetch(version, cache, &dat, redownload, &client).await?;
 
             // Create and insert the DataSet
-            version_data.insert(version.clone(), DataSet { info, generated, proto });
+            version_data.insert(version.clone(), DataSet { info, generated, blocks, proto });
         }
 
         Ok(Self { manifest: man, datapath: dat, version_data })

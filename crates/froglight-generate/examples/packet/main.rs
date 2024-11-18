@@ -1,4 +1,6 @@
-//! TODO
+//! Generate packets and protocol types for a specific version.
+//!
+//! Run using `just example packet [-v, --verbose]`.
 
 use std::path::{Path, PathBuf};
 
