@@ -1,8 +1,11 @@
 use convert_case::{Case, Casing};
-use froglight_parse::file::{blocks::BlockSpecificationState, VersionBlocks};
+use froglight_parse::{
+    file::{blocks::BlockSpecificationState, VersionBlocks},
+    Version,
+};
 use hashbrown::HashSet;
 use proc_macro2::{Span, TokenStream};
-use quote::quote;
+use quote::{quote, ToTokens};
 use syn::{File, Ident, Item};
 
 /// A block generator.
@@ -14,58 +17,65 @@ impl BlockGenerator {
     ///
     /// Returns a tuple of two files, one for attributes and one for blocks.
     #[must_use]
-    pub fn generate_blocks(blocks: &VersionBlocks) -> (File, File) {
-        let (attributes, changes) = Self::generate_attributes(blocks);
-        let blocks = Self::create_blocks(blocks, &changes);
-
+    pub fn generate_blocks(version: &Version, blocks: &VersionBlocks) -> (File, File) {
+        let (attributes, changes) = Self::generate_attributes(&Self::attribute_list(blocks));
         let attrib_file = File { shebang: None, attrs: Vec::new(), items: attributes };
+
+        let (blocks, _attributes) = Self::create_blocks(version, blocks, &changes);
         let block_file = File { shebang: None, attrs: Vec::new(), items: blocks };
 
         (attrib_file, block_file)
     }
 
-    fn create_blocks(blocks: &VersionBlocks, changes: &[(Ident, Ident)]) -> Vec<Item> {
+    fn create_blocks(
+        version: &Version,
+        blocks: &VersionBlocks,
+        overwrite: &[(String, String)],
+    ) -> (Vec<Item>, Vec<TokenStream>) {
         let mut items = Vec::with_capacity(blocks.len());
+        let mut attributes = Vec::new();
+
+        let version_string = version.to_long_string().replace(['.'], "_");
+        let version_ident = Ident::new(&format!("V{version_string}"), Span::call_site());
 
         for block in blocks.iter() {
+            // Generate the block name
             let block_name = block.display_name.to_case(Case::Pascal).replace(['\''], "_");
             let block_name = Ident::new(&block_name, Span::call_site());
 
-            let mut block_fields = TokenStream::new();
-            for state in &block.states {
-                let field_name = Ident::new(
-                    match state.name().as_str() {
-                        "type" => "kind",
-                        name => name,
-                    },
-                    Span::call_site(),
-                );
-
-                let mut field_type =
-                    &Ident::new(&Self::attribute_item_name(state), Span::call_site());
-                if let Some((_, new_ident)) = changes.iter().find(|(old, _)| old == field_type) {
-                    field_type = new_ident;
+            // Generate the block attributes
+            let mut block_attributes = TokenStream::new();
+            for (index, state) in block.states.iter().enumerate() {
+                let mut field_type = Self::attribute_item_name(state);
+                if let Some((_, new_ident)) = overwrite.iter().find(|(old, _)| *old == field_type) {
+                    field_type = new_ident.clone();
                 }
-
-                block_fields.extend(quote! {
-                    pub #field_name: #field_type,
-                });
+                if index == block.states.len() - 1 {
+                    block_attributes.extend(field_type.to_token_stream());
+                } else {
+                    block_attributes.extend(quote! { #field_type, });
+                }
             }
 
-            if block_fields.is_empty() {
+            // Generate the block structs
+            if block_attributes.is_empty() {
                 items.push(Item::Struct(syn::parse_quote! {
                     pub struct #block_name;
                 }));
             } else {
                 items.push(Item::Struct(syn::parse_quote! {
-                    pub struct #block_name {
-                        #block_fields
+                    pub struct #block_name(u16);
+                }));
+                items.push(Item::Impl(syn::parse_quote! {
+                    impl BlockState<#version_ident> for #block_name {
+                        type Attributes = (#block_attributes);
                     }
                 }));
             }
+            attributes.push(block_attributes);
         }
 
-        items
+        (items, attributes)
     }
 }
 
@@ -74,12 +84,14 @@ impl BlockGenerator {
     ///
     /// Also returns a list of changes made to shorten the attribute names.
     #[must_use]
-    pub fn generate_attributes(blocks: &VersionBlocks) -> (Vec<Item>, Vec<(Ident, Ident)>) {
+    pub fn generate_attributes(
+        attributes: &[(String, &BlockSpecificationState)],
+    ) -> (Vec<Item>, Vec<(String, String)>) {
         let mut items = Vec::new();
 
         // Generate a struct or enum for each attribute
-        for (name, attrib) in Self::attribute_list(blocks) {
-            let name = Ident::new(&name, Span::call_site());
+        for (name, attrib) in attributes {
+            let name = Ident::new(name, Span::call_site());
             let item: Item = match attrib {
                 BlockSpecificationState::Bool { .. } => Item::Struct(syn::parse_quote! {
                     pub struct #name(pub bool);
@@ -125,7 +137,8 @@ impl BlockGenerator {
     }
 
     /// Generate a list of block attributes from the given [`VersionBlocks`].
-    fn attribute_list(blocks: &VersionBlocks) -> Vec<(String, &BlockSpecificationState)> {
+    #[must_use]
+    pub fn attribute_list(blocks: &VersionBlocks) -> Vec<(String, &BlockSpecificationState)> {
         // Collect all unique attributes
         let mut attrib = HashSet::new();
         for block in blocks.iter() {
@@ -146,10 +159,11 @@ impl BlockGenerator {
     ///
     /// Returns a list of shortened attributes in the form of
     /// `(old_ident, new_ident, index)`.
-    fn shorten_attribute_names(
+    #[must_use]
+    pub fn shorten_attribute_names(
         attrib_type: &str,
         items: &mut [Item],
-    ) -> Vec<(Ident, Ident, usize)> {
+    ) -> Vec<(String, String, usize)> {
         // Collect all attributes to be shortened
         let mut shortened = Vec::new();
         for (index, item) in items.iter().enumerate() {
@@ -166,8 +180,8 @@ impl BlockGenerator {
                     }) == 1
                     {
                         shortened.push((
-                            item.ident.clone(),
-                            Ident::new(&format!("{attrib_name}{attrib_type}"), Span::call_site()),
+                            item.ident.to_string(),
+                            format!("{attrib_name}{attrib_type}"),
                             index,
                         ));
                     }
@@ -178,7 +192,7 @@ impl BlockGenerator {
         // Shorten the names of the attributes
         for (_, new_ident, index) in &shortened {
             if let Item::Enum(item) = &mut items[*index] {
-                item.ident = new_ident.clone();
+                item.ident = Ident::new(new_ident, Span::call_site());
             }
         }
 
@@ -187,7 +201,9 @@ impl BlockGenerator {
     }
 
     /// Generate an item name for the given [`BlockSpecificationState`].
-    fn attribute_item_name(state: &BlockSpecificationState) -> String {
+    #[must_use]
+    #[expect(clippy::missing_panics_doc)]
+    pub fn attribute_item_name(state: &BlockSpecificationState) -> String {
         match state {
             // Return `{name}BooleanAttribute` for boolean states.
             BlockSpecificationState::Bool { name, .. } => {

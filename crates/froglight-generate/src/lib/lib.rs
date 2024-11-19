@@ -8,7 +8,7 @@ mod datamap;
 pub use datamap::DataMap;
 
 mod config;
-pub use config::Config;
+pub use config::{Config, VersionTuple};
 
 mod modules;
 pub use modules::{BlockGenerator, PacketGenerator};

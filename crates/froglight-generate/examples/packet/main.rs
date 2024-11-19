@@ -4,7 +4,7 @@
 
 use std::path::{Path, PathBuf};
 
-use froglight_generate::{CliArgs, DataMap, PacketGenerator};
+use froglight_generate::{CliArgs, DataMap, PacketGenerator, VersionTuple};
 use froglight_parse::{
     file::protocol::{ProtocolStatePackets, ProtocolTypeMap},
     Version,
@@ -13,12 +13,13 @@ use syn::{File, GenericArgument, Item, PathArguments, Type, TypePath};
 
 /// The version to generate packets for.
 const GENERATE_VERSION: Version = Version::new_release(1, 21, 1);
+const GENERATE_TUPLE: VersionTuple = VersionTuple::new(GENERATE_VERSION, GENERATE_VERSION);
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let (args, _) = CliArgs::parse().await?;
     let datamap =
-        DataMap::new_from(&args.cache.unwrap(), &[GENERATE_VERSION], args.redownload).await?;
+        DataMap::new_from(&args.cache.unwrap(), &[GENERATE_TUPLE], args.redownload).await?;
 
     if let Some(dataset) = datamap.version_data.get(&GENERATE_VERSION) {
         let output = PathBuf::from(file!()).parent().unwrap().to_path_buf().join("generated");

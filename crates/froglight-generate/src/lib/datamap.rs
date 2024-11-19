@@ -10,7 +10,10 @@ use froglight_parse::{
 use hashbrown::HashMap;
 use reqwest::Client;
 
-use crate::{cli::CliArgs, config::Config};
+use crate::{
+    cli::CliArgs,
+    config::{Config, VersionTuple},
+};
 
 /// A map of data containing the [`VersionManifest`], [`DataPath`],
 /// and data for each [`Version`] when created.
@@ -39,10 +42,9 @@ impl DataMap {
     #[expect(clippy::missing_errors_doc, clippy::missing_panics_doc)]
     pub async fn new(args: &CliArgs, config: &Config) -> anyhow::Result<Self> {
         let cache = args.cache.as_ref().unwrap();
-        let versions = config.iter().map(|v| v.target.clone()).collect::<Vec<_>>();
         let redownload = args.redownload;
 
-        Self::new_from(cache, &versions, redownload).await
+        Self::new_from(cache, &config.version, redownload).await
     }
 
     /// Create a new [`DataMap`] from the given
@@ -50,13 +52,13 @@ impl DataMap {
     #[expect(clippy::missing_errors_doc)]
     pub async fn new_from(
         cache: &Path,
-        versions: &[Version],
+        versions: &[VersionTuple],
         redownload: bool,
     ) -> anyhow::Result<Self> {
         let client = Client::new();
 
         // Get the VersionManifest and DataPath
-        let Some(any) = versions.iter().next() else {
+        let Some(VersionTuple { base: any, .. }) = versions.iter().next() else {
             anyhow::bail!("No versions specified in the configuration file.");
         };
         let man = VersionManifest::fetch(any, cache, &(), redownload, &client).await?;
@@ -64,20 +66,19 @@ impl DataMap {
 
         // Fetch data for all versions
         let mut version_data = HashMap::new();
-        for version in versions {
+        for VersionTuple { base, target } in versions {
             // Get the VersionInfo
-            let info = VersionInfo::fetch(version, cache, &man, redownload, &client).await?;
+            let info = VersionInfo::fetch(target, cache, &man, redownload, &client).await?;
             // Get the GeneratorData
-            let generated =
-                GeneratorData::fetch(version, cache, &info, redownload, &client).await?;
+            let generated = GeneratorData::fetch(target, cache, &info, redownload, &client).await?;
 
             // Get the VersionBlocks
-            let blocks = VersionBlocks::fetch(version, cache, &dat, redownload, &client).await?;
+            let blocks = VersionBlocks::fetch(target, cache, &dat, redownload, &client).await?;
             // Get the VersionProtocol
-            let proto = VersionProtocol::fetch(version, cache, &dat, redownload, &client).await?;
+            let proto = VersionProtocol::fetch(target, cache, &dat, redownload, &client).await?;
 
             // Create and insert the DataSet
-            version_data.insert(version.clone(), DataSet { info, generated, blocks, proto });
+            version_data.insert(base.clone(), DataSet { info, generated, blocks, proto });
         }
 
         Ok(Self { manifest: man, datapath: dat, version_data })

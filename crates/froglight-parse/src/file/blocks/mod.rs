@@ -72,6 +72,12 @@ pub struct BlockSpecification {
     pub bounding_box: CompactString,
 }
 
+impl BlockSpecification {
+    /// Returns the number of states for the block.
+    #[must_use]
+    pub const fn states(&self) -> u32 { self.max_state_id - self.min_state_id + 1 }
+}
+
 /// A block state.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(tag = "type", deny_unknown_fields)]

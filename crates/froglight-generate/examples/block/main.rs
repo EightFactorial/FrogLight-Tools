@@ -4,35 +4,22 @@
 
 use std::path::{Path, PathBuf};
 
-use froglight_generate::{BlockGenerator, CliArgs, DataMap};
-use froglight_parse::{
-    file::{blocks::BlockSpecificationState, VersionBlocks},
-    Version,
-};
-use itertools::Itertools;
+use froglight_generate::{BlockGenerator, CliArgs, DataMap, VersionTuple};
+use froglight_parse::{file::VersionBlocks, Version};
 
 /// The version to generate packets for.
 const GENERATE_VERSION: Version = Version::new_release(1, 21, 1);
+const GENERATE_TUPLE: VersionTuple = VersionTuple::new(GENERATE_VERSION, GENERATE_VERSION);
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let (args, _) = CliArgs::parse().await?;
     let datamap =
-        DataMap::new_from(&args.cache.unwrap(), &[GENERATE_VERSION], args.redownload).await?;
+        DataMap::new_from(&args.cache.unwrap(), &[GENERATE_TUPLE], args.redownload).await?;
 
     if let Some(dataset) = datamap.version_data.get(&GENERATE_VERSION) {
         let output = PathBuf::from(file!()).parent().unwrap().to_path_buf().join("generated");
         tracing::info!("Version: v{GENERATE_VERSION}");
-
-        let mut counter = 0u32;
-        for block in dataset.blocks.iter() {
-            for state in
-                block.states.iter().map(BlockSpecificationState::values).multi_cartesian_product()
-            {
-                tracing::trace!("Block \"{}\" {counter}: {state:?}", block.display_name);
-                counter += 1;
-            }
-        }
 
         generate_blocks(&output, &dataset.blocks).await?;
     }
@@ -42,7 +29,7 @@ async fn main() -> anyhow::Result<()> {
 
 async fn generate_blocks(directory: &Path, blocks: &VersionBlocks) -> anyhow::Result<()> {
     tokio::fs::create_dir_all(directory).await?;
-    let (attrib, blocks) = BlockGenerator::generate_blocks(blocks);
+    let (attrib, blocks) = BlockGenerator::generate_blocks(&GENERATE_VERSION, blocks);
 
     let content = prettyplease::unparse(&attrib);
     let output = directory.join("attributes.rs");
