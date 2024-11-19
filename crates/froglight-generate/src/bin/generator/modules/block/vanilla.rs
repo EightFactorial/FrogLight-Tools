@@ -24,7 +24,7 @@ pub(super) async fn generate_storage(datamap: &DataMap, args: &CliArgs) -> anyho
     }).join("\n");
 
     let registrations = version_names.iter().map(|version| {
-        format!("        app.register_type_data::<Self, ReflectBlockBuilder<{version}>>();")
+        format!("        app.register_type_data::<Self, ReflectBlockBuilder<{version}>>();\n        app.init_resource::<BlockStorageArc<{version}>>();")
     }).join("\n");
 
 
@@ -33,7 +33,7 @@ r"use bevy_app::App;
 use bevy_reflect::Reflect;
 use froglight_protocol::versions::{imports};
 
-use super::ReflectBlockBuilder;
+use super::{{ReflectBlockBuilder, BlockStorageArc}};
 
 {modules}
 

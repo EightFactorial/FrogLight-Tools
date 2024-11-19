@@ -5,6 +5,7 @@ use super::ModuleGenerator;
 
 mod attribute;
 mod block;
+mod test;
 mod vanilla;
 
 impl ModuleGenerator for BlockGenerator {
@@ -24,6 +25,9 @@ impl ModuleGenerator for BlockGenerator {
 
         // Generate the vanilla block storage.
         vanilla::generate_storage(datamap, args).await?;
+
+        // Generate the test files.
+        test::generate_tests(datamap, args).await?;
 
         Ok(())
     }
