@@ -5,18 +5,18 @@ use super::ModuleGenerator;
 
 impl ModuleGenerator for PacketGenerator {
     /// Generate packets from the given [`DataMap`].
-    async fn generate(datamap: &DataMap, _args: &CliArgs) -> anyhow::Result<()> {
-        if datamap.version_data.is_empty() {
-            tracing::warn!("PacketGenerator: No data to generate packets from!");
-            return Ok(());
-        }
+    async fn generate(_datamap: &DataMap, _args: &CliArgs) -> anyhow::Result<()> {
+        // if datamap.version_data.is_empty() {
+        //     tracing::warn!("PacketGenerator: No data to generate packets from!");
+        //     return Ok(());
+        // }
 
-        let universal = universal_types(datamap);
-        for type_name in universal {
-            tracing::info!(
-                "PacketGenerator: Type \"{type_name}\" is identical across all versions."
-            );
-        }
+        // let universal = universal_types(datamap);
+        // for type_name in universal {
+        //     tracing::info!(
+        //         "PacketGenerator: Type \"{type_name}\" is identical across all
+        // versions."     );
+        // }
 
         Ok(())
     }
@@ -26,7 +26,7 @@ impl ModuleGenerator for PacketGenerator {
 ///
 /// Only need to check one version,
 /// if it's supported by all versions it'll be here.
-fn universal_types(datamap: &DataMap) -> HashSet<&str> {
+fn _universal_types(datamap: &DataMap) -> HashSet<&str> {
     let mut universal_types = HashSet::new();
     // For all types in the first version
     if let Some(data) = datamap.version_data.values().next() {
