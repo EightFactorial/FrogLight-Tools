@@ -11,4 +11,4 @@ mod config;
 pub use config::{Config, VersionTuple};
 
 mod modules;
-pub use modules::{BlockGenerator, PacketGenerator};
+pub use modules::{BlockGenerator, PacketGenerator, RegistryGenerator};
