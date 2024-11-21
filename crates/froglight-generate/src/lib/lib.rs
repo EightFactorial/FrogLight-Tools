@@ -10,5 +10,5 @@ pub use datamap::DataMap;
 mod config;
 pub use config::{Config, VersionTuple};
 
-mod modules;
+pub mod modules;
 pub use modules::{BlockGenerator, PacketGenerator, RegistryGenerator};

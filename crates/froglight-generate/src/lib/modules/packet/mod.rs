@@ -1,7 +1,7 @@
 use froglight_parse::file::protocol::{ProtocolStatePackets, ProtocolTypeMap};
 
 mod gen;
-use gen::{File, Result, State};
+pub use gen::{File, Result, State};
 
 /// A packet generator.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
@@ -68,7 +68,7 @@ impl PacketGenerator {
 impl PacketGenerator {
     /// Format a field name to prevent conflicts with Rust keywords.
     #[must_use]
-    fn format_field_name(field_name: &str) -> &str {
+    pub fn format_field_name(field_name: &str) -> &str {
         match field_name {
             "abstract" => "abstract_",
             "as" => "as_",
@@ -127,7 +127,7 @@ impl PacketGenerator {
 
     /// Format a variant name to allow creating valid Rust [`Idents`](Ident).
     #[must_use]
-    fn format_variant_name(variant_name: &str) -> String {
+    pub fn format_variant_name(variant_name: &str) -> String {
         variant_name.split_once(':').map_or(variant_name, |(_, split)| split).replace(['.'], "_")
     }
 }

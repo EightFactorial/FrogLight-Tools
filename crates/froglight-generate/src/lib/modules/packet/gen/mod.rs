@@ -3,13 +3,13 @@ use froglight_parse::file::protocol::{ProtocolType, ProtocolTypeArgs};
 mod handle;
 
 mod file;
-pub(super) use file::File;
+pub use file::File;
 
 mod result;
-pub(super) use result::Result;
+pub use result::Result;
 
 mod state;
-pub(super) use state::State;
+pub use state::State;
 use state::Target;
 
 impl super::PacketGenerator {
@@ -19,11 +19,7 @@ impl super::PacketGenerator {
     /// # Note
     /// This may pass back attributes for the type.
     #[must_use]
-    pub(super) fn generate_type(
-        state: &State<Target>,
-        proto: &ProtocolType,
-        file: &mut File,
-    ) -> Result {
+    pub fn generate_type(state: &State<Target>, proto: &ProtocolType, file: &mut File) -> Result {
         match proto {
             ProtocolType::Named(native) => match native.as_str() {
                 "void" => Result::Void,

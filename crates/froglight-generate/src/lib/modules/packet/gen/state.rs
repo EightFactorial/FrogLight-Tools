@@ -3,33 +3,32 @@ use syn::Ident;
 
 /// A state machine for generating code.
 #[derive(Default, Copy, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct State<S: StateType> {
+pub struct State<S: StateType> {
     state: S,
 }
-pub(crate) trait StateType {}
+pub trait StateType {}
 
 impl State<Empty> {
     /// Create a new, empty [`State`].
     #[must_use]
-    pub(crate) const fn new() -> Self { Self { state: Empty } }
+    pub const fn new() -> Self { Self { state: Empty } }
 
     /// Create a new [`State`] with the given [`Item`](syn::Item).
     #[must_use]
-    #[expect(clippy::unused_self)]
-    pub(crate) fn with_item<I: AsIdent>(self, item: I) -> State<Item> {
+    pub fn with_item<I: AsIdent>(self, item: I) -> State<Item> {
         State { state: Item { tree: vec![item.as_ident()] } }
     }
 }
 
-#[expect(dead_code)]
 impl State<Item> {
     /// Get the current [`Item`](syn::Item).
     #[must_use]
-    pub(crate) fn item(&self) -> &Ident { self.state.tree.last().expect("Guaranteed non-empty") }
+    #[expect(clippy::missing_panics_doc)]
+    pub fn item(&self) -> &Ident { self.state.tree.last().expect("Guaranteed non-empty") }
 
     /// Create a new [`State`] with the given [`Item`](syn::Item).
     #[must_use]
-    pub(crate) fn with_item<I: AsIdent>(&self, item: I) -> State<Item> {
+    pub fn with_item<I: AsIdent>(&self, item: I) -> State<Item> {
         let mut tree = self.state.tree.clone();
         tree.push(item.as_ident());
         State { state: Item { tree } }
@@ -37,7 +36,7 @@ impl State<Item> {
 
     /// Create a new [`State`] with the given target.
     #[must_use]
-    pub(crate) fn with_target<I: AsIdent>(&self, target: I) -> State<Target<'_>> {
+    pub fn with_target<I: AsIdent>(&self, target: I) -> State<Target<'_>> {
         State { state: Target { tree: &self.state.tree, target: target.as_ident() } }
     }
 }
@@ -45,18 +44,19 @@ impl State<Item> {
 impl State<Target<'_>> {
     /// Get the current [`Item`](syn::Item).
     #[must_use]
-    pub(crate) fn item(&self) -> &Ident { self.state.tree.last().expect("Guaranteed non-empty") }
+    #[expect(clippy::missing_panics_doc)]
+    pub fn item(&self) -> &Ident { self.state.tree.last().expect("Guaranteed non-empty") }
 
     /// Create a new [`State`],
     /// turning the current [`Target`] into an [`Item`](syn::Item).
     #[must_use]
-    pub(crate) fn create_item(&self) -> State<Item> {
+    pub fn create_item(&self) -> State<Item> {
         self.with_item(self.item().to_string() + "_" + self.target().to_string().as_str())
     }
 
     /// Create a new [`State`] with the given [`Item`](syn::Item).
     #[must_use]
-    pub(crate) fn with_item<I: AsIdent>(&self, item: I) -> State<Item> {
+    pub fn with_item<I: AsIdent>(&self, item: I) -> State<Item> {
         let mut tree = self.state.tree.to_vec();
         tree.push(item.as_ident());
         State { state: Item { tree } }
@@ -64,33 +64,33 @@ impl State<Target<'_>> {
 
     /// Get the current target.
     #[must_use]
-    pub(crate) fn target(&self) -> &Ident { &self.state.target }
+    pub fn target(&self) -> &Ident { &self.state.target }
 
     /// Create a new [`State`] with the given target.
     #[must_use]
-    pub(crate) fn with_target<I: AsIdent>(&self, target: I) -> State<Target<'_>> {
+    pub fn with_target<I: AsIdent>(&self, target: I) -> State<Target<'_>> {
         State { state: Target { tree: self.state.tree, target: target.as_ident() } }
     }
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) struct Empty;
+pub struct Empty;
 impl StateType for Empty {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct Item {
+pub struct Item {
     tree: Vec<Ident>,
 }
 impl StateType for Item {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct Target<'a> {
+pub struct Target<'a> {
     tree: &'a [Ident],
     target: Ident,
 }
 impl StateType for Target<'_> {}
 
-pub(crate) trait AsIdent {
+pub trait AsIdent {
     fn as_ident(&self) -> Ident;
 }
 

@@ -11,7 +11,7 @@ use syn::{Attribute, Type};
 use super::{state::Item, State};
 
 #[derive(From)]
-pub(crate) enum Result {
+pub enum Result {
     Void,
     Item { kind: Type, attrs: Vec<Attribute> },
     Err(anyhow::Error),

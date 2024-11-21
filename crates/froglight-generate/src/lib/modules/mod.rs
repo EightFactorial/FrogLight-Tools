@@ -1,8 +1,11 @@
-mod block;
+//! TODO
+#![allow(missing_docs)]
+
+pub mod block;
 pub use block::BlockGenerator;
 
-mod packet;
+pub mod packet;
 pub use packet::PacketGenerator;
 
-mod registry;
+pub mod registry;
 pub use registry::RegistryGenerator;

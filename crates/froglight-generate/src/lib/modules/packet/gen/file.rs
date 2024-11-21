@@ -11,7 +11,7 @@ use super::{
 };
 
 #[derive(From, Into)]
-pub(crate) struct File(syn::File);
+pub struct File(syn::File);
 
 impl Default for File {
     fn default() -> Self { Self(syn::File { shebang: None, attrs: Vec::new(), items: Vec::new() }) }
@@ -19,10 +19,12 @@ impl Default for File {
 
 impl File {
     /// Create a new, empty [`File`].
-    pub(crate) fn new() -> Self { Self::default() }
+    #[must_use]
+    pub fn new() -> Self { Self::default() }
 
     /// Get the inner [`syn::File`].
-    pub(crate) fn into_inner(self) -> syn::File { self.0 }
+    #[must_use]
+    pub fn into_inner(self) -> syn::File { self.0 }
 }
 
 #[expect(dead_code)]
@@ -88,7 +90,7 @@ impl File {
 
 impl File {
     /// Create a new [`ItemStruct`] in the [`File`].
-    pub(crate) fn create_struct(&mut self, state: &State<StateItem>) {
+    pub fn create_struct(&mut self, state: &State<StateItem>) {
         self.create_struct_internal(state.item());
     }
 
@@ -266,7 +268,7 @@ impl File {
 
 impl File {
     /// Create a new [`ItemEnum`] in the [`File`].
-    pub(crate) fn create_enum(&mut self, state: &State<StateItem>) {
+    pub fn create_enum(&mut self, state: &State<StateItem>) {
         self.create_enum_internal(state.item());
     }
 
