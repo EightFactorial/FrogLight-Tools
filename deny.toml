@@ -19,9 +19,9 @@ allow = [
     # "OpenSSL",
 ]
 
-[[licenses.exceptions]]
-name = "unicode-ident"
-allow = ["Unicode-DFS-2016"]
+# [[licenses.exceptions]]
+# name = "unicode-ident"
+# allow = ["Unicode-DFS-2016"]
 
 [sources]
 unknown-git = "deny"

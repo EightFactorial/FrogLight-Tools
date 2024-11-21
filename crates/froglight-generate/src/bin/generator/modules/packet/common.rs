@@ -4,7 +4,8 @@ use froglight_generate::{
     CliArgs, DataMap, PacketGenerator,
 };
 use froglight_parse::file::protocol::ProtocolTypeMap;
-use syn::{GenericArgument, Ident, Item, PathArguments, Type};
+use syn::{Attribute, GenericArgument, Ident, Item, PathArguments, Type};
+use tokio::{fs::OpenOptions, io::AsyncWriteExt};
 
 use super::GeneratedTypes;
 
@@ -119,6 +120,16 @@ async fn generate_common_items(
                         &variant.ident.to_string().to_case(Case::Pascal),
                         variant.ident.span(),
                     );
+
+                    for field in &mut variant.fields {
+                        if let Type::Path(path) = &mut field.ty {
+                            if let Some(segment) = path.path.segments.first_mut() {
+                                if let Some(attr) = edit_item_field(segment) {
+                                    field.attrs.push(attr);
+                                }
+                            }
+                        }
+                    }
                 }
             }
             Item::Struct(item) => {
@@ -126,30 +137,10 @@ async fn generate_common_items(
                     Ident::new(&item.ident.to_string().to_case(Case::Pascal), item.ident.span());
 
                 for field in &mut item.fields {
-                    if let Some(ident) = field.ident.as_mut() {
-                        *ident = Ident::new(&ident.to_string().to_case(Case::Snake), ident.span());
-                    }
-
                     if let Type::Path(path) = &mut field.ty {
-                        if let Some(segment) = path.path.segments.iter_mut().last() {
-                            segment.ident = Ident::new(
-                                &segment.ident.to_string().to_case(Case::Pascal),
-                                segment.ident.span(),
-                            );
-
-                            if let PathArguments::AngleBracketed(arguments) = &mut segment.arguments
-                            {
-                                for arg in &mut arguments.args {
-                                    if let GenericArgument::Type(Type::Path(path)) = arg {
-                                        if let Some(segment) = path.path.segments.iter_mut().last()
-                                        {
-                                            segment.ident = Ident::new(
-                                                &segment.ident.to_string().to_case(Case::Pascal),
-                                                segment.ident.span(),
-                                            );
-                                        }
-                                    }
-                                }
+                        if let Some(segment) = path.path.segments.first_mut() {
+                            if let Some(attr) = edit_item_field(segment) {
+                                field.attrs.push(attr);
                             }
                         }
                     }
@@ -159,8 +150,13 @@ async fn generate_common_items(
         }
     }
 
-    // Unparse the generated file
-    let content = prettyplease::unparse(&file);
+    // Unparse the generated file, skipping if it's empty
+    let mut content = prettyplease::unparse(&file);
+    if content.is_empty() {
+        return Ok(());
+    }
+
+    content = content.replace(" type_", " kind");
 
     // Write the file to disk
     let file_path = args
@@ -171,7 +167,50 @@ async fn generate_common_items(
         tracing::warn!("PacketGenerator: Creating file \"{}\"", file_path.display());
         tokio::fs::create_dir_all(file_path.parent().unwrap()).await?;
     }
-    tokio::fs::write(file_path, &content).await?;
+
+    let mut file = OpenOptions::new().write(true).create(true).append(true).open(file_path).await?;
+    file.write_all(content.as_bytes()).await?;
 
     Ok(())
+}
+
+const IGNORE_TYPES: &[&str] =
+    &["bool", "u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "usize", "isize", "f32", "f64"];
+
+fn edit_item_field(segment: &mut syn::PathSegment) -> Option<Attribute> {
+    // Check the type's generic arguments
+    let mut returned = None;
+    if let PathArguments::AngleBracketed(args) = &mut segment.arguments {
+        for arg in &mut args.args {
+            if let GenericArgument::Type(Type::Path(path)) = arg {
+                if let Some(segment) = path.path.segments.first_mut() {
+                    if let Some(attr) = edit_item_field(segment) {
+                        returned = Some(attr);
+                    }
+                }
+            }
+        }
+    }
+
+    // Check if the field type is a varint or varlong
+    let segment_type = segment.ident.to_string();
+    match segment_type.as_str() {
+        "varint" => {
+            segment.ident = Ident::new("u32", segment.ident.span());
+            return Some(syn::parse_quote!(#[frog(var)]));
+        }
+        "varlong" => {
+            segment.ident = Ident::new("u64", segment.ident.span());
+            return Some(syn::parse_quote!(#[frog(var)]));
+        }
+        _ => {}
+    }
+
+    // Format the field type to match rust conventions
+    if !IGNORE_TYPES.contains(&segment_type.as_str()) {
+        segment.ident =
+            Ident::new(&segment.ident.to_string().to_case(Case::Pascal), segment.ident.span());
+    }
+
+    returned
 }

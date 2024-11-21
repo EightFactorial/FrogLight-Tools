@@ -22,7 +22,7 @@ impl PacketGenerator {
         match args {
             // Return a `Vec` of the type, and label it with the length field
             ArrayArgs::CountField { count_field, kind } => {
-                let length = Ident::new(Self::format_field_name(count_field), Span::call_site());
+                let length = Ident::new(&Self::format_field_name(count_field), Span::call_site());
                 Self::generate_type(state, kind, file)
                     .map_item(|ty| format!("Vec<{ty}>"))
                     .with_attr_tokens(quote! { #[frog(length = #length)] })
@@ -83,7 +83,7 @@ impl PacketGenerator {
         // Iterate over the fields
         for arg in args {
             // Create a new state for the field
-            let field_state = state.with_target(Self::format_field_name(&arg.name));
+            let field_state = state.with_target(&Self::format_field_name(&arg.name));
             let bits = LitInt::new(&arg.size.to_string(), Span::call_site());
 
             // Get the field type
@@ -153,7 +153,7 @@ impl PacketGenerator {
         for (index, arg) in args.iter().enumerate() {
             // Create a new state for the field
             let field_state = if let Some(name) = &arg.name {
-                state.with_target(Self::format_field_name(name))
+                state.with_target(&Self::format_field_name(name))
             } else {
                 state.with_target(format!("field_{index}"))
             };
@@ -249,8 +249,8 @@ impl PacketGenerator {
             return Result::unsupported();
         }
 
-        let compared_state = state.with_target(compared_field);
-        let compared_expr: Expr = syn::parse_str(compared_field).unwrap();
+        let compared_state = state.with_target(&compared_field);
+        let compared_expr: Expr = syn::parse_str(&compared_field).unwrap();
 
         if let Some(compared_type) = file.get_struct_field_type(&compared_state) {
             match compared_type.to_string().as_str() {
