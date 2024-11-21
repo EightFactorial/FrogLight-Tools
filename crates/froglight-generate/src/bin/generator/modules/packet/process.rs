@@ -7,30 +7,28 @@ use syn::{
 };
 
 /// Structs that require manually defined fields.
-const MANUAL_STRUCT_FIELDS: &[(&str, StructAction)] = &[(
-    "BlockSet",
-    StructAction::Fields(&[
-        ("kind", "u32"),
-        ("name", "BlockSetName"),
-        ("block_ids", "BlockSetBlockIds"),
-    ]),
-)];
+const MANUAL_STRUCT_FIELDS: &[(&str, StructAction)] = &[("PreviousMessages", StructAction::Remove)];
 
 /// Actions to take on a struct.
 enum StructAction {
     Replace(&'static str),
-    Fields(&'static [(&'static str, &'static str)]),
+    Fields(Option<&'static str>, &'static [(&'static str, &'static str)]),
     Remove,
 }
 
 /// Enums that require manually defined variants.
-const MANUAL_ENUM_VARIANTS: &[(&str, EnumAction)] =
-    &[("PreviousMessagesSignature", EnumAction::Variants(&["Some([u8; 256]) = 0", "None"]))];
+const MANUAL_ENUM_VARIANTS: &[(&str, EnumAction)] = &[(
+    "PreviousMessagesSignature",
+    EnumAction::Variants(
+        Some("PreviousMessages"),
+        &["Signed([u8; 256]) = 0", "#[frog(other)] MessageId(#[frog(var)] u32)"],
+    ),
+)];
 
 /// Actions to take on an enum.
 enum EnumAction {
     Replace(&'static str),
-    Variants(&'static [&'static str]),
+    Variants(Option<&'static str>, &'static [&'static str]),
     Remove,
 }
 
@@ -54,7 +52,12 @@ pub(super) fn process_item(item: Item) -> ProcessResult {
                         ProcessResult::Replaced((*replace).to_string())
                     }
                     // Create the new fields
-                    StructAction::Fields(fields) => {
+                    StructAction::Fields(ident, fields) => {
+                        // Change the struct's ident if needed
+                        if let Some(ident) = ident {
+                            item.ident = Ident::new(ident, item.ident.span());
+                        }
+
                         let mut named = Punctuated::new();
                         for (name, ty) in *fields {
                             let name = Ident::new(name, item.ident.span());
@@ -89,7 +92,12 @@ pub(super) fn process_item(item: Item) -> ProcessResult {
                     // Replace the Item
                     EnumAction::Replace(replace) => ProcessResult::Replaced((*replace).to_string()),
                     // Create new variants
-                    EnumAction::Variants(variants) => {
+                    EnumAction::Variants(ident, variants) => {
+                        // Change the enum's ident if needed
+                        if let Some(ident) = ident {
+                            item.ident = Ident::new(ident, item.ident.span());
+                        }
+
                         let mut new_variants = Punctuated::new();
                         for variant in *variants {
                             new_variants.push(syn::parse_str(variant).unwrap());

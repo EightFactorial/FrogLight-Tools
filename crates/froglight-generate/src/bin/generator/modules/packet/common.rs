@@ -120,7 +120,7 @@ async fn generate_common_items(
         };
         match super::process::process_item(item) {
             ProcessResult::Replaced(ident) => {
-                replacements.push((item_name, ident.to_string()));
+                replacements.push((item_name, ident));
             }
             ProcessResult::Processed(item) => processed.push(item),
             ProcessResult::Removed => {}
