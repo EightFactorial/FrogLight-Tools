@@ -4,10 +4,10 @@ use froglight_generate::{
     CliArgs, DataMap, PacketGenerator,
 };
 use froglight_parse::file::protocol::ProtocolTypeMap;
-use syn::{Attribute, GenericArgument, Ident, Item, PathArguments, Type};
+use syn::Item;
 use tokio::{fs::OpenOptions, io::AsyncWriteExt};
 
-use super::GeneratedTypes;
+use super::{process::ProcessResult, GeneratedTypes};
 
 pub(super) async fn generate_common(
     datamap: &DataMap,
@@ -34,7 +34,10 @@ pub(super) async fn generate_common(
                     }
                 }) {
                     // Generate the type
-                    generated.insert(proto_name.to_string(), get_item_path(proto_name));
+                    generated.insert(
+                        proto_name.to_string(),
+                        (get_item_module(proto_name), proto_name.to_case(Case::Pascal)),
+                    );
                 }
             }
         }
@@ -67,10 +70,7 @@ pub(super) async fn generate_common(
     Ok(generated)
 }
 
-fn get_item_path(proto_name: &str) -> (String, String) {
-    (get_item_module(proto_name), proto_name.to_case(Case::Pascal))
-}
-
+/// Get the module name for a given item name.
 fn get_item_module(proto_name: &str) -> String {
     let mut name = String::new();
 
@@ -96,67 +96,56 @@ async fn generate_common_items(
 ) -> anyhow::Result<()> {
     let protocol = types.get(protocol).expect("Protocol type not found?");
 
-    let mut file = File::new();
-    let state = State::new().with_item(item);
-
     // Recursively generate any needed items
-    if let Result::Err(err) =
-        PacketGenerator::generate_type(&state.with_target("_"), protocol, &mut file)
-    {
+    let mut file = File::new();
+    if let Result::Err(err) = PacketGenerator::generate_type(
+        &State::new().with_item(item).with_target("_"),
+        protocol,
+        &mut file,
+    ) {
         tracing::error!("Error generating item \"{item}\": {err}");
         return Err(err);
     }
 
-    // Manually edit generated items
+    let mut replacements = Vec::new();
+
+    // Clean up the generated items
     let mut file = file.into_inner();
-    for item in &mut file.items {
-        match item {
-            Item::Enum(item) => {
-                item.ident =
-                    Ident::new(&item.ident.to_string().to_case(Case::Pascal), item.ident.span());
-
-                for variant in &mut item.variants {
-                    variant.ident = Ident::new(
-                        &variant.ident.to_string().to_case(Case::Pascal),
-                        variant.ident.span(),
-                    );
-
-                    for field in &mut variant.fields {
-                        if let Type::Path(path) = &mut field.ty {
-                            if let Some(segment) = path.path.segments.first_mut() {
-                                if let Some(attr) = edit_item_field(segment) {
-                                    field.attrs.push(attr);
-                                }
-                            }
-                        }
-                    }
-                }
+    let mut processed = Vec::with_capacity(file.items.len());
+    for item in file.items {
+        let item_name = match &item {
+            Item::Enum(item) => item.ident.to_string().to_case(Case::Pascal),
+            Item::Struct(item) => item.ident.to_string().to_case(Case::Pascal),
+            _ => continue,
+        };
+        match super::process::process_item(item) {
+            ProcessResult::Replaced(ident) => {
+                replacements.push((item_name, ident.to_string()));
             }
-            Item::Struct(item) => {
-                item.ident =
-                    Ident::new(&item.ident.to_string().to_case(Case::Pascal), item.ident.span());
-
-                for field in &mut item.fields {
-                    if let Type::Path(path) = &mut field.ty {
-                        if let Some(segment) = path.path.segments.first_mut() {
-                            if let Some(attr) = edit_item_field(segment) {
-                                field.attrs.push(attr);
-                            }
-                        }
-                    }
-                }
-            }
-            _ => {}
+            ProcessResult::Processed(item) => processed.push(item),
+            ProcessResult::Removed => {}
         }
     }
+    file.items = processed;
 
-    // Unparse the generated file, skipping if it's empty
+    // Unparse the generated file, returning early if it's empty
     let mut content = prettyplease::unparse(&file);
     if content.is_empty() {
         return Ok(());
     }
 
+    // Return early if the content contains the word "Unsupported"
+    if content.contains("Unsupported") {
+        tracing::warn!("PacketGenerator: Skipping item \"{item}\" due to unsupported types");
+        return Ok(());
+    }
+
+    // Manually edit the content to fix some issues
     content = content.replace(" type_", " kind");
+    for (existing, replacement) in replacements {
+        tracing::info!("PacketGenerator: Replacing \"{existing}\" with \"{replacement}\"");
+        content = content.replace(&existing, &replacement);
+    }
 
     // Write the file to disk
     let file_path = args
@@ -172,45 +161,4 @@ async fn generate_common_items(
     file.write_all(content.as_bytes()).await?;
 
     Ok(())
-}
-
-const IGNORE_TYPES: &[&str] =
-    &["bool", "u8", "u16", "u32", "u64", "i8", "i16", "i32", "i64", "usize", "isize", "f32", "f64"];
-
-fn edit_item_field(segment: &mut syn::PathSegment) -> Option<Attribute> {
-    // Check the type's generic arguments
-    let mut returned = None;
-    if let PathArguments::AngleBracketed(args) = &mut segment.arguments {
-        for arg in &mut args.args {
-            if let GenericArgument::Type(Type::Path(path)) = arg {
-                if let Some(segment) = path.path.segments.first_mut() {
-                    if let Some(attr) = edit_item_field(segment) {
-                        returned = Some(attr);
-                    }
-                }
-            }
-        }
-    }
-
-    // Check if the field type is a varint or varlong
-    let segment_type = segment.ident.to_string();
-    match segment_type.as_str() {
-        "varint" => {
-            segment.ident = Ident::new("u32", segment.ident.span());
-            return Some(syn::parse_quote!(#[frog(var)]));
-        }
-        "varlong" => {
-            segment.ident = Ident::new("u64", segment.ident.span());
-            return Some(syn::parse_quote!(#[frog(var)]));
-        }
-        _ => {}
-    }
-
-    // Format the field type to match rust conventions
-    if !IGNORE_TYPES.contains(&segment_type.as_str()) {
-        segment.ident =
-            Ident::new(&segment.ident.to_string().to_case(Case::Pascal), segment.ident.span());
-    }
-
-    returned
 }

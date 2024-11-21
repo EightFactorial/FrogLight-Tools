@@ -5,6 +5,7 @@ use hashbrown::HashMap;
 use super::ModuleGenerator;
 
 mod common;
+mod process;
 
 impl ModuleGenerator for PacketGenerator {
     /// Generate packets from the given [`DataMap`].
