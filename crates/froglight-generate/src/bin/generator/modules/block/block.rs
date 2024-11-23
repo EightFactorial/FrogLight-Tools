@@ -168,22 +168,22 @@ use crate::{{BlockState, BlockStateExt}};
         let from_relative = if block.states() == 1 {
             String::from("Some(Self)")
         } else {
-            String::from("Some(Self(relative as u16))")
+            String::from("Some(Self(relative))")
         };
 
         let to_relative = if block.states() == 1 {
-            String::from("0usize")
+            String::from("0u16")
         } else {
-            String::from("usize::from(self.0)")
+            String::from("self.0")
         };
 
         content.push_str(&format!(
             r"impl BlockStateExt<{version_name}> for {block_name} {{
     type Attributes = {attributes};
     const DEFAULT: Self = {default};
-    fn to_relative(&self) -> usize {{ {to_relative} }}
-    fn from_relative(relative: usize) -> Option<Self> {{
-        if relative < <Self as BlockStateExt<{version_name}>>::STATE_COUNT {{ {from_relative} }} else {{ None }}
+    fn to_relative(&self) -> u16 {{ {to_relative} }}
+    fn from_relative(relative: u16) -> Option<Self> {{
+        if usize::from(relative) < <Self as BlockStateExt<{version_name}>>::STATE_COUNT {{ {from_relative} }} else {{ None }}
     }}
 }}
 
