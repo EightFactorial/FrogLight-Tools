@@ -39,12 +39,15 @@ pub enum ProtocolTypeArgs {
     Array(ArrayArgs),
     ArrayWithLengthOffset(ArrayWithLengthOffsetArgs),
     Bitfield(Vec<BitfieldArg>),
+    Bitflags(BitflagArgs),
     Buffer(BufferArgs),
     Container(Vec<ContainerArg>),
     EntityMetadata(EntityMetadataArgs),
     Mapper(MapperArgs),
     Option(Box<ProtocolType>),
     PString(BufferArgs),
+    RegistryEntryHolder(RegistryEntryHolderArgs),
+    RegistryEntryHolderSet(RegistryEntryHolderSetArgs),
     Switch(SwitchArgs),
     TopBitSetTerminatedArray(TopBitSetTerminatedArrayArgs),
 }
@@ -92,6 +95,13 @@ pub struct BitfieldArg {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BitflagArgs {
+    #[serde(rename = "type")]
+    pub kind: Box<ProtocolType>,
+    pub flags: Vec<CompactString>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BufferArgs {
     #[serde(rename = "count")]
     Count(u32),
@@ -132,6 +142,26 @@ pub struct SwitchArgs {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TopBitSetTerminatedArrayArgs {
+    #[serde(rename = "type")]
+    pub kind: Box<ProtocolType>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RegistryEntryHolderArgs {
+    #[serde(rename = "baseName")]
+    pub base_name: Box<ProtocolType>,
+    pub otherwise: RegistryEntryArg,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RegistryEntryHolderSetArgs {
+    pub base: RegistryEntryArg,
+    pub otherwise: RegistryEntryArg,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RegistryEntryArg {
+    pub name: CompactString,
     #[serde(rename = "type")]
     pub kind: Box<ProtocolType>,
 }
@@ -199,6 +229,10 @@ impl<'de> Deserialize<'de> for ProtocolType {
                         seq.next_element()?
                             .ok_or_else(|| A::Error::custom("missing bitfield args"))?,
                     ),
+                    "bitflags" => ProtocolTypeArgs::Bitflags(
+                        seq.next_element()?
+                            .ok_or_else(|| A::Error::custom("missing bitflags args"))?,
+                    ),
                     "buffer" => ProtocolTypeArgs::Buffer(
                         seq.next_element()?
                             .ok_or_else(|| A::Error::custom("missing buffer args"))?,
@@ -223,6 +257,15 @@ impl<'de> Deserialize<'de> for ProtocolType {
                         seq.next_element()?
                             .ok_or_else(|| A::Error::custom("missing pstring args"))?,
                     ),
+                    "registryEntryHolder" => ProtocolTypeArgs::RegistryEntryHolder(
+                        seq.next_element()?
+                            .ok_or_else(|| A::Error::custom("missing registryEntryHolder args"))?,
+                    ),
+                    "registryEntryHolderSet" => {
+                        ProtocolTypeArgs::RegistryEntryHolderSet(seq.next_element()?.ok_or_else(
+                            || A::Error::custom("missing registryEntryHolderSet args"),
+                        )?)
+                    }
                     "switch" => ProtocolTypeArgs::Switch(
                         seq.next_element()?
                             .ok_or_else(|| A::Error::custom("missing switch args"))?,

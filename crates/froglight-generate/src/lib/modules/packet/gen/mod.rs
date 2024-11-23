@@ -39,12 +39,19 @@ impl super::PacketGenerator {
             ProtocolTypeArgs::Array(args) => Self::handle_array(state, args, file),
             ProtocolTypeArgs::ArrayWithLengthOffset(args) => Self::handle_offset(state, args, file),
             ProtocolTypeArgs::Bitfield(args) => Self::handle_bitfield(state, args, file),
+            ProtocolTypeArgs::Bitflags(args) => Self::handle_bitflags(state, args, file),
             ProtocolTypeArgs::Buffer(args) => Self::handle_buffer(state, args, file),
             ProtocolTypeArgs::Container(args) => Self::handle_container(state, args, file),
             ProtocolTypeArgs::EntityMetadata(args) => Self::handle_metadata(state, args, file),
             ProtocolTypeArgs::Mapper(args) => Self::handle_mapper(state, args, file),
             ProtocolTypeArgs::Option(option) => Self::handle_option(state, option, file),
             ProtocolTypeArgs::PString(args) => Self::handle_pstring(state, args, file),
+            ProtocolTypeArgs::RegistryEntryHolder(args) => {
+                Self::handle_registry_entry(state, args, file)
+            }
+            ProtocolTypeArgs::RegistryEntryHolderSet(args) => {
+                Self::handle_registry_entry_set(state, args, file)
+            }
             ProtocolTypeArgs::Switch(args) => Self::handle_switch(state, args, file),
             ProtocolTypeArgs::TopBitSetTerminatedArray(args) => {
                 Self::handle_bitset_array(state, args, file)

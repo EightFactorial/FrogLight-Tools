@@ -95,6 +95,7 @@ async fn fetch() {
 
 /// Recursively assert that all types are valid,
 /// and that all referenced types exist in the [`ProtocolTypeMap`].
+#[allow(clippy::too_many_lines)]
 fn assert_valid_type(data: &ProtocolType, types: &ProtocolTypeMap) {
     match data {
         ProtocolType::Named(type_name) => {
@@ -127,6 +128,9 @@ fn assert_valid_type(data: &ProtocolType, types: &ProtocolTypeMap) {
         }
         ProtocolType::Inline(type_name, ProtocolTypeArgs::Bitfield(..)) => {
             assert_eq!(type_name, "bitfield");
+        }
+        ProtocolType::Inline(type_name, ProtocolTypeArgs::Bitflags(..)) => {
+            assert_eq!(type_name, "bitflags");
         }
         ProtocolType::Inline(type_name, ProtocolTypeArgs::Buffer(buffer_args)) => {
             assert_eq!(type_name, "buffer");
@@ -163,6 +167,19 @@ fn assert_valid_type(data: &ProtocolType, types: &ProtocolTypeMap) {
                     "Unknown pstring count protocol type: \"{count_type}\"",
                 );
             }
+        }
+        ProtocolType::Inline(type_name, ProtocolTypeArgs::RegistryEntryHolder(registry_args)) => {
+            assert!(type_name == "registryEntryHolder");
+            assert_valid_type(&registry_args.base_name, types);
+            assert_valid_type(&registry_args.otherwise.kind, types);
+        }
+        ProtocolType::Inline(
+            type_name,
+            ProtocolTypeArgs::RegistryEntryHolderSet(registry_args),
+        ) => {
+            assert!(type_name == "registryEntryHolderSet");
+            assert_valid_type(&registry_args.base.kind, types);
+            assert_valid_type(&registry_args.otherwise.kind, types);
         }
         ProtocolType::Inline(type_name, ProtocolTypeArgs::Switch(switch_args)) => {
             assert_eq!(type_name, "switch");

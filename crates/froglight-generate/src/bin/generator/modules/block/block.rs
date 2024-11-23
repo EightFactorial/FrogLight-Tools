@@ -183,7 +183,7 @@ use crate::{{BlockState, BlockStateExt}};
     const DEFAULT: Self = {default};
     fn to_relative(&self) -> usize {{ {to_relative} }}
     fn from_relative(relative: usize) -> Option<Self> {{
-        if relative < Self::STATE_COUNT {{ {from_relative} }} else {{ None }}
+        if relative < <Self as BlockStateExt<{version_name}>>::STATE_COUNT {{ {from_relative} }} else {{ None }}
     }}
 }}
 

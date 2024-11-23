@@ -68,13 +68,17 @@ impl DataMap {
         let mut version_data = HashMap::new();
         for VersionTuple { base, target } in versions {
             // Get the VersionInfo
+            tracing::trace!("VersionInfo: {base}");
             let info = VersionInfo::fetch(target, cache, &man, redownload, &client).await?;
             // Get the GeneratorData
+            tracing::trace!("GeneratorData: {base}");
             let generated = GeneratorData::fetch(target, cache, &info, redownload, &client).await?;
 
             // Get the VersionBlocks
+            tracing::trace!("VersionBlocks: {base}");
             let blocks = VersionBlocks::fetch(target, cache, &dat, redownload, &client).await?;
             // Get the VersionProtocol
+            tracing::trace!("VersionProtocol: {base}");
             let proto = VersionProtocol::fetch(target, cache, &dat, redownload, &client).await?;
 
             // Create and insert the DataSet

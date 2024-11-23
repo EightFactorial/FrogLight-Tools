@@ -1,8 +1,9 @@
 #[expect(unused_imports)]
 use froglight_parse::file::protocol::ProtocolTypeArgs;
 use froglight_parse::file::protocol::{
-    ArrayArgs, ArrayWithLengthOffsetArgs, BitfieldArg, BufferArgs, ContainerArg,
-    EntityMetadataArgs, MapperArgs, ProtocolType, SwitchArgs, TopBitSetTerminatedArrayArgs,
+    ArrayArgs, ArrayWithLengthOffsetArgs, BitfieldArg, BitflagArgs, BufferArgs, ContainerArg,
+    EntityMetadataArgs, MapperArgs, ProtocolType, RegistryEntryHolderArgs,
+    RegistryEntryHolderSetArgs, SwitchArgs, TopBitSetTerminatedArrayArgs,
 };
 use proc_macro2::Span;
 use quote::{quote, ToTokens};
@@ -106,6 +107,30 @@ impl PacketGenerator {
             // Push the field and label it with the bit size
             file.push_struct_field_str(&field_state, field_type)?;
             file.push_struct_field_attr_tokens(&field_state, quote! { #[frog(bits = #bits)] })?;
+        }
+
+        // Return the generated struct
+        Result::item_from_state(state)
+    }
+
+    /// Handle [`ProtocolTypeArgs::Bitflags`] [`BitflagArgs`]
+    #[must_use]
+    pub(super) fn handle_bitflags(
+        state: &State<Target>,
+        args: &BitflagArgs,
+        file: &mut File,
+    ) -> Result {
+        // Create a new struct and add the `bitflags` attribute
+        let state = state.create_item();
+        file.create_struct(&state);
+        file.push_struct_attr_tokens(&state, quote! { #[frog(bitflags)] })?;
+
+        // Iterate over the fields
+        for arg in &args.flags {
+            // Create a new state for the field
+            let field_state = state.with_target(&Self::format_field_name(arg));
+            // Push the field
+            file.push_struct_field_str(&field_state, "bool")?;
         }
 
         // Return the generated struct
@@ -230,6 +255,28 @@ impl PacketGenerator {
         _file: &mut File,
     ) -> Result {
         Result::item_from_str("string")
+    }
+
+    /// Handle [`ProtocolTypeArgs::RegistryEntryHolder`]
+    /// [`RegistryEntryHolderArgs`]
+    #[must_use]
+    pub(super) fn handle_registry_entry(
+        state: &State<Target>,
+        entry: &RegistryEntryHolderArgs,
+        file: &mut File,
+    ) -> Result {
+        Result::unsupported()
+    }
+
+    /// Handle [`ProtocolTypeArgs::RegistryEntryHolderSet`]
+    /// [`RegistryEntryHolderSetArgs`]
+    #[must_use]
+    pub(super) fn handle_registry_entry_set(
+        state: &State<Target>,
+        entry: &RegistryEntryHolderSetArgs,
+        file: &mut File,
+    ) -> Result {
+        Result::unsupported()
     }
 
     /// Handle [`ProtocolTypeArgs::Switch`] [`SwitchArgs`]

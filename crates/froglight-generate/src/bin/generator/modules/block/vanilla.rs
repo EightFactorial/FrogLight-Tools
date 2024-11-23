@@ -17,7 +17,7 @@ pub(super) async fn generate_storage(datamap: &DataMap, args: &CliArgs) -> anyho
 
     let imports = version_modules.iter().zip_eq(version_names.iter()).map(|(module, version)| {
         format!("{module}::{version}")
-    }).join(",");
+    }).join(", ");
 
     let modules = version_modules.iter().map(|module| {
         format!("mod {module};")
@@ -31,9 +31,9 @@ pub(super) async fn generate_storage(datamap: &DataMap, args: &CliArgs) -> anyho
     let content = format!(
 r"use bevy_app::App;
 use bevy_reflect::Reflect;
-use froglight_protocol::versions::{imports};
+use froglight_protocol::versions::{{{imports}}};
 
-use super::{{ReflectBlockBuilder, BlockStorageArc}};
+use super::{{BlockStorageArc, ReflectBlockBuilder}};
 
 {modules}
 
