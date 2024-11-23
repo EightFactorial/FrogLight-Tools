@@ -112,6 +112,8 @@ use froglight_protocol::versions::{module_name}::{version_name};
 use super::{{attribute::*, block::*}};
 use crate::{{BlockState, BlockStateExt}};
 
+froglight_macros::impl_block_traits! {{
+    {version_name} => {{
 "
     );
 
@@ -127,69 +129,35 @@ use crate::{{BlockState, BlockStateExt}};
         let emit_light = block.emit_light;
         let bounding_box = block.bounding_box.as_str();
 
-        content.push_str(&format!(
-            r#"impl BlockState<{version_name}> for {block_name} {{
-    fn resource_key(&self) -> &'static str {{ "minecraft:{resource_key}" }}
-    fn material(&self) -> &'static str {{ "minecraft:{material}" }}
-    fn diggable(&self) -> bool {{ {diggable} }}
-    fn hardness(&self) -> f32 {{ {hardness}f32 }}
-    fn resistance(&self) -> f32 {{ {resistance}f32 }}
-    fn transparent(&self) -> bool {{ {transparent} }}
-    fn emit_light(&self) -> u8 {{ {emit_light}u8 }}
-    fn bounding_box(&self) -> &'static str {{ "minecraft:{bounding_box}" }}
-}}
-"#
-        ));
+        if block.states.is_empty() {
+            content.push_str(&format!(
+r#"        {block_name} => ["minecraft:{resource_key}", "minecraft:{material}", {diggable}, {hardness}f32, {resistance}f32, {transparent}, {emit_light}u8, "minecraft:{bounding_box}"],
+"#));
+        } else {
+            let default = block.default_state - block.min_state_id;
 
-        let mut attributes = String::new();
-        for (index, state) in block.states.iter().enumerate() {
-            let mut field_type = BlockGenerator::attribute_item_name(state);
-            if let Some((_, new_ident)) = overrides.iter().find(|(old, _)| *old == field_type) {
-                field_type = new_ident.clone();
+            let mut attributes = String::new();
+            for (index, state) in block.states.iter().enumerate() {
+                let mut field_type = BlockGenerator::attribute_item_name(state);
+                if let Some((_, new_ident)) = overrides.iter().find(|(old, _)| *old == field_type) {
+                    field_type = new_ident.clone();
+                }
+    
+                attributes.push_str(&field_type);
+                if index < block.states.len().saturating_sub(1) {
+                    attributes.push_str(", ");
+                }
             }
 
-            attributes.push_str(&field_type);
-            if index < block.states.len().saturating_sub(1) {
-                attributes.push_str(", ");
-            }
+            content.push_str(&format!(
+r#"        {block_name} => ({attributes}),
+                ["minecraft:{resource_key}", "minecraft:{material}", {diggable}, {hardness}f32, {resistance}f32, {transparent}, {emit_light}u8, "minecraft:{bounding_box}", {default}],
+"#));
         }
-        if block.states.len() > 1 {
-            attributes = format!("({attributes})");
-        } else if attributes.is_empty() {
-            attributes = String::from("()");
-        }
-
-        let default = if block.states() == 1 {
-            String::from("Self")
-        } else {
-            format!("Self({}u16)", block.default_state - block.min_state_id)
-        };
-
-        let from_relative = if block.states() == 1 {
-            String::from("Some(Self)")
-        } else {
-            String::from("Some(Self(relative))")
-        };
-
-        let to_relative = if block.states() == 1 {
-            String::from("0u16")
-        } else {
-            String::from("self.0")
-        };
-
-        content.push_str(&format!(
-            r"impl BlockStateExt<{version_name}> for {block_name} {{
-    type Attributes = {attributes};
-    const DEFAULT: Self = {default};
-    fn to_relative(&self) -> u16 {{ {to_relative} }}
-    fn from_relative(relative: u16) -> Option<Self> {{
-        if usize::from(relative) < <Self as BlockStateExt<{version_name}>>::STATE_COUNT {{ {from_relative} }} else {{ None }}
-    }}
-}}
-
-"
-        ));
     }
+
+    // Close the macro.
+    content.push_str("    }\n}\n");
 
     // Write the output to a file.
     let file_name = format!("v{}.rs", version.to_long_string().replace(['.'], "_"));
