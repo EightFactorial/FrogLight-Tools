@@ -22,7 +22,7 @@ pub(super) async fn generate_entities(datamap: &DataMap, args: &CliArgs) -> anyh
     let mut entity_content = String::new();
 
     // Get the latest specification for each entity.
-    for (_, entity) in entities {
+    for (index, (_, entity)) in entities.iter().enumerate() {
         let ident = entity.display_name.replace(['\''], "_").to_case(Case::Pascal);
         entity_content.push_str(&format!("    {ident} => "));
 
@@ -46,7 +46,11 @@ pub(super) async fn generate_entities(datamap: &DataMap, args: &CliArgs) -> anyh
             }
         }
 
-        entity_content.push_str(" },\n");
+        if index < entities.len() - 1 {
+            entity_content.push_str(" },\n");
+        } else {
+            entity_content.push_str(" }");
+        }
     }
 
     let content = format!(
