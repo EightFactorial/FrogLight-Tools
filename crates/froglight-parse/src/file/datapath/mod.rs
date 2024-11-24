@@ -51,6 +51,16 @@ impl DataPath {
         let blocks = self.pc.get(version).and_then(|paths| paths.blocks.as_ref())?;
         Some(Self::FILE_URL.replace("dataPaths.json", blocks) + "/blocks.json")
     }
+
+    /// Get the URL for a Java edition `entities.json` file.
+    ///
+    /// Used for fetching a
+    /// [`VersionEntities`](crate::file::entity::VersionEntities) file.
+    #[must_use]
+    pub fn get_java_entities(&self, version: &Version) -> Option<String> {
+        let entities = self.pc.get(version).and_then(|paths| paths.entities.as_ref())?;
+        Some(Self::FILE_URL.replace("dataPaths.json", entities) + "/entities.json")
+    }
 }
 
 /// Data paths for a specific edition.

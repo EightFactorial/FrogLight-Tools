@@ -6,6 +6,9 @@ pub use blocks::VersionBlocks;
 pub mod datapath;
 pub use datapath::DataPath;
 
+pub mod entity;
+pub use entity::VersionEntities;
+
 pub mod generator;
 pub use generator::GeneratorData;
 

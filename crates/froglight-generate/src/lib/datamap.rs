@@ -2,8 +2,8 @@ use std::path::Path;
 
 use froglight_parse::{
     file::{
-        DataPath, FileTrait, GeneratorData, VersionBlocks, VersionInfo, VersionManifest,
-        VersionProtocol,
+        DataPath, FileTrait, GeneratorData, VersionBlocks, VersionEntities, VersionInfo,
+        VersionManifest, VersionProtocol,
     },
     Version,
 };
@@ -34,6 +34,7 @@ pub struct DataSet {
     pub generated: GeneratorData,
 
     pub blocks: VersionBlocks,
+    pub entities: VersionEntities,
     pub proto: VersionProtocol,
 }
 
@@ -77,12 +78,15 @@ impl DataMap {
             // Get the VersionBlocks
             tracing::trace!("VersionBlocks: {base}");
             let blocks = VersionBlocks::fetch(target, cache, &dat, redownload, &client).await?;
+            // Get the VersionEntities
+            tracing::trace!("VersionEntities: {base}");
+            let entities = VersionEntities::fetch(target, cache, &dat, redownload, &client).await?;
             // Get the VersionProtocol
             tracing::trace!("VersionProtocol: {base}");
             let proto = VersionProtocol::fetch(target, cache, &dat, redownload, &client).await?;
 
             // Create and insert the DataSet
-            version_data.insert(base.clone(), DataSet { info, generated, blocks, proto });
+            version_data.insert(base.clone(), DataSet { info, generated, blocks, entities, proto });
         }
 
         Ok(Self { manifest: man, datapath: dat, version_data })

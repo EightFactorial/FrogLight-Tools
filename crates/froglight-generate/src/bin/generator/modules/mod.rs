@@ -1,4 +1,5 @@
 mod block;
+mod entity;
 mod packet;
 mod registry;
 
