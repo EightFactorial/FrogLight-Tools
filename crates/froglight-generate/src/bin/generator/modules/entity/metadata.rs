@@ -129,8 +129,8 @@ pub(super) async fn generate_metadata(datamap: &DataMap, args: &CliArgs) -> anyh
     for entity in entities.values() {
         metadata.extend(entity.metadata.iter());
 
-        cat_and_type.insert(&entity.category);
-        cat_and_type.insert(&entity.kind);
+        cat_and_type.insert(entity.category.to_string());
+        cat_and_type.insert(format!("{}Entity", entity.kind));
     }
 
     // Sort the categories and types and insert them
