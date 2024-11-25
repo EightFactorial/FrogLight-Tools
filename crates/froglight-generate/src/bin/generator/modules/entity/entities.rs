@@ -11,11 +11,13 @@ const REQUIRED_FILTER: &[&str] = &[
     "custom_name",
     "hurtdir",
     "interested",
+    "owneruuid",
     "pose",
+    "shoulder_left",
+    "shoulder_right",
     "sleeping_pos",
     "stinger_count",
     "swell_dir",
-    "owneruuid",
 ];
 
 pub(super) async fn generate_entities(datamap: &DataMap, args: &CliArgs) -> anyhow::Result<()> {
@@ -55,7 +57,7 @@ pub(super) async fn generate_entities(datamap: &DataMap, args: &CliArgs) -> anyh
         let filtered: Vec<_> =
             entity.metadata.iter().filter(|&m| !REQUIRED_FILTER.contains(&m.as_str())).collect();
         for (index, metadata) in filtered.iter().enumerate() {
-            if let Some((_, MetadataAction::NameAndType(ident, _))) =
+            if let Some((_, MetadataAction::NameAndType(ident, ..))) =
                 METADATA_ACTIONS.iter().find(|(key, _)| key == metadata)
             {
                 entity_content.push_str(ident);
