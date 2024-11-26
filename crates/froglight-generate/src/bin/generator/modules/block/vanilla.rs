@@ -24,7 +24,10 @@ pub(super) async fn generate_storage(datamap: &DataMap, args: &CliArgs) -> anyho
     }).join("\n");
 
     let registrations = version_names.iter().map(|version| {
-        format!("        app.register_type_data::<Self, ReflectBlockBuilder<{version}>>();\n        app.init_resource::<BlockStorageArc<{version}>>();")
+        format!("        app.register_type_data::<Self, ReflectBlockBuilder<{version}>>();")
+    }).join("\n");
+    let initializations = version_names.iter().map(|version| {
+        format!("        app.init_resource::<BlockStorageArc<{version}>>();")
     }).join("\n");
 
 
@@ -45,6 +48,9 @@ impl VanillaBuilder {{
     pub(super) fn build(app: &mut App) {{
         app.register_type::<Self>();
 {registrations}
+    }}
+    pub(super) fn finish(app: &mut App) {{
+{initializations}
     }}
 }}
 ");

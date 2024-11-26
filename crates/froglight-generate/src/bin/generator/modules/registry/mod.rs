@@ -1,7 +1,7 @@
 use convert_case::{Case, Casing};
 use froglight_generate::{CliArgs, DataMap, RegistryGenerator};
 use froglight_parse::{file::generator::report::{RegistryReport, RegistryReportEntries}, Version};
-use hashbrown::HashMap;
+use hashbrown::{HashMap, HashSet};
 
 use super::ModuleGenerator;
 
@@ -9,6 +9,7 @@ impl ModuleGenerator for RegistryGenerator {
     /// Generate packets from the given [`DataMap`].
     async fn generate(datamap: &DataMap, args: &CliArgs) -> anyhow::Result<()> {
         generate_all_registries(datamap, args).await?;
+        generate_reflect(datamap, args).await?;
 
         for (version, data) in &datamap.version_data {
             generate_registry_impls(version, &data.generated.reports.registries, args).await?;
@@ -74,11 +75,13 @@ use froglight_macros::FrogRegistry;
 
         // Push the registry enum.
         if reg_data.default.is_some() {
-            content.push_str(&format!("#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, FrogRegistry)]\npub enum {reg_ident}Registry {{\n{enum_content}\n}}\n"));
+            content.push_str("#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, FrogRegistry)]\n");
         } else {
-            content.push_str(&format!("#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, FrogRegistry)]\npub enum {reg_ident}Registry {{\n{enum_content}\n}}\n"));
+            content.push_str("#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, FrogRegistry)]\n");
         }
-    }
+        content.push_str("#[cfg_attr(feature = \"reflect\", derive(bevy_reflect::Reflect))]\n");
+        content.push_str(&format!("pub enum {reg_ident}Registry {{\n{enum_content}\n}}\n"));
+}
 
     let file_path = args.dir.join("crates/froglight-registry/src/generated/registry.rs");
     if !file_path.exists() {
@@ -142,6 +145,52 @@ froglight_macros::impl_generated_registries! {{
 ");
 
     let file_path = args.dir.join("crates/froglight-registry/src/generated/").join(format!("{module_name}.rs"));
+    if !file_path.exists() {
+        tracing::warn!("RegistryGenerator: Creating file \"{}\"", file_path.display());
+        tokio::fs::create_dir_all(file_path.parent().unwrap()).await?;
+    }
+    tokio::fs::write(file_path, &content).await?;
+
+    Ok(())
+}
+
+async fn generate_reflect(datamap: &DataMap, args: &CliArgs) -> anyhow::Result<()> {
+    // Get the names of all registries.
+    let mut all_registries: HashSet<&str> = HashSet::new();
+    for data in datamap.version_data.values() {
+        for registry in data.generated.reports.registries.keys() {
+            all_registries.insert(registry.as_str());
+        }
+    }
+
+    let mut content = String::from(
+r"#![allow(clippy::wildcard_imports)]
+
+use bevy_app::App;
+
+use super::registry::*;
+
+pub(crate) fn register(app: &mut App) {
+");
+
+    // Collect and sort the registry names.
+    let mut all_registries: Vec<_> = all_registries.into_iter().collect();
+    all_registries.sort_unstable();
+
+    // Register the registry enums.
+    for registry_name in all_registries {
+        let reg_ident = registry_name
+            .trim_start_matches("minecraft:")
+            .replace(['.', ':', '/', '\\'], "_")
+            .to_case(Case::Pascal);
+
+        // Register the enum.
+        content.push_str(&format!("    app.register_type::<{reg_ident}Registry>();\n"));
+    }
+
+    content.push_str("}\n");
+
+    let file_path = args.dir.join("crates/froglight-registry/src/generated/reflect.rs");
     if !file_path.exists() {
         tracing::warn!("RegistryGenerator: Creating file \"{}\"", file_path.display());
         tokio::fs::create_dir_all(file_path.parent().unwrap()).await?;
