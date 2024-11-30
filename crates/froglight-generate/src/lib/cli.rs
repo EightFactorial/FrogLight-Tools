@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use clap_verbosity_flag::{LevelFilter, Verbosity, WarnLevel};
-use tracing_log::AsTrace;
+use clap_verbosity_flag::{Verbosity, WarnLevel};
+use tracing_log::{log::LevelFilter, AsTrace};
 
 use crate::config::Config;
 

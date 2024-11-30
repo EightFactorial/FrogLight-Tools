@@ -55,6 +55,7 @@ fn generated() {{
     let mut app = App::new();
     app.add_plugins(MinimalPlugins);
     app.add_plugins(BlockPlugin);
+    app.finish();
 
     // Retrieve the block storage.
     let storage = app.world().resource::<BlockStorageArc<{version_name}>>();
