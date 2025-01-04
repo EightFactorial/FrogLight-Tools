@@ -20,7 +20,7 @@ convert_case = "0.6"
 derive_more = { workspace = true }
 froglight-parse = { version = "0.1.0", path = "../froglight-parse" }
 hashbrown = { workspace = true }
-itertools = "0.13"
+itertools = "0.14"
 prettyplease = "0.2"
 proc-macro2 = "1.0"
 quote = "1.0"
