@@ -1,6 +1,10 @@
 [workspace]
 resolver = "2"
-members = []
+members = [
+  "crates/froglight-dependency",
+  "crates/froglight-extract",
+  "crates/froglight-tool-macros",
+]
 
 [workspace.lints.rust]
 missing_docs = "warn"
@@ -39,14 +43,20 @@ readme = "README.md"
 anyhow = "1.0"
 convert_case = "0.7"
 derive_more = { version = "1.0", features = ["full"] }
-hashbrown = "0.15"
+froglight-dependency = { version = "0.1", path = "crates/froglight-dependency" }
+froglight-extract = { version = "0.1", path = "crates/froglight-extract" }
+froglight-tool-macros = { version = "0.1", path = "crates/froglight-tool-macros" }
+hashbrown = { version = "0.15", features = ["serde"] }
+inventory = "0.3"
 itertools = "0.14"
 quick-xml = { version = "0.37", features = ["async-tokio", "serde"] }
 reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
-serde = "1.0"
-serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1.0", features = ["preserve_order"] }
 tokio = "1.43"
 tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+zip = { version = "2.2", features = ["deflate"] }
 
 [package]
 name = "froglight-tools"
@@ -67,4 +77,17 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
+froglight-dependency = { workspace = true }
+froglight-extract = { workspace = true }
+inventory = { workspace = true }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread"] }
+
+# Optional dependencies
+tracing = { workspace = true, optional = true }
+tracing-subscriber = { workspace = true, optional = true }
+
+[features]
+default = ["logging"]
+
+# Enable logging features
+logging = ["dep:tracing", "dep:tracing-subscriber"]
