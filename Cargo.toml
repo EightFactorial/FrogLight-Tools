@@ -41,6 +41,7 @@ readme = "README.md"
 
 [workspace.dependencies]
 anyhow = "1.0"
+clap = { version = "4.5", features = ["derive"] }
 convert_case = "0.7"
 derive_more = { version = "1.0", features = ["full"] }
 froglight-dependency = { version = "0.1", path = "crates/froglight-dependency" }
@@ -48,7 +49,6 @@ froglight-extract = { version = "0.1", path = "crates/froglight-extract" }
 froglight-tool-macros = { version = "0.1", path = "crates/froglight-tool-macros" }
 hashbrown = { version = "0.15", features = ["serde"] }
 inventory = "0.3"
-itertools = "0.14"
 quick-xml = { version = "0.37", features = ["async-tokio", "serde"] }
 reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -77,17 +77,11 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+clap = { workspace = true }
 froglight-dependency = { workspace = true }
 froglight-extract = { workspace = true }
-inventory = { workspace = true }
-tokio = { workspace = true, features = ["rt", "rt-multi-thread"] }
-
-# Optional dependencies
-tracing = { workspace = true, optional = true }
-tracing-subscriber = { workspace = true, optional = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
 
 [features]
-default = ["logging"]
-
-# Enable logging features
-logging = ["dep:tracing", "dep:tracing-subscriber"]

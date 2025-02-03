@@ -30,3 +30,10 @@ wildcards = "deny"
 multiple-versions = "warn"
 external-default-features = "allow"
 workspace-default-features = "allow"
+
+[[bans.skip]]
+name = "regex-automata"
+version = "=0.1.10"
+[[bans.skip]]
+name = "regex-syntax"
+version = "=0.6.29"
