@@ -44,11 +44,13 @@ anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 convert_case = "0.7"
 derive_more = { version = "1.0", features = ["full"] }
+downcast-rs = "2.0"
 froglight-dependency = { version = "0.1", path = "crates/froglight-dependency" }
 froglight-extract = { version = "0.1", path = "crates/froglight-extract" }
 froglight-tool-macros = { version = "0.1", path = "crates/froglight-tool-macros" }
 hashbrown = { version = "0.15", features = ["serde"] }
 inventory = "0.3"
+proptest = "1.6"
 quick-xml = { version = "0.37", features = ["async-tokio", "serde"] }
 reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -83,5 +85,6 @@ froglight-extract = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
+tracing = { workspace = true }
 
 [features]

@@ -28,3 +28,8 @@ toml_edit = { version = "0.22", default-features = false, features = ["parse"] }
 
 [features]
 default = []
+
+# Enable `froglight-dependency` macros.
+dependency = []
+# Enable `froglight-extract` macros.
+extract = []
