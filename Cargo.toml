@@ -43,7 +43,7 @@ readme = "README.md"
 anyhow = "1.0"
 clap = { version = "4.5", features = ["derive"] }
 convert_case = "0.7"
-derive_more = { version = "1.0", features = ["full"] }
+derive_more = { version = "2.0", features = ["full"] }
 downcast-rs = "2.0"
 froglight-dependency = { version = "0.1", path = "crates/froglight-dependency" }
 froglight-extract = { version = "0.1", path = "crates/froglight-extract" }

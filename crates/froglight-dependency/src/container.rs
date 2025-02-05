@@ -1,6 +1,6 @@
 //! TODO
 
-use std::{any::TypeId, future::Future, sync::Arc};
+use std::{any::TypeId, future::Future, path::PathBuf, sync::Arc};
 
 use downcast_rs::DowncastSync;
 pub use froglight_tool_macros::Dependency;
@@ -23,6 +23,8 @@ impl std::ops::Deref for SharedDependencies {
 pub struct DependencyContainer {
     /// A shared [`Client`] for making network requests.
     pub client: Client,
+    /// A cache directory for storing dependencies.
+    pub cache: PathBuf,
     dependencies: HashMap<TypeId, Box<dyn Dependency>>,
 }
 
@@ -30,11 +32,13 @@ impl DependencyContainer {
     /// Create a new [`DependencyContainer`].
     #[inline]
     #[must_use]
-    pub fn new() -> Self { Self::from_client(Client::default()) }
+    pub fn new(cache: PathBuf) -> Self { Self::from_client(cache, Client::default()) }
 
     /// Create a new [`DependencyContainer`] using a [`Client`].
     #[must_use]
-    pub fn from_client(client: Client) -> Self { Self { client, dependencies: HashMap::new() } }
+    pub fn from_client(cache: PathBuf, client: Client) -> Self {
+        Self { client, cache, dependencies: HashMap::new() }
+    }
 }
 
 impl DependencyContainer {
@@ -126,9 +130,9 @@ impl DependencyContainer {
     ///
     /// # Panics
     /// Panics if the [`Dependency`] is not found.
-    pub async fn scoped_fut<T: Dependency, Fut: Future<Output = Ret>, Ret: Sized>(
+    pub async fn scoped_fut<T: Dependency, Ret: Sized>(
         &mut self,
-        f: impl FnOnce(&mut T, &mut Self) -> Fut,
+        f: impl AsyncFnOnce(&mut T, &mut Self) -> Ret,
     ) -> Ret {
         let mut dep = self.take::<T>().expect("Dependency not found to scope!");
         let result = f(&mut dep, self).await;
