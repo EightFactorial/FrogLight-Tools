@@ -8,7 +8,7 @@ use tokio::runtime::Builder;
 
 /// The [`main`] command line arguments.
 #[derive(Parser)]
-pub struct MainArgs {
+pub struct ExtractArgs {
     /// The version to extract.
     #[clap(short, long)]
     pub version: Version,
@@ -33,7 +33,7 @@ pub fn main() -> anyhow::Result<()> {
     #[cfg(feature = "logging")]
     logging();
 
-    let args = MainArgs::parse();
+    let args = ExtractArgs::parse();
 
     let runtime =
         Builder::new_multi_thread().enable_all().build().expect("Failed building the Runtime");

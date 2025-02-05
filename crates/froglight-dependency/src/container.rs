@@ -18,6 +18,15 @@ impl std::ops::Deref for SharedDependencies {
     fn deref(&self) -> &Self::Target { &self.0 }
 }
 
+impl SharedDependencies {
+    /// Create a new [`SharedDependencies`] with the given cache directory.
+    #[inline]
+    #[must_use]
+    pub fn new(cache: PathBuf) -> Self {
+        Self(Arc::new(RwLock::new(DependencyContainer::new(cache))))
+    }
+}
+
 /// A container for shared dependencies.
 pub struct DependencyContainer {
     /// A shared [`Client`] for making network requests.
@@ -26,7 +35,6 @@ pub struct DependencyContainer {
     pub cache: PathBuf,
     dependencies: HashMap<TypeId, Box<dyn Dependency>>,
 }
-
 impl Default for DependencyContainer {
     #[inline]
     fn default() -> Self { Self::new(PathBuf::from("./cache")) }
