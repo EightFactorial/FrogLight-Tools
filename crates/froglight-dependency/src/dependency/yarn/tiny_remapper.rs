@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use froglight_tool_macros::Dependency;
 use tokio::process::Command;
 
+use super::YarnMapping;
 use crate::container::DependencyContainer;
 
 /// The `TinyRemapper` jar remapping tool.
@@ -17,7 +18,7 @@ pub struct TinyRemapper(PathBuf);
 impl TinyRemapper {
     const FILENAME: &'static str = "tiny-remapper-fat.jar";
     const URL: &'static str =
-        "https://maven.fabricmc.net/net/fabricmc/tiny-remapper/0.11.0/tiny-remapper-0.11.0.jar";
+        "https://maven.fabricmc.net/net/fabricmc/tiny-remapper/0.10.4/tiny-remapper-0.10.4-fat.jar";
 
     async fn retrieve(deps: &mut DependencyContainer) -> anyhow::Result<Self> {
         let path = deps.cache.join(Self::FILENAME);
@@ -42,7 +43,7 @@ impl TinyRemapper {
         &self,
         jar: &Path,
         output: &Path,
-        // mappings: &YarnMapping,
+        mappings: &YarnMapping,
     ) -> anyhow::Result<()> {
         if tokio::fs::try_exists(output).await? {
             tracing::debug!("Using \"{}\"", output.display());
@@ -50,22 +51,22 @@ impl TinyRemapper {
         } else {
             tracing::debug!("Remapping \"{}\"", jar.display());
 
-            let result = Command::new("java")
+            let process = Command::new("java")
                 .arg("-jar")
                 .arg(&self.0)
                 .arg(jar)
                 .arg(output)
-                // .arg(mappings)
+                .arg(&**mappings)
                 .arg("official")
                 .arg("named")
                 .output()
                 .await?;
 
-            if result.status.success() {
+            if process.status.success() {
                 Ok(())
             } else {
-                let stdout = String::from_utf8_lossy(&result.stdout);
-                let stderr = String::from_utf8_lossy(&result.stderr);
+                let stdout = String::from_utf8_lossy(&process.stdout);
+                let stderr = String::from_utf8_lossy(&process.stderr);
                 Err(anyhow::anyhow!("TinyRemapper failed:\n{stderr}\n{stdout}"))
             }
         }

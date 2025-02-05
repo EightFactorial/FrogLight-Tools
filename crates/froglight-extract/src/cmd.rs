@@ -73,6 +73,6 @@ pub fn logging() {
     static LOGGING: Once = Once::new();
     LOGGING.call_once(|| {
         let filter = tracing_subscriber::EnvFilter::from_default_env();
-        let _ = fmt().with_env_filter(filter).with_writer(std::io::stderr).try_init();
+        fmt().with_env_filter(filter).with_writer(std::io::stderr).init();
     });
 }

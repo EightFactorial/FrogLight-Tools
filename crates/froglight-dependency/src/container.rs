@@ -19,13 +19,17 @@ impl std::ops::Deref for SharedDependencies {
 }
 
 /// A container for shared dependencies.
-#[derive(Default)]
 pub struct DependencyContainer {
     /// A shared [`Client`] for making network requests.
     pub client: Client,
     /// A cache directory for storing dependencies.
     pub cache: PathBuf,
     dependencies: HashMap<TypeId, Box<dyn Dependency>>,
+}
+
+impl Default for DependencyContainer {
+    #[inline]
+    fn default() -> Self { Self::new(PathBuf::from("./cache")) }
 }
 
 impl DependencyContainer {

@@ -32,5 +32,6 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["fs", "process"] }
 tracing = { workspace = true }
+zip = { workspace = true, features = ["deflate"] }
 
 [features]

@@ -51,7 +51,7 @@ froglight-tool-macros = { version = "0.1", path = "crates/froglight-tool-macros"
 hashbrown = { version = "0.15", features = ["serde"] }
 inventory = "0.3"
 proptest = "1.6"
-quick-xml = { version = "0.37", features = ["async-tokio", "serde"] }
+quick-xml = { version = "0.37", features = ["async-tokio", "serialize"] }
 reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }

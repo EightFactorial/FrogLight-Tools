@@ -35,16 +35,16 @@ impl MinecraftJar {
     #[expect(clippy::missing_panics_doc)]
     pub async fn get_client(
         &mut self,
-        version: Version,
+        version: &Version,
         deps: &mut DependencyContainer,
     ) -> anyhow::Result<&Path> {
-        if !self.client.contains_key(&version) {
+        if !self.client.contains_key(version) {
             deps.get_or_retrieve::<ReleaseManifests>().await?;
             deps.scoped_fut::<ReleaseManifests, anyhow::Result<()>>(
                 async |manifest: &mut ReleaseManifests, deps| {
                     MinecraftJar::download_and_cache(
-                        &version,
-                        &manifest.get_release(&version, deps).await?.downloads.client,
+                        version,
+                        &manifest.get_release(version, deps).await?.downloads.client,
                         &mut self.client,
                         deps,
                     )
@@ -54,7 +54,7 @@ impl MinecraftJar {
             .await?;
         }
 
-        Ok(self.client(&version).unwrap())
+        Ok(self.client(version).unwrap())
     }
 
     /// Get the [`Path`] of the server jar for the given version.
@@ -72,16 +72,16 @@ impl MinecraftJar {
     #[expect(clippy::missing_panics_doc)]
     pub async fn get_server(
         &mut self,
-        version: Version,
+        version: &Version,
         deps: &mut DependencyContainer,
     ) -> anyhow::Result<&Path> {
-        if !self.server.contains_key(&version) {
+        if !self.server.contains_key(version) {
             deps.get_or_retrieve::<ReleaseManifests>().await?;
             deps.scoped_fut::<ReleaseManifests, anyhow::Result<()>>(
                 async |manifest: &mut ReleaseManifests, deps| {
                     MinecraftJar::download_and_cache(
-                        &version,
-                        &manifest.get_release(&version, deps).await?.downloads.server,
+                        version,
+                        &manifest.get_release(version, deps).await?.downloads.server,
                         &mut self.server,
                         deps,
                     )
@@ -91,7 +91,7 @@ impl MinecraftJar {
             .await?;
         }
 
-        Ok(self.server(&version).unwrap())
+        Ok(self.server(version).unwrap())
     }
 }
 
