@@ -42,7 +42,8 @@ impl DataGenerator {
                     Ok(())
                 },
             )
-            .await?;
+            .await
+            .map_err(|err| anyhow::anyhow!("DataGenerator: {err}"))?;
         }
 
         Ok(self.version(version).unwrap())

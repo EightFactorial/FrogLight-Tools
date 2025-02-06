@@ -51,7 +51,8 @@ impl MinecraftJar {
                     .await
                 },
             )
-            .await?;
+            .await
+            .map_err(|err| anyhow::anyhow!("MinecraftJar: {err}"))?;
         }
 
         Ok(self.client(version).unwrap())

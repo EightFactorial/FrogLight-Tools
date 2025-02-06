@@ -20,6 +20,7 @@ proptest = { workspace = true }
 
 [dependencies]
 anyhow = { workspace = true }
+cafebabe = { workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
 downcast-rs = { workspace = true }
 froglight-tool-macros = { workspace = true, features = ["dependency"] }

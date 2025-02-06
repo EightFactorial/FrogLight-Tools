@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use froglight_dependency::{
     container::{DependencyContainer, SharedDependencies},
-    dependency::minecraft::{DataGenerator, DecompiledJar},
+    dependency::minecraft::{DataGenerator, MinecraftCode},
     version::Version,
 };
 
@@ -24,10 +24,10 @@ async fn main() -> anyhow::Result<()> {
     {
         let mut deps = dependencies.write().await;
 
-        deps.get_or_retrieve::<DecompiledJar>().await?;
-        deps.scoped_fut::<DecompiledJar, anyhow::Result<()>>(
-            async |jar: &mut DecompiledJar, deps: &mut DependencyContainer| {
-                jar.get_client(&version, deps).await?;
+        deps.get_or_retrieve::<MinecraftCode>().await?;
+        deps.scoped_fut::<MinecraftCode, anyhow::Result<()>>(
+            async |code: &mut MinecraftCode, deps: &mut DependencyContainer| {
+                code.get_version(&version, deps).await?;
                 Ok(())
             },
         )

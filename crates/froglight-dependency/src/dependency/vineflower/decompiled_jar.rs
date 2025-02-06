@@ -5,8 +5,11 @@ use std::path::{Path, PathBuf};
 use froglight_tool_macros::Dependency;
 use hashbrown::HashMap;
 
-use super::MappedJar;
-use crate::{container::DependencyContainer, dependency::vineflower::Vineflower, version::Version};
+use crate::{
+    container::DependencyContainer,
+    dependency::{vineflower::Vineflower, yarn::MappedJar},
+    version::Version,
+};
 
 /// Decompiled Client and Server JAR paths.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Dependency)]
@@ -44,7 +47,8 @@ impl DecompiledJar {
                     Ok(())
                 },
             )
-            .await?;
+            .await
+            .map_err(|err| anyhow::anyhow!("DecompiledJar: {err}"))?;
         }
 
         Ok(self.client(version).unwrap())

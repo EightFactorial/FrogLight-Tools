@@ -6,7 +6,7 @@ use clap::Parser;
 use froglight_dependency::{container::SharedDependencies, version::Version};
 use tokio::runtime::Builder;
 
-/// The [`main`] command line arguments.
+/// The [`froglight_extract::main`](main) command line arguments.
 #[derive(Parser)]
 pub struct ExtractArgs {
     /// The version to extract.
@@ -40,6 +40,23 @@ pub fn main() -> anyhow::Result<()> {
     runtime.block_on(extract(args.version, args.output, SharedDependencies::default()))
 }
 
+/// Initialize logging with the default environment filter.
+///
+/// This function will only ever run once, even if called multiple times.
+///
+/// See [`EnvFilter::from_default_env`](tracing_subscriber::EnvFilter::from_default_env)
+/// for more information.
+#[cfg(feature = "logging")]
+pub fn logging() {
+    use tracing_subscriber::fmt;
+
+    static LOGGING: Once = Once::new();
+    LOGGING.call_once(|| {
+        let filter = tracing_subscriber::EnvFilter::from_default_env();
+        fmt().with_env_filter(filter).with_writer(std::io::stderr).init();
+    });
+}
+
 /// The extract function.
 ///
 /// Useful if you want to use the extracted data in your own code.
@@ -58,21 +75,4 @@ pub async fn extract(
     _deps: SharedDependencies,
 ) -> anyhow::Result<()> {
     Ok(())
-}
-
-/// Initialize logging with the default environment filter.
-///
-/// This function will only ever run once, even if called multiple times.
-///
-/// See [`EnvFilter::from_default_env`](tracing_subscriber::EnvFilter::from_default_env)
-/// for more information.
-#[cfg(feature = "logging")]
-pub fn logging() {
-    use tracing_subscriber::fmt;
-
-    static LOGGING: Once = Once::new();
-    LOGGING.call_once(|| {
-        let filter = tracing_subscriber::EnvFilter::from_default_env();
-        fmt().with_env_filter(filter).with_writer(std::io::stderr).init();
-    });
 }

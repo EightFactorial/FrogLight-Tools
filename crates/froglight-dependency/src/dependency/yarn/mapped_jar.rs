@@ -5,10 +5,12 @@ use std::path::{Path, PathBuf};
 use froglight_tool_macros::Dependency;
 use hashbrown::HashMap;
 
-use super::MinecraftJar;
 use crate::{
     container::DependencyContainer,
-    dependency::yarn::{TinyRemapper, YarnMappings},
+    dependency::{
+        minecraft::MinecraftJar,
+        yarn::{TinyRemapper, YarnMappings},
+    },
     version::Version,
 };
 
@@ -49,7 +51,8 @@ impl MappedJar {
                     Ok(())
                 },
             )
-            .await?;
+            .await
+            .map_err(|err| anyhow::anyhow!("MappedJar: {err}"))?;
         }
 
         Ok(self.client(version).unwrap())
@@ -83,7 +86,8 @@ impl MappedJar {
                     Ok(())
                 },
             )
-            .await?;
+            .await
+            .map_err(|err| anyhow::anyhow!("MappedJar: {err}"))?;
         }
 
         Ok(self.server(version).unwrap())

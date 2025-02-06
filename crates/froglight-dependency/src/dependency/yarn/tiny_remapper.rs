@@ -16,7 +16,7 @@ use crate::container::DependencyContainer;
 pub struct TinyRemapper(PathBuf);
 
 impl TinyRemapper {
-    const FILENAME: &'static str = "tiny-remapper-fat.jar";
+    const FILENAME: &'static str = "tiny-remapper.jar";
     const URL: &'static str =
         "https://maven.fabricmc.net/net/fabricmc/tiny-remapper/0.10.4/tiny-remapper-0.10.4-fat.jar";
 
