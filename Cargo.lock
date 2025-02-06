@@ -618,6 +618,7 @@ dependencies = [
  "froglight-dependency",
  "froglight-tool-macros",
  "inventory",
+ "serde_json",
  "tokio",
  "tracing",
  "tracing-subscriber",

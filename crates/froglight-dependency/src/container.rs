@@ -25,6 +25,17 @@ impl SharedDependencies {
     pub fn new(cache: PathBuf) -> Self {
         Self(Arc::new(RwLock::new(DependencyContainer::new(cache))))
     }
+
+    /// Create a new [`SharedDependencies`] with the cache directory set to the
+    /// `{CARGO_MANIFEST_DIR}/target/froglight-tools` directory.
+    ///
+    /// This is very useful when running inside a rust project.
+    #[must_use]
+    pub fn from_rust_env() -> Self {
+        let dir = std::env::var("CARGO_MANIFEST_DIR")
+            .map(|dir| PathBuf::from(dir).join("target/froglight-tools"));
+        SharedDependencies::new(dir.unwrap_or_else(|_| PathBuf::from("cache")))
+    }
 }
 
 /// A container for shared dependencies.

@@ -45,3 +45,30 @@ mod dependency;
 pub fn derive_dependency(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     dependency::derive_dependency(input.into()).into()
 }
+
+// ------------------- `froglight-extract` -------------------
+
+#[cfg(feature = "extract")]
+mod extract;
+
+/// Create an `ExtractModule`
+///
+/// # Example
+/// ```rust,ignore
+/// use froglight_extract::module::ExtractModule;
+///
+/// #[derive(ExtractModule)]
+/// #[module(function = Self::run_module)]
+/// struct MyModule;
+///
+/// impl MyModule {
+///     fn run_module(deps: &mut DependencyContainer) {
+///         todo!()
+///     }
+/// }
+/// ```
+#[cfg(feature = "extract")]
+#[proc_macro_derive(ExtractModule, attributes(module))]
+pub fn derive_module(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    extract::derive_module(input.into()).into()
+}
