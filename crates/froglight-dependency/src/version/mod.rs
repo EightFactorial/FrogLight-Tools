@@ -145,7 +145,7 @@ impl Version {
                 format!("{}.{}.{}-{}", version.major, version.minor, version.patch, version.pre)
             }
             Version::Snapshot(version) => format!(
-                "{}w{}{}",
+                "{}w{:02}{}",
                 version.major,
                 version.minor,
                 char::from(u8::try_from(version.patch).expect("Invalid snapshot release"))
@@ -194,7 +194,7 @@ impl Version {
                 }
             }
             Version::Snapshot(version) => format!(
-                "{}w{}{}",
+                "{}w{:02}{}",
                 version.major,
                 version.minor,
                 char::from(u8::try_from(version.patch).expect("Invalid snapshot release"))

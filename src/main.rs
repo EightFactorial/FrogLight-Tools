@@ -3,7 +3,7 @@
 
 use froglight_dependency::{
     container::{DependencyContainer, SharedDependencies},
-    dependency::minecraft::{DataGenerator, MinecraftCode},
+    dependency::{minecraft::DataGenerator, vineflower::DecompiledJar},
     version::Version,
 };
 
@@ -11,16 +11,16 @@ use froglight_dependency::{
 async fn main() -> anyhow::Result<()> {
     froglight_extract::logging();
 
-    let version = Version::new_release(1, 21, 4);
+    let version = Version::new_snapshot(25, 6, 'a').unwrap();
     let dependencies = SharedDependencies::from_rust_env();
 
     {
         let mut deps = dependencies.write().await;
 
-        deps.get_or_retrieve::<MinecraftCode>().await?;
-        deps.scoped_fut::<MinecraftCode, anyhow::Result<()>>(
-            async |code: &mut MinecraftCode, deps: &mut DependencyContainer| {
-                code.get_version(&version, deps).await?;
+        deps.get_or_retrieve::<DecompiledJar>().await?;
+        deps.scoped_fut::<DecompiledJar, anyhow::Result<()>>(
+            async |jar: &mut DecompiledJar, deps: &mut DependencyContainer| {
+                jar.get_client(&version, deps).await?;
                 Ok(())
             },
         )
