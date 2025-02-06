@@ -30,7 +30,7 @@ pub(crate) fn derive_module(input: TokenStream) -> TokenStream {
         }
 
         #path::module::inventory::submit! {
-            #path::module::ExtractModule::new(#name, #function)
+            #path::module::ExtractModule::new(#name, |v, d| Box::pin(#function(v, d)))
         }
     }
 }

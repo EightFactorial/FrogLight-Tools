@@ -112,10 +112,11 @@ pub async fn extract(
         ExtractModule::collect().map(|m| (m.name(), m)).collect();
 
     // Iterate over the specified modules and run them.
+    // Reacquire the lock for each module to prevent deadlocks.
     for module in modules {
         if let Some(extract) = module_map.get(module.as_str()) {
             tracing::info!("Running module \"{module}\"");
-            extract.run(&version, &mut *dependencies.write().await)?;
+            extract.run(&version, &mut *dependencies.write().await).await?;
         } else {
             tracing::error!("Unknown module \"{module}\"");
         }

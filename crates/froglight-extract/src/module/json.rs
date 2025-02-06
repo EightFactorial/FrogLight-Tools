@@ -11,7 +11,6 @@ pub struct JsonModule;
 pub struct JsonOutput(pub serde_json::Value);
 
 impl JsonModule {
-    fn extract(_version: &Version, _deps: &mut DependencyContainer) -> anyhow::Result<()> {
-        todo!()
-    }
+    #[expect(clippy::unused_async)]
+    async fn extract(_v: &Version, _d: &mut DependencyContainer) -> anyhow::Result<()> { todo!() }
 }

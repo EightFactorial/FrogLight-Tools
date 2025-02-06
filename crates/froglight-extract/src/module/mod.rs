@@ -1,5 +1,7 @@
 //! TODO
 
+use std::{future::Future, pin::Pin};
+
 use froglight_dependency::{container::DependencyContainer, version::Version};
 pub use inventory;
 
@@ -10,19 +12,19 @@ pub use json::{JsonModule, JsonOutput};
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ExtractModule {
     name: &'static str,
-    function: fn(&Version, &mut DependencyContainer) -> anyhow::Result<()>,
+    function: ExtractFn,
 }
+
+type ExtractFn = for<'a> fn(
+    &'a Version,
+    &'a mut DependencyContainer,
+) -> Pin<Box<dyn Future<Output = anyhow::Result<()>> + 'a>>;
 
 impl ExtractModule {
     /// Create a new [`ExtractModule`] instance.
     #[inline]
     #[must_use]
-    pub const fn new(
-        name: &'static str,
-        function: fn(&Version, &mut DependencyContainer) -> anyhow::Result<()>,
-    ) -> Self {
-        Self { name, function }
-    }
+    pub const fn new(name: &'static str, function: ExtractFn) -> Self { Self { name, function } }
 
     /// Get the name of the [`ExtractModule`].
     #[inline]
@@ -34,12 +36,12 @@ impl ExtractModule {
     /// # Errors
     /// Returns an error if the module fails to run.
     #[inline]
-    pub fn run(
+    pub async fn run(
         &self,
         version: &Version,
         container: &mut DependencyContainer,
     ) -> anyhow::Result<()> {
-        (self.function)(version, container)
+        (self.function)(version, container).await
     }
 
     /// Collect all registered [`ExtractModule`]s.
