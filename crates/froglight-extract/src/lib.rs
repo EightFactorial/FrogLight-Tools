@@ -3,9 +3,11 @@
 
 #[cfg(feature = "cmd")]
 pub mod cmd;
-#[cfg(all(feature = "cmd", feature = "logging"))]
-pub use cmd::logging;
 #[cfg(feature = "cmd")]
-pub use cmd::{extract, main};
+pub use cmd::main;
 
 pub mod module;
+pub use module::extract;
+
+pub mod json;
+pub use inventory;

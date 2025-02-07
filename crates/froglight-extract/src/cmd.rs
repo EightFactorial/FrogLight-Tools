@@ -1,12 +1,12 @@
 //! TODO
 
-use std::{collections::HashMap, path::PathBuf, sync::Once};
+use std::{path::PathBuf, sync::Once};
 
 use clap::Parser;
 use froglight_dependency::{container::SharedDependencies, version::Version};
 use tokio::runtime::Builder;
 
-use crate::module::{ExtractModule, JsonModule, JsonOutput};
+use crate::json::{JsonModule, JsonOutput};
 
 /// The default pre-configured entry point.
 ///
@@ -36,7 +36,7 @@ pub fn main() -> anyhow::Result<()> {
         }
 
         let dependencies = SharedDependencies::from_rust_env();
-        extract(args.version, &args.modules, dependencies.clone()).await?;
+        crate::extract(args.version, &args.modules, dependencies.clone()).await?;
 
         // If the `JsonOutput` is present, serialize it to the console or a file.
         if let Some(output) = dependencies.write().await.take::<JsonOutput>() {
@@ -87,40 +87,4 @@ pub fn logging() {
         let filter = EnvFilter::from_default_env();
         fmt().with_env_filter(filter).with_writer(std::io::stderr).init();
     });
-}
-
-/// The extract function.
-///
-/// Useful if you want to use the extracted data in your own code.
-///
-/// ```rust,ignore
-/// #[tokio::main]
-/// async fn main() -> anyhow::Result<()> {
-///     let version = Version::new_release(1, 21, 4);
-///     let data = froglight_extract::extract(version, ..).await?;
-///     // etc...
-/// }
-/// ```
-#[allow(clippy::missing_errors_doc, clippy::unused_async)]
-pub async fn extract(
-    version: Version,
-    modules: &[String],
-    dependencies: SharedDependencies,
-) -> anyhow::Result<()> {
-    // Collect the `ExtractModule`s into a map.
-    let module_map: HashMap<&str, &ExtractModule> =
-        ExtractModule::collect().map(|m| (m.name(), m)).collect();
-
-    // Iterate over the specified modules and run them.
-    // Reacquire the lock for each module to prevent deadlocks.
-    for module in modules {
-        if let Some(extract) = module_map.get(module.as_str()) {
-            tracing::info!("Running module \"{module}\"");
-            extract.run(&version, &mut *dependencies.write().await).await?;
-        } else {
-            tracing::error!("Unknown module \"{module}\"");
-        }
-    }
-
-    Ok(())
 }

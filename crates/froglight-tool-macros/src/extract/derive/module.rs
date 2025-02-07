@@ -29,7 +29,7 @@ pub(crate) fn derive_module(input: TokenStream) -> TokenStream {
             pub const MODULE_NAME: &'static str = #name;
         }
 
-        #path::module::inventory::submit! {
+        #path::inventory::submit! {
             #path::module::ExtractModule::new(#name, |v, d| Box::pin(#function(v, d)))
         }
     }

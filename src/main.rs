@@ -9,7 +9,7 @@ use froglight_dependency::{
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    froglight_extract::logging();
+    froglight_extract::cmd::logging();
 
     let version = Version::new_snapshot(25, 6, 'a').unwrap();
     let dependencies = SharedDependencies::from_rust_env();
