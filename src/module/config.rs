@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use froglight_dependency::{
-    container::{Dependency, DependencyContainer},
+    container::{Dependency, DependencyContainer, SharedDependencies},
     version::Version,
 };
 use serde::Deserialize;
@@ -49,6 +49,12 @@ pub(crate) struct ToolConfig {
 }
 
 impl ToolConfig {
+    /// Retrieve the configuration from the dependency container
+    #[inline]
+    pub(crate) async fn get(deps: &SharedDependencies) -> anyhow::Result<Self> {
+        deps.write().await.get_or_retrieve::<Self>().await.cloned()
+    }
+
     async fn parse(deps: &mut DependencyContainer) -> anyhow::Result<Self> {
         let ToolArgs { config, modules } = deps.get_or_retrieve::<ToolArgs>().await?.clone();
 

@@ -15,8 +15,8 @@ async fn main() -> anyhow::Result<()> {
     let deps = SharedDependencies::from_rust_env();
     let modules = ExtractModule::map();
 
-    // Load the command line arguments and configuration file
-    let config = deps.write().await.get_or_retrieve::<ToolConfig>().await?.clone();
+    // Parse the command line arguments and load the configuration file
+    let config = ToolConfig::get(&deps).await?;
 
     // Run the modules for each version
     for version in config.versions {
