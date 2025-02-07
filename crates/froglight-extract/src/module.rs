@@ -6,6 +6,7 @@ use froglight_dependency::{
     container::{DependencyContainer, SharedDependencies},
     version::Version,
 };
+pub use froglight_tool_macros::ExtractModule;
 
 /// The extract function.
 ///
@@ -28,14 +29,12 @@ pub async fn extract(
     modules: &[String],
     dependencies: SharedDependencies,
 ) -> anyhow::Result<()> {
-    // Collect the `ExtractModule`s into a map.
-    let module_map: HashMap<&str, &ExtractModule> =
-        ExtractModule::collect().map(|m| (m.name(), m)).collect();
+    let map = ExtractModule::map();
 
     // Iterate over the specified modules and run them.
     // Reacquire the lock for each module to prevent deadlocks.
     for module in modules {
-        if let Some(extract) = module_map.get(module.as_str()) {
+        if let Some(extract) = map.get(module.as_str()) {
             tracing::info!("Running module \"{module}\"");
             extract.run(&version, &mut *dependencies.write().await).await?;
         } else {
@@ -82,8 +81,14 @@ impl ExtractModule {
         (self.function)(version, container).await
     }
 
+    /// Collect all registered [`ExtractModule`]s into a [`HashMap`].
+    #[must_use]
+    pub fn map() -> HashMap<&'static str, &'static Self> {
+        Self::iter().map(|m| (m.name(), m)).collect()
+    }
+
     /// Collect all registered [`ExtractModule`]s.
-    pub fn collect() -> impl Iterator<Item = &'static ExtractModule> {
+    pub fn iter() -> impl Iterator<Item = &'static ExtractModule> {
         inventory::iter::<ExtractModule>.into_iter()
     }
 }

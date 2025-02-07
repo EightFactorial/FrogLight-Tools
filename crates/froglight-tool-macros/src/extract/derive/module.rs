@@ -21,7 +21,7 @@ pub(crate) fn derive_module(input: TokenStream) -> TokenStream {
     let DeriveInput { ident, .. } = input;
 
     let path = path.unwrap_or_else(|| syn::parse_quote!(froglight_extract));
-    let name = name.unwrap_or_else(|| ident.to_string());
+    let name = name.unwrap_or_else(|| ident.to_string()).to_lowercase();
 
     quote! {
         impl #ident {
