@@ -50,6 +50,7 @@ froglight-dependency = { version = "0.1", path = "crates/froglight-dependency" }
 froglight-extract = { version = "0.1", path = "crates/froglight-extract" }
 froglight-tool-macros = { version = "0.1", path = "crates/froglight-tool-macros" }
 hashbrown = { version = "0.15", features = ["serde"] }
+indexmap = { version = "2.7", features = ["serde"] }
 inventory = "0.3"
 proptest = "1.6"
 quick-xml = { version = "0.37", features = ["async-tokio", "serialize"] }
@@ -82,8 +83,10 @@ workspace = true
 anyhow = { workspace = true }
 cafebabe = { workspace = true }
 clap = { workspace = true }
+convert_case = { workspace = true }
 froglight-dependency = { workspace = true }
 froglight-extract = { workspace = true }
+indexmap = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
