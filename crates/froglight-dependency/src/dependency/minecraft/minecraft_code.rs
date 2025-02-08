@@ -71,7 +71,7 @@ impl CodeBundle {
             let mut file_buf = Vec::new();
             file.read_to_end(&mut file_buf)?;
 
-            map.insert(file.name().to_string(), file_buf);
+            map.insert(file.name().trim_end_matches(".class").to_string(), file_buf);
         }
 
         Ok(Self(map))
@@ -80,7 +80,7 @@ impl CodeBundle {
     /// Get the [`ClassFile`] for a given class.
     #[must_use]
     #[expect(clippy::missing_panics_doc)]
-    pub fn get(&self, class: &str) -> Option<ClassFile> {
+    pub fn get<'a>(&'a self, class: &str) -> Option<ClassFile<'a>> {
         self.0.get(class).map(|data| cafebabe::parse_class(data).unwrap())
     }
 }

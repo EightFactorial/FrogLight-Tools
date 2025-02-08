@@ -641,6 +641,7 @@ name = "froglight-tools"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "cafebabe",
  "clap",
  "froglight-dependency",
  "froglight-extract",

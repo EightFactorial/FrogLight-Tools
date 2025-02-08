@@ -42,7 +42,6 @@ impl ToolArgs {
 #[derive(Debug, Clone, PartialEq, Eq, Dependency, Deserialize)]
 #[dep(retrieve = Self::parse)]
 pub(crate) struct ToolConfig {
-    #[serde(rename = "version")]
     pub(crate) versions: Vec<Version>,
     #[serde(skip)]
     pub(crate) modules: Vec<String>,

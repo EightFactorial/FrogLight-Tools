@@ -80,6 +80,7 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+cafebabe = { workspace = true }
 clap = { workspace = true }
 froglight-dependency = { workspace = true }
 froglight-extract = { workspace = true }

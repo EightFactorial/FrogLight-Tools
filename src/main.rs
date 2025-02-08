@@ -5,6 +5,7 @@ use froglight_dependency::container::SharedDependencies;
 use froglight_extract::module::ExtractModule;
 use module::ToolConfig;
 
+mod class_helper;
 mod module;
 
 #[tokio::main]
