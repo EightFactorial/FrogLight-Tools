@@ -14,7 +14,7 @@ mod attribute;
 pub(crate) use attribute::BlockAttributeData;
 
 mod report;
-pub(crate) use report::BlockReports;
+pub(crate) use report::{BlockReports, ParsedBlockReport};
 
 use crate::ToolConfig;
 
