@@ -78,22 +78,26 @@ impl BlockAttributes {
         }
     }
 
-    pub(crate) fn as_enum(&self, attr: &BlockAttributeAttribute) -> String {
+    pub(crate) fn as_enum_macro(&self, attr: &BlockAttributeAttribute) -> String {
         let enum_type = EnumType::from_attribute(attr);
         let ident = self.as_enum_name_internal(attr, &enum_type);
 
         match enum_type {
-            EnumType::Bool => format!("pub enum {ident} {{ True, False }}"),
+            EnumType::Bool => {
+                format!("pub enum {ident} {{ True, False }} {{ \"true\", \"false\" }}")
+            }
             EnumType::IntRange(range) => {
                 format!(
-                    "pub enum {ident} {{ {} }}",
-                    range.into_iter().map(|i| format!("_{i}")).collect::<Vec<_>>().join(", ")
+                    "pub enum {ident} {{ {} }} {{ {} }}",
+                    range.clone().map(|i| format!("_{i}")).collect::<Vec<_>>().join(", "),
+                    range.map(|i| format!("\"{i}\"")).collect::<Vec<_>>().join(", ")
                 )
             }
             EnumType::Enum(values) => {
                 format!(
-                    "pub enum {ident} {{ {} }}",
-                    values.iter().map(|v| v.to_case(Case::Pascal)).collect::<Vec<_>>().join(", ")
+                    "pub enum {ident} {{ {} }} {{ {} }}",
+                    values.iter().map(|v| v.to_case(Case::Pascal)).collect::<Vec<_>>().join(", "),
+                    values.iter().map(|v| format!("\"{v}\"")).collect::<Vec<_>>().join(", ")
                 )
             }
         }
