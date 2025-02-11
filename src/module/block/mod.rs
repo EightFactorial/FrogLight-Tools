@@ -100,7 +100,9 @@ froglight_macros::block_attributes! {{
                 )
                 .await?;
             }
+
             sorted.sort_unstable();
+            sorted.dedup();
 
             let path = path.join("src/generated/block.rs");
             let blocks: String = sorted.into_iter().fold(String::new(), |mut acc, block| {
