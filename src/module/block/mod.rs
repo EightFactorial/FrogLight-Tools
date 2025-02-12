@@ -67,8 +67,10 @@ impl Blocks {
                     r"//! This file is generated, do not modify it manually.
 //!
 //! TODO: Documentation
+#![allow(missing_docs, non_camel_case_types)]
 
 froglight_macros::block_attributes! {{
+    crate,
 {attributes}}}
 "
                 ),
@@ -118,8 +120,10 @@ froglight_macros::block_attributes! {{
                     r"//! This file is generated, do not modify it manually.
 //!
 //! TODO: Documentation
+#![allow(missing_docs)]
 
 froglight_macros::blocks! {{
+    crate,
 {blocks}}}
 "
                 ),
