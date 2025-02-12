@@ -255,6 +255,9 @@ impl Blocks {
 //! TODO: Documentation
 #![allow(missing_docs)]
 
+#[allow(clippy::wildcard_imports)]
+use super::{{attribute::*, block::*}};
+
 froglight_macros::block_properties! {{
     path = crate,
     version = {version_ident},
