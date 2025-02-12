@@ -594,6 +594,7 @@ dependencies = [
  "anyhow",
  "cafebabe",
  "chrono",
+ "convert_case",
  "downcast-rs",
  "froglight-tool-macros",
  "hashbrown",

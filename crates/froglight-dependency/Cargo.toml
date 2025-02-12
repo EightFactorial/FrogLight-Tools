@@ -22,6 +22,7 @@ proptest = { workspace = true }
 anyhow = { workspace = true }
 cafebabe = { workspace = true }
 chrono = { version = "0.4", features = ["serde"] }
+convert_case = { workspace = true }
 downcast-rs = { workspace = true }
 froglight-tool-macros = { workspace = true, features = ["dependency"] }
 hashbrown = { workspace = true }

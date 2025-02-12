@@ -1,5 +1,6 @@
 use std::{io::Read, sync::Arc};
 
+use convert_case::{Case, Casing};
 use froglight_tool_macros::Dependency;
 use hashbrown::HashMap;
 use zip::ZipArchive;
@@ -20,7 +21,7 @@ impl Translations {
     #[must_use]
     pub fn version(&self, version: &Version) -> Option<&TranslationsFile> { self.0.get(version) }
 
-    /// Get the [`TransaltionsFile`] for the given version.
+    /// Get the [`TranslationsFile`] for the given version.
     ///
     /// # Errors
     /// Returns an error if there was an error retrieving the data.
@@ -63,6 +64,25 @@ impl Translations {
 /// A file containing translations.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TranslationsFile(Arc<HashMap<String, String>>);
+
+impl TranslationsFile {
+    /// Get the `identifier` of a block.
+    ///
+    /// Uses the translation if available,
+    /// otherwise falls back to the input key.
+    #[expect(clippy::missing_panics_doc)]
+    pub fn block_name(&self, block: &str) -> String {
+        if let Some(translation) = self.get(&format!("block.{}", block.replace(':', "."))) {
+            translation.replace(['\''], "_").to_case(Case::Pascal)
+        } else {
+            if !block.contains("wall") {
+                tracing::warn!("No translation found for block: \"{block}\"");
+            }
+
+            block.split(':').next_back().unwrap().to_case(Case::Pascal)
+        }
+    }
+}
 
 impl std::ops::Deref for TranslationsFile {
     type Target = HashMap<String, String>;
