@@ -1,5 +1,6 @@
 //! Dependencies grouped by their source.
 
+pub mod client;
 pub mod minecraft;
 pub mod mojang;
 pub mod vineflower;

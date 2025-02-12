@@ -4,7 +4,11 @@ use std::{fmt::Write, path::Path, sync::Once};
 
 use attribute::ParsedBlockReport;
 use convert_case::{Case, Casing};
-use froglight_dependency::{container::DependencyContainer, version::Version};
+use froglight_dependency::{
+    container::DependencyContainer,
+    dependency::client::{Translations, TranslationsFile},
+    version::Version,
+};
 use froglight_extract::module::ExtractModule;
 use tokio::sync::OnceCell;
 use tracing::Level;
@@ -85,18 +89,42 @@ froglight_macros::block_attributes! {{
     }
 
     /// Generate block unit structs.
-    ///
-    /// TODO: Don't create block names from the block identifier,
-    /// use the name from the translations instead.
     async fn generate_blocks(deps: &mut DependencyContainer, path: &Path) -> anyhow::Result<()> {
         static ONCE: OnceCell<anyhow::Result<()>> = OnceCell::const_new();
         ONCE.get_or_init(async || {
             let mut sorted: Vec<String> = Vec::new();
             for version in deps.get::<ToolConfig>().unwrap().versions.clone() {
+                // Get the translations for proper block names.
+                deps.get_or_retrieve::<Translations>().await?;
+                let translations = deps
+                    .scoped_fut::<Translations, anyhow::Result<TranslationsFile>>(
+                        async |translations: &mut Translations, deps| {
+                            translations.get_version(&version, deps).await.cloned()
+                        },
+                    )
+                    .await?;
+
                 deps.scoped_fut::<BlockReports, anyhow::Result<()>>(
                     async |reports: &mut BlockReports, deps| {
                         let report = reports.get_version(&version, deps).await?;
-                        sorted.extend(report.0.keys().cloned());
+
+                        for block in report.0.keys() {
+                            let translation_key = format!("block.{}", block.replace(':', "."));
+                            if let Some(translation) = translations.get(&translation_key) {
+                                sorted.push(translation.replace(['\''], "_").to_case(Case::Pascal));
+                            } else {
+                                if !block.contains("wall") {
+                                    tracing::warn!(
+                                        "No translation found for {version} block: \"{block}\""
+                                    );
+                                }
+
+                                sorted.push(
+                                    block.split(':').next_back().unwrap().to_case(Case::Pascal),
+                                );
+                            }
+                        }
+
                         Ok(())
                     },
                 )
@@ -109,7 +137,7 @@ froglight_macros::block_attributes! {{
             let path = path.join("src/generated/block.rs");
             let blocks: String = sorted.into_iter().fold(String::new(), |mut acc, block| {
                 acc.push_str("    pub struct ");
-                acc.push_str(&block.split(':').next_back().unwrap().to_case(Case::Pascal));
+                acc.push_str(&block);
                 acc.push_str(";\n");
                 acc
             });
