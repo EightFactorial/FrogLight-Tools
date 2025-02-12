@@ -178,8 +178,18 @@ impl Blocks {
         let translations = deps.get::<Translations>().unwrap();
         let translations = translations.version(version).unwrap();
 
-        let implementations =
-            report.0.iter().enumerate().fold(String::new(), |mut acc, (i, (block, entry))| {
+        let mut sorted_report = Vec::with_capacity(report.0.len());
+        let mut next_block = 0u32;
+        while let Some((block, entry)) =
+            report.0.iter().find(|(_, entry)| entry.range().contains(&next_block))
+        {
+            next_block = entry.range().end() + 1;
+            sorted_report.push((block, entry));
+        }
+
+        let implementations = sorted_report.into_iter().enumerate().fold(
+            String::new(),
+            |mut acc, (i, (block, entry))| {
                 let entry_data = BlockAttributeData::from_parsed(block, entry);
 
                 let block_name = translations.block_name(block);
@@ -232,10 +242,11 @@ impl Blocks {
                 acc.push('\n');
 
                 acc
-            });
+            },
+        );
 
         let path =
-            path.join(format!("src/generated/{}.rs", version.to_long_string().replace('.', "_")));
+            path.join(format!("src/generated/v{}.rs", version.to_long_string().replace('.', "_")));
         tokio::fs::write(
             path,
             format!(
@@ -245,7 +256,7 @@ impl Blocks {
 #![allow(missing_docs)]
 
 froglight_macros::block_properties! {{
-    crate,
+    path = crate,
     version = {version_ident},
 {implementations}}}
 ",
