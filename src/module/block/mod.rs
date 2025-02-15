@@ -17,13 +17,10 @@ use froglight_extract::module::ExtractModule;
 use tokio::sync::OnceCell;
 use tracing::Level;
 
-mod attribute;
-pub(crate) use attribute::{BlockAttributes, BlockReports};
-
 use super::ToolConfig;
 
-mod property;
-// pub(crate) use property::BlockProperties;
+mod attribute;
+pub(crate) use attribute::{BlockAttributes, BlockReports};
 
 #[derive(ExtractModule)]
 #[module(function = Blocks::generate)]
