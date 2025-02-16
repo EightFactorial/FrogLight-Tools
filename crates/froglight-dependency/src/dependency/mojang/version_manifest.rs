@@ -90,6 +90,15 @@ impl VersionManifest {
     pub fn get(&self, version: &Version) -> Option<&VersionManifestEntry> {
         self.versions.iter().find(|v| &v.id == version)
     }
+
+    /// Compare two [`Version`]s based on their release times.
+    #[must_use]
+    pub fn compare(&self, a: &Version, b: &Version) -> Option<std::cmp::Ordering> {
+        match (self.get(a), self.get(b)) {
+            (Some(a), Some(b)) => Some(a.release_time.cmp(&b.release_time)),
+            _ => None,
+        }
+    }
 }
 
 #[test]

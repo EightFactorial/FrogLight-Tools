@@ -3,6 +3,7 @@
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 use froglight_dependency::{
@@ -14,10 +15,10 @@ use indexmap::{map::Entry, IndexMap};
 use serde_json::Value;
 
 #[derive(Clone, Default, Dependency)]
-pub(crate) struct DataStructures(HashMap<Version, VersionStructures>);
+pub(crate) struct DataStructures(HashMap<Version, Arc<VersionStructures>>);
 
 impl DataStructures {
-    pub(crate) fn version(&self, version: &Version) -> Option<&VersionStructures> {
+    pub(crate) fn version(&self, version: &Version) -> Option<&Arc<VersionStructures>> {
         self.0.get(version)
     }
 
@@ -25,13 +26,13 @@ impl DataStructures {
         &mut self,
         version: &Version,
         deps: &mut DependencyContainer,
-    ) -> anyhow::Result<&VersionStructures> {
+    ) -> anyhow::Result<&Arc<VersionStructures>> {
         if !self.0.contains_key(version) {
             deps.get_or_retrieve::<DataGenerator>().await?;
             deps.scoped_fut::<DataGenerator, anyhow::Result<()>>(
                 async |data: &mut DataGenerator, deps| {
                     let data = data.get_version(version, deps).await?;
-                    self.0.insert(version.clone(), VersionStructures::parse(data).await?);
+                    self.0.insert(version.clone(), Arc::new(VersionStructures::parse(data).await?));
                     Ok(())
                 },
             )
@@ -84,7 +85,7 @@ impl VersionStructures {
                 continue;
             }
 
-            tracing::trace!("Parsing file: \"{}\"", dir.path().display());
+            tracing::trace!("Parsing \"{}\"", dir.path().display());
 
             let content = tokio::fs::read_to_string(dir.path()).await?;
             item.extend(RegistryItem::from_value(&serde_json::from_str(&content)?));
