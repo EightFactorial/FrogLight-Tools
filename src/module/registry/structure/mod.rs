@@ -48,11 +48,17 @@ pub(crate) struct VersionStructures(pub(crate) IndexMap<PathBuf, RegistryItem>);
 impl VersionStructures {
     const BASE_IGNORE: &'static [&'static str] = &[
         "advancement",
+        "cat_variant",
+        "chicken_variant",
+        "cow_variant",
         "datapacks",
         "enchantment",
+        "frog_variant",
         "loot_table",
+        "pig_variant",
         "recipe",
         "trial_spawner",
+        "wolf_variant",
         "worldgen",
     ];
 
