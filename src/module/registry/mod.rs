@@ -83,7 +83,10 @@ impl Registry {
                     acc.push_str(" }");
                 }
 
-                acc.push_str(",\n");
+                acc.push_str("\n            => \"minecraft:foo\": todo!(),");
+                acc.push_str("\n            => \"minecraft:bar\": todo!(),");
+                acc.push('\n');
+
                 acc
             });
         generated.pop();
