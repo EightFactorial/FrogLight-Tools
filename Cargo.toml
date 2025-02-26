@@ -38,7 +38,7 @@ readme = "README.md"
 [workspace.dependencies]
 anyhow = "1.0"
 compact_str = "0.8"
-convert_case = "0.6"
+convert_case = "0.8"
 derive_more = { version = "1.0.0", features = ["full"] }
 hashbrown = "0.15"
 itertools = "0.13"
