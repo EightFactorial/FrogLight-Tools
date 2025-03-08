@@ -82,6 +82,23 @@ impl TranslationsFile {
             block.split(':').next_back().unwrap().to_case(Case::Pascal)
         }
     }
+
+    /// Get the `identifier` of an item.
+    ///
+    /// Uses the translation if available,
+    /// otherwise falls back to the input key.
+    #[expect(clippy::missing_panics_doc)]
+    pub fn item_name(&self, item: &str) -> String {
+        if let Some(translation) = self.get(&format!("item.{}", item.replace(':', "."))) {
+            translation.replace(['\''], "_").to_case(Case::Pascal)
+        } else {
+            if !item.contains("wall") {
+                tracing::warn!("No translation found for item: \"{item}\"");
+            }
+
+            item.split(':').next_back().unwrap().to_case(Case::Pascal)
+        }
+    }
 }
 
 impl std::ops::Deref for TranslationsFile {
