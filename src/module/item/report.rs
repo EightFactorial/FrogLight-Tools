@@ -93,7 +93,7 @@ impl ItemReports {
                     let name = name.take().expect("Could not find name!");
                     let rarity = std::mem::take(&mut rarity);
 
-                    report.0.insert(name, ItemReportEntry { rarity });
+                    report.0.insert(format!("minecraft:{name}"), ItemReportEntry { rarity });
                 }
             }
             _ => {}

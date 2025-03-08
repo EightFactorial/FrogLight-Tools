@@ -140,7 +140,7 @@ impl Items {
 
                 // Add the item properties.
                 let item_properties = format!(
-                    " => {{ properties: {{ ident: \"minecraft:{item}\", rarity: ItemRarity::{:?} }}",
+                    " => {{ properties: {{ ident: \"{item}\", rarity: ItemRarity::{:?} }}",
                     entry.rarity
                 );
                 acc.push_str(&item_properties);

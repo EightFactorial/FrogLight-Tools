@@ -89,15 +89,20 @@ impl TranslationsFile {
     /// otherwise falls back to the input key.
     #[expect(clippy::missing_panics_doc)]
     pub fn item_name(&self, item: &str) -> String {
-        if let Some(translation) = self.get(&format!("item.{}", item.replace(':', "."))) {
-            translation.replace(['\''], "_").to_case(Case::Pascal)
-        } else {
-            if !item.contains("wall") {
-                tracing::warn!("No translation found for item: \"{item}\"");
-            }
+        let formatted_item = item.replace(':', ".");
 
-            item.split(':').next_back().unwrap().to_case(Case::Pascal)
+        if let Some(translation) = self.get(&format!("item.{formatted_item}")) {
+            if self.0.values().filter(|v| *v == translation).count() == 1 {
+                // If the translation is unique, use it.
+                return translation.replace(['\''], "").to_case(Case::Pascal);
+            }
+        } else if let Some(translation) = self.get(&format!("block.{formatted_item}")) {
+            // If the item is a block, use the block translation.
+            return translation.replace(['\''], "_").to_case(Case::Pascal);
         }
+
+        tracing::warn!("No translation found for item: \"{item}\"");
+        item.split(':').next_back().unwrap().to_case(Case::Pascal)
     }
 }
 
