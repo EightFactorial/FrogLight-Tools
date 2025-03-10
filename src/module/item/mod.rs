@@ -1,6 +1,6 @@
 #![expect(unused_imports)]
 
-use std::{fmt::Write, path::Path, sync::Once};
+use std::{collections::HashSet, fmt::Write, path::Path, sync::Once};
 
 use convert_case::{Case, Casing};
 use froglight_dependency::{
@@ -20,6 +20,7 @@ mod report;
 pub(crate) use report::{ItemReport, ItemReports};
 
 use super::ToolConfig;
+use crate::module::block::BlockReports;
 
 #[derive(ExtractModule)]
 #[module(function = Items::generate)]
@@ -49,8 +50,11 @@ impl Items {
         ONCE.get_or_init(async || {
             deps.get_or_retrieve::<Translations>().await?;
             deps.get_or_retrieve::<ItemReports>().await?;
+            deps.get_or_retrieve::<BlockReports>().await?;
 
-            let mut sorted: Vec<String> = Vec::new();
+            let mut sorted = Vec::<String>::new();
+            let mut blocks = HashSet::<String>::new();
+
             for version in deps.get::<ToolConfig>().unwrap().versions.clone() {
                 // Get the translations for proper item names.
                 let translations = deps
@@ -60,6 +64,17 @@ impl Items {
                         },
                     )
                     .await?;
+
+                deps.scoped_fut::<BlockReports, anyhow::Result<()>>(
+                    async |reports: &mut BlockReports, deps| {
+                        let report = reports.get_version(&version, deps).await?;
+                        for item in report.0.keys() {
+                            blocks.insert(translations.block_name(item));
+                        }
+                        Ok(())
+                    },
+                )
+                .await?;
 
                 deps.scoped_fut::<ItemReports, anyhow::Result<()>>(
                     async |reports: &mut ItemReports, deps| {
@@ -78,6 +93,10 @@ impl Items {
 
             let path = path.join("src/generated/item.rs");
             let blocks: String = sorted.into_iter().fold(String::new(), |mut acc, item| {
+                if blocks.contains(&item) {
+                    acc.push_str("    #[block]\n");
+                }
+
                 acc.push_str("    pub struct ");
                 acc.push_str(&item);
                 acc.push_str(";\n");
