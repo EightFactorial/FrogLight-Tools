@@ -156,7 +156,7 @@ froglight_macros::blocks! {{
 
 impl Blocks {
     const BLOCK_NAME_PADDING: usize = 36;
-    const BLOCK_PROPERTY_PADDING: usize = 90;
+    const BLOCK_PROPERTY_PADDING: usize = 96;
 
     /// Generate block trait implementations.
     async fn generate_block_traits(
@@ -203,8 +203,9 @@ impl Blocks {
 
                 // Add the block properties.
                 let block_properties = format!(
-                    " => {{ properties: {{ ident: \"{block}\", default: {} }}",
-                    entry_data.default_state - entry_data.blockstate_ids.min().unwrap()
+                    " => {{ properties: {{ ident: \"{block}\", default: {}, is_air: {} }}",
+                    entry_data.default_state - entry_data.blockstate_ids.min().unwrap(),
+                    block_name.contains("Air")
                 );
                 acc.push_str(&block_properties);
 
@@ -220,6 +221,7 @@ impl Blocks {
                     }
 
                     // Add the block properties.
+                    #[allow(clippy::format_push_string)]
                     acc.push_str(&format!(
                         "attributes: {{ ({}): ({}) }} ",
                         entry

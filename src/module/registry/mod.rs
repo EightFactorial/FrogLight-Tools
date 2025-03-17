@@ -74,8 +74,10 @@ impl Registry {
                 let ident = Self::path_to_ident(path);
 
                 if Some(current) == previous {
+                    #[expect(clippy::format_push_string)]
                     acc.push_str(&format!("        struct {ident} {{ Inherited }}"));
                 } else {
+                    #[expect(clippy::format_push_string)]
                     acc.push_str(&format!("        struct {ident} {{ "));
                     Self::print_registry_item(&ident, current, previous, &mut acc, &mut generated);
                     acc.pop();

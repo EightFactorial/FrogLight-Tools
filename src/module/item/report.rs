@@ -50,6 +50,7 @@ impl ItemReports {
         Ok(self.version(version).unwrap())
     }
 
+    #[expect(clippy::unused_async)]
     async fn parse_class(classes: &CodeBundle) -> anyhow::Result<ItemReport> {
         let items = classes
             .get("net/minecraft/item/Items")

@@ -5,8 +5,9 @@ use super::report::ParsedBlockEntry;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct BlockAttributeData {
     pub name: String,
-    pub blockstate_ids: RangeInclusive<u32>,
+
     pub default_state: u32,
+    pub blockstate_ids: RangeInclusive<u32>,
     pub attributes: Vec<BlockAttributeAttribute>,
 }
 
@@ -20,8 +21,8 @@ impl BlockAttributeData {
     pub(crate) fn from_parsed(name: &str, entry: &ParsedBlockEntry) -> Self {
         Self {
             name: name.to_string(),
-            blockstate_ids: entry.range(),
             default_state: entry.default(),
+            blockstate_ids: entry.range(),
             attributes: entry
                 .properties
                 .iter()
