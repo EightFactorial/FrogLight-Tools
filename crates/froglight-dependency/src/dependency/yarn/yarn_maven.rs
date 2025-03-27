@@ -31,7 +31,10 @@ impl YarnMaven {
         let version_str = version.to_short_string();
 
         let builds = self.iter().filter(|build| build.starts_with(&version_str));
-        let builds = builds.filter_map(|b| b.split_once("+build.").map(|(_, b)| b));
+        let builds = builds.filter_map(|str| match str.split_once("+build.") {
+            Some((ver, build)) if ver == version_str => Some(build),
+            _ => None,
+        });
 
         let mut builds: Vec<u32> = builds.filter_map(|b| b.parse().ok()).collect();
         builds.sort_unstable();
