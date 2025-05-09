@@ -1,12 +1,12 @@
 [package]
-name = "froglight-tool-macros"
-version = { workspace = true }
-edition = { workspace = true }
-license = { workspace = true }
 authors = { workspace = true }
+edition = { workspace = true }
 homepage = { workspace = true }
-repository = { workspace = true }
+license = { workspace = true }
+name = "froglight-tool-macros"
 readme = { workspace = true }
+repository = { workspace = true }
+version = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true
@@ -19,8 +19,8 @@ proc-macro = true
 workspace = true
 
 [dependencies]
+convert_case = { workspace = true }
 darling = "0.20"
-convert_case = "0.7"
 proc-macro2 = "1.0"
 quote = { version = "1.0", features = ["proc-macro"] }
 syn = { version = "2.0", features = ["full", "printing", "proc-macro"] }

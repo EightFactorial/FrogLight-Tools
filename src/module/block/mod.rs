@@ -7,8 +7,7 @@ use convert_case::{Case, Casing};
 use froglight_dependency::{
     container::DependencyContainer,
     dependency::{
-        client::{Translations, TranslationsFile},
-        minecraft::DataGenerator,
+        minecraft::{DataGenerator, Translations, TranslationsFile},
         vineflower::DecompiledJar,
     },
     version::Version,

@@ -1,26 +1,22 @@
 [workspace]
+members = ["crates/froglight-dependency", "crates/froglight-extract", "crates/froglight-tool-macros"]
 resolver = "2"
-members = [
-  "crates/froglight-dependency",
-  "crates/froglight-extract",
-  "crates/froglight-tool-macros",
-]
 
 [workspace.lints.rust]
 missing_docs = "warn"
 trivial_casts = "warn"
 trivial_numeric_casts = "warn"
-unused_lifetimes = "warn"
-unused_import_braces = "warn"
 unreachable_pub = "warn"
+unused_import_braces = "warn"
+unused_lifetimes = "warn"
 
 [workspace.lints.rustdoc]
 bare_urls = "deny"
 broken_intra_doc_links = "deny"
-private_intra_doc_links = "deny"
 invalid_codeblock_attributes = "deny"
-invalid_rust_codeblocks = "deny"
 invalid_html_tags = "deny"
+invalid_rust_codeblocks = "deny"
+private_intra_doc_links = "deny"
 
 [workspace.lints.clippy]
 cast_possible_truncation = "warn"
@@ -31,46 +27,46 @@ pedantic = { level = "warn", priority = -1 }
 unnecessary_cast = "warn"
 
 [workspace.package]
-version = "0.1.0"
-edition = "2021"
-license = "MIT OR Apache-2.0"
 authors = ["EightFactorial"]
+edition = "2021"
 homepage = "https://github.com/EightFactorial/FrogLight-Tools"
-repository = "https://github.com/EightFactorial/FrogLight-Tools"
+license = "MIT OR Apache-2.0"
 readme = "README.md"
+repository = "https://github.com/EightFactorial/FrogLight-Tools"
+version = "0.1.0"
 
 [workspace.dependencies]
 anyhow = "1.0"
-cafebabe = { version = "0.8.0", features = ["threadsafe"] }
+cafebabe = { version = "0.8", features = ["threadsafe"] }
 clap = { version = "4.5", features = ["derive"] }
-convert_case = "0.7"
+convert_case = "0.8"
 derive_more = { version = "2.0", features = ["full"] }
 downcast-rs = "2.0"
 froglight-dependency = { version = "0.1", path = "crates/froglight-dependency" }
 froglight-extract = { version = "0.1", path = "crates/froglight-extract" }
 froglight-tool-macros = { version = "0.1", path = "crates/froglight-tool-macros" }
 hashbrown = { version = "0.15", features = ["serde"] }
-indexmap = { version = "2.7", features = ["serde"] }
+indexmap = { version = "2.9", features = ["serde"] }
 inventory = "0.3"
 proptest = "1.6"
 quick-xml = { version = "0.37", features = ["async-tokio", "serialize"] }
 reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0", features = ["preserve_order"] }
-tokio = "1.43"
+tokio = "1.45"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-zip = { version = "2.2", features = ["deflate"] }
+zip = { version = "2.6", features = ["deflate"] }
 
 [package]
-name = "froglight-tools"
-version = { workspace = true }
-edition = { workspace = true }
-license = { workspace = true }
 authors = { workspace = true }
+edition = { workspace = true }
 homepage = { workspace = true }
-repository = { workspace = true }
+license = { workspace = true }
+name = "froglight-tools"
 readme = { workspace = true }
+repository = { workspace = true }
+version = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true
