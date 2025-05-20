@@ -17,9 +17,6 @@ impl Packets {
             anyhow::bail!("Could not find \"froglight-packet\" at \"{}\"", directory.display());
         }
 
-        let _states = Self::extract_network_states(version, deps).await?;
-        println!("States: {_states:?}");
-
         let _packets = Self::extract_packet_classes(version, deps).await?;
         println!("Packets: {_packets:?}");
 
