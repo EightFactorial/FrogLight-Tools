@@ -1,0 +1,36 @@
+use froglight_dependency::{container::DependencyContainer, version::Version};
+use froglight_extract::module::ExtractModule;
+
+mod packets;
+mod states;
+
+#[derive(ExtractModule)]
+#[module(function = Packets::generate)]
+pub(crate) struct Packets;
+
+impl Packets {
+    async fn generate(version: &Version, deps: &mut DependencyContainer) -> anyhow::Result<()> {
+        let mut directory = std::env::current_dir()?;
+        directory.push("crates/froglight-packet");
+
+        if !tokio::fs::try_exists(&directory).await? {
+            anyhow::bail!("Could not find \"froglight-packet\" at \"{}\"", directory.display());
+        }
+
+        let _states = Self::extract_network_states(version, deps).await?;
+        println!("States: {_states:?}");
+
+        let _packets = Self::extract_packet_classes(version, deps).await?;
+        println!("Packets: {_packets:?}");
+
+        Ok(())
+    }
+
+    #[expect(dead_code, unused_variables)]
+    async fn generate_module(
+        version: &Version,
+        deps: &mut DependencyContainer,
+    ) -> anyhow::Result<()> {
+        todo!()
+    }
+}

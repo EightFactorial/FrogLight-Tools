@@ -83,4 +83,14 @@ impl CodeBundle {
     pub fn get<'a>(&'a self, class: &str) -> Option<ClassFile<'a>> {
         self.0.get(class).map(|data| cafebabe::parse_class(data).unwrap())
     }
+
+    /// Iterate over a filtered set of [`ClassFile`]s
+    #[must_use]
+    #[expect(clippy::missing_panics_doc)]
+    pub fn get_filter<'a>(
+        &'a self,
+        filter: impl FnMut(&(&String, &Vec<u8>)) -> bool,
+    ) -> impl Iterator<Item = ClassFile<'a>> {
+        self.0.iter().filter(filter).map(|(_, data)| cafebabe::parse_class(data).unwrap())
+    }
 }

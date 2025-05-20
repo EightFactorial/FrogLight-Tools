@@ -9,12 +9,12 @@ use cafebabe::{
 use froglight_dependency::dependency::minecraft::minecraft_code::CodeBundle;
 
 pub(crate) trait ClassHelper {
-    fn class_code(&self) -> &CodeData<'_>;
     fn class_method_code(&self, method: &str) -> &CodeData<'_>;
+    fn class_code(&self) -> &CodeData<'_> { self.class_method_code("<clinit>") }
 
-    fn class_bootstrap(&self) -> &[BootstrapMethodEntry<'_>];
+    fn class_bootstrap_entries(&self) -> &[BootstrapMethodEntry<'_>];
     fn class_bootstrap_methods(&self, index: u16) -> impl Iterator<Item = &MethodHandle<'_>> {
-        self.class_bootstrap()[index as usize].arguments.iter().filter_map(|arg| {
+        self.class_bootstrap_entries()[index as usize].arguments.iter().filter_map(|arg| {
             if let BootstrapArgument::MethodHandle(handle) = arg {
                 Some(handle)
             } else {
@@ -56,7 +56,6 @@ pub(crate) trait ClassHelper {
 }
 
 impl ClassHelper for ClassFile<'_> {
-    fn class_code(&self) -> &CodeData<'_> { self.class_method_code("<clinit>") }
     fn class_method_code(&self, method: &str) -> &CodeData<'_> {
         self.methods
             .iter()
@@ -73,7 +72,7 @@ impl ClassHelper for ClassFile<'_> {
             .expect("Class method does not contain a `Code` attribute!")
     }
 
-    fn class_bootstrap(&self) -> &[BootstrapMethodEntry<'_>] {
+    fn class_bootstrap_entries(&self) -> &[BootstrapMethodEntry<'_>] {
         self.attributes
             .iter()
             .find_map(|attr| {

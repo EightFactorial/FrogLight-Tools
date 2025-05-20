@@ -124,7 +124,7 @@ impl PumpkinExtractor {
         if process.status.success() {
             // Cache the generated output
 
-            let ver_cache = deps.cache.join(version_str).join(Self::CACHE_DIR);
+            let _ver_cache = deps.cache.join(version_str).join(Self::CACHE_DIR);
             // tokio::fs::rename(cache.join("pumpkin_extractor_output"), ver_cache).await?;
 
             Ok(())
