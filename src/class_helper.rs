@@ -22,7 +22,12 @@ pub(crate) trait ClassHelper {
             }
         })
     }
-    fn class_bootstrap_code(&self, index: u16, classes: &CodeBundle, f: &mut impl FnMut(&Opcode)) {
+    fn class_bootstrap_code(
+        &self,
+        index: u16,
+        classes: &CodeBundle,
+        f: &mut impl FnMut(&Opcode<'_>),
+    ) {
         for method in self.class_bootstrap_methods(index) {
             if let Some(class) = classes.get(&method.class_name) {
                 let code = class.class_method_code(&method.member_ref.name);
@@ -42,7 +47,7 @@ pub(crate) trait ClassHelper {
         &self,
         initial: &[&Opcode<'_>],
         classes: &CodeBundle,
-        mut f: impl FnMut(&Opcode),
+        mut f: impl FnMut(&Opcode<'_>),
     ) {
         for opcode in initial {
             match opcode {

@@ -1,5 +1,6 @@
 #![doc = include_str!("../README.md")]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![feature(let_chains)]
 
 use froglight_dependency::container::SharedDependencies;
 use froglight_extract::module::ExtractModule;

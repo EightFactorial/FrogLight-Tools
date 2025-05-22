@@ -7,7 +7,7 @@ use froglight_dependency::{
 };
 use serde::Deserialize;
 
-use super::{Blocks, Items, Packets};
+use super::{Blocks, Entities, Items, Packets};
 
 #[derive(Debug, Clone, PartialEq, Eq, Parser, Dependency)]
 #[dep(retrieve = Self::parse)]
@@ -24,7 +24,8 @@ pub(crate) struct ToolArgs {
 
 impl ToolArgs {
     /// The default set of modules to run if none are specified
-    const DEFAULT: &[&str] = &[Blocks::MODULE_NAME, Items::MODULE_NAME, Packets::MODULE_NAME];
+    const DEFAULT: &[&str] =
+        &[Blocks::MODULE_NAME, Items::MODULE_NAME, Entities::MODULE_NAME, Packets::MODULE_NAME];
 
     #[expect(clippy::unused_async)]
     async fn parse(_: &mut DependencyContainer) -> anyhow::Result<Self> {
