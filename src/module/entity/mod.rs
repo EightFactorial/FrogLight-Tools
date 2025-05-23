@@ -1,5 +1,11 @@
+use std::path::Path;
+
+use convert_case::{Case, Casing};
 use froglight_dependency::{container::DependencyContainer, version::Version};
 use froglight_extract::module::ExtractModule;
+use tokio::sync::OnceCell;
+
+use crate::ToolConfig;
 
 mod types;
 
@@ -8,7 +14,7 @@ mod types;
 pub(crate) struct Entities;
 
 impl Entities {
-    async fn generate(version: &Version, deps: &mut DependencyContainer) -> anyhow::Result<()> {
+    async fn generate(_version: &Version, deps: &mut DependencyContainer) -> anyhow::Result<()> {
         let mut directory = std::env::current_dir()?;
         directory.push("crates/froglight-entity");
 
@@ -16,17 +22,62 @@ impl Entities {
             anyhow::bail!("Could not find \"froglight-entity\" at \"{}\"", directory.display());
         }
 
-        let _entities = Self::extract_entity_types(version, deps).await?;
-        println!("Entities: {_entities:#?}");
+        Self::generate_entity_types(deps, &directory).await?;
 
         Ok(())
     }
 
-    #[expect(dead_code, unused_variables)]
-    async fn generate_module(
-        version: &Version,
+    /// Generate entity type unit structs.
+    async fn generate_entity_types(
         deps: &mut DependencyContainer,
+        path: &Path,
     ) -> anyhow::Result<()> {
-        todo!()
+        static ONCE: OnceCell<anyhow::Result<()>> = OnceCell::const_new();
+        ONCE.get_or_init(async || {
+            let mut sorted = Vec::new();
+
+            deps.get_or_retrieve::<ToolConfig>().await?;
+            deps.scoped_fut::<ToolConfig, anyhow::Result<()>>(async |config, deps| {
+                for version in &config.versions {
+                    for entity_type in Self::extract_entity_types(version, deps).await? {
+                        sorted.push(entity_type.identifier.to_case(Case::Pascal));
+                    }
+                }
+                Ok(())
+            })
+            .await?;
+
+            sorted.sort_unstable();
+            sorted.dedup();
+
+            let path = path.join("src/entity_type/generated/entity.rs");
+            let entities: String = sorted.into_iter().fold(String::new(), |mut acc, entity| {
+                acc.push_str("    pub struct ");
+                acc.push_str(&entity);
+                acc.push_str(";\n");
+                acc
+            });
+
+            tokio::fs::write(
+                path,
+                format!(
+                    r"//! This file is generated, do not modify it manually.
+//!
+//! TODO: Documentation
+#![allow(missing_docs)]
+
+froglight_macros::entity_types! {{
+    crate,
+{entities}}}
+"
+                ),
+            )
+            .await?;
+
+            Ok(())
+        })
+        .await
+        .as_ref()
+        .map_or_else(|e| Err(anyhow::anyhow!(e)), |()| Ok(()))
     }
 }

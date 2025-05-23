@@ -71,7 +71,7 @@ impl Entities {
                                 Some(OwnedConstant::Float(height)),
                                 Some(OwnedConstant::Float(width)),
                             ) => {
-                                entity.dimensions = (Some(width), Some(height));
+                                entity.dimensions = Some((width, height));
                             }
                             (Some(..), Some(..)) => {
                                 panic!("EntityType: Dimensions are incorrect type!")
@@ -138,7 +138,7 @@ struct EntityTypeBuilder {
     pub spawn_group: Option<String>,
     pub fire_immune: Option<bool>,
 
-    pub dimensions: (Option<f32>, Option<f32>),
+    pub dimensions: Option<(f32, f32)>,
     pub eye_height: Option<f32>,
 }
 impl From<EntityTypeBuilder> for EntityType {
@@ -147,11 +147,8 @@ impl From<EntityTypeBuilder> for EntityType {
             identifier: builder.identifier.expect("EntityTypeBuilder: Identifier is None!"),
             spawn_group: builder.spawn_group.expect("EntityTypeBuilder: SpawnGroup is None!"),
             fire_immune: builder.fire_immune.unwrap_or(false),
-            dimensions: (
-                builder.dimensions.0.expect("EntityTypeBuilder: Width is None!"),
-                builder.dimensions.1.expect("EntityTypeBuilder: Height is None!"),
-            ),
-            eye_height: builder.eye_height.unwrap_or_else(|| builder.dimensions.1.unwrap() * 0.85),
+            dimensions: builder.dimensions.expect("EntityTypeBuilder: Dimensions is None!"),
+            eye_height: builder.eye_height.unwrap_or_else(|| builder.dimensions.unwrap().1 * 0.85),
         }
     }
 }
