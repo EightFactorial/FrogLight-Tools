@@ -49,6 +49,7 @@ impl Entities {
                 | Opcode::LdcW(Loadable::LiteralConstant(constant)) => {
                     if let LiteralConstant::String(string) = constant
                         && constants.is_empty()
+                        && entity.identifier.is_none()
                     {
                         entity.identifier = Some(string.clone().into_owned());
                     } else {
