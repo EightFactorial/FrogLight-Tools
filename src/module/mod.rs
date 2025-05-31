@@ -13,5 +13,5 @@ pub(crate) use item::Items;
 mod packet;
 pub(crate) use packet::Packets;
 
-// mod registry;
-// pub(crate) use registry::Registry;
+mod registry;
+pub(crate) use registry::Registry;
