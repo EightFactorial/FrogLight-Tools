@@ -51,8 +51,8 @@ impl Registry {
                 "        storage.register_with_default(
             Identifier::const_new(\"{name}\"),
             {default},
-            [
-                {values}            ]
+            alloc::vec![
+                {values}            ].into_boxed_slice()
         );\n",
             ));
         }
@@ -78,6 +78,7 @@ use froglight_common::prelude::*;
 use crate::prelude::*;
 
 impl RegistryTrait<{version_ident}> for Vanilla {{
+    #[allow(clippy::too_many_lines)]
     fn register(storage: &mut RegistryStorage<{version_ident}>) {{
 {registries}
     }}
