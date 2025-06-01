@@ -137,7 +137,8 @@ froglight_macros::status_effect_properties! {{
             let initial = initial.opcodes.iter().map(|(_, opcode)| opcode).collect::<Vec<_>>();
             class.iter_code_recursive(&initial, jar, |opcode| match opcode {
                 Opcode::Ldc(Loadable::LiteralConstant(constant))
-                | Opcode::LdcW(Loadable::LiteralConstant(constant)) => {
+                | Opcode::LdcW(Loadable::LiteralConstant(constant))
+                | Opcode::Ldc2W(Loadable::LiteralConstant(constant)) => {
                     match constant {
                         // Look for the first string constant and set it as the identifier
                         LiteralConstant::String(string) if effect.identifier.is_none() => {

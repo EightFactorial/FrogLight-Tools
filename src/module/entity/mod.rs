@@ -1,6 +1,7 @@
 use froglight_dependency::{container::DependencyContainer, version::Version};
 use froglight_extract::module::ExtractModule;
 
+mod attributes;
 mod effects;
 mod types;
 
@@ -17,11 +18,14 @@ impl Entities {
             anyhow::bail!("Could not find \"froglight-entity\" at \"{}\"", directory.display());
         }
 
-        Self::generate_status_effects(deps, &directory).await?;
-        Self::generate_status_effect_properties(version, deps, &directory).await?;
+        Self::generate_entity_attributes(deps, &directory).await?;
+        Self::generate_entity_attribute_properties(version, deps, &directory).await?;
 
         Self::generate_entity_types(deps, &directory).await?;
         Self::generate_entity_type_properties(version, deps, &directory).await?;
+
+        Self::generate_status_effects(deps, &directory).await?;
+        Self::generate_status_effect_properties(version, deps, &directory).await?;
 
         Ok(())
     }

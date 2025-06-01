@@ -153,7 +153,8 @@ froglight_macros::entity_type_properties! {{
                 Opcode::Fconst2 => constants.push(OwnedConstant::Float(2.0)),
                 // Look for the first string constant and set it as the identifier
                 Opcode::Ldc(Loadable::LiteralConstant(constant))
-                | Opcode::LdcW(Loadable::LiteralConstant(constant)) => {
+                | Opcode::LdcW(Loadable::LiteralConstant(constant))
+                | Opcode::Ldc2W(Loadable::LiteralConstant(constant)) => {
                     if let LiteralConstant::String(string) = constant
                         && constants.is_empty()
                         && entity.identifier.is_none()
