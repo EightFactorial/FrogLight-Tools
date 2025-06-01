@@ -44,7 +44,7 @@ impl Entities {
             let attributes: String = sorted.into_iter().fold(String::new(), |mut acc, attrib| {
                 acc.push_str("    pub struct ");
                 acc.push_str(&attrib);
-                acc.push_str("Attribute(f64);\n");
+                acc.push_str("(f64);\n");
                 acc
             });
 
@@ -95,7 +95,7 @@ froglight_macros::entity_attributes! {{
             let range = format!("{}f64..={}f64", round(*range.start()), round(*range.end()));
 
             implementations
-                .push_str(&format!("    {attribute_name}Attribute => {{ properties: {{ ident: \"minecraft:{identifier}\", key: \"minecraft.{translation}\", default: {default}, range: {range} }} }},\n"));
+                .push_str(&format!("    {attribute_name} => {{ properties: {{ ident: \"minecraft:{identifier}\", key: \"minecraft.{translation}\", default: {default}, range: {range} }} }},\n"));
         }
 
         tokio::fs::write(
