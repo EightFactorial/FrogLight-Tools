@@ -3,7 +3,7 @@
 use cafebabe::{
     attributes::{AttributeData, AttributeInfo, BootstrapMethodEntry, CodeData},
     bytecode::Opcode,
-    constant_pool::{BootstrapArgument, MethodHandle},
+    constant_pool::{BootstrapArgument, LiteralConstant, MethodHandle},
     ClassFile,
 };
 use froglight_dependency::dependency::minecraft::minecraft_code::CodeBundle;
@@ -88,5 +88,31 @@ impl ClassHelper for ClassFile<'_> {
                 }
             })
             .expect("Class does not contain a `BootstrapMethods` attribute!")
+    }
+}
+
+// -------------------------------------------------------------------------------------------------
+
+#[allow(dead_code)]
+#[derive(Clone, Debug)]
+pub(crate) enum OwnedConstant {
+    Integer(i32),
+    Float(f32),
+    Long(i64),
+    Double(f64),
+    String(String),
+    StringBytes(Vec<u8>),
+}
+
+impl From<&LiteralConstant<'_>> for OwnedConstant {
+    fn from(constant: &LiteralConstant) -> Self {
+        match constant {
+            LiteralConstant::Integer(value) => OwnedConstant::Integer(*value),
+            LiteralConstant::Float(value) => OwnedConstant::Float(*value),
+            LiteralConstant::Long(value) => OwnedConstant::Long(*value),
+            LiteralConstant::Double(value) => OwnedConstant::Double(*value),
+            LiteralConstant::String(string) => OwnedConstant::String(string.clone().into_owned()),
+            LiteralConstant::StringBytes(bytes) => OwnedConstant::StringBytes(bytes.to_vec()),
+        }
     }
 }

@@ -1,17 +1,124 @@
+use std::path::Path;
+
 use cafebabe::{
     bytecode::Opcode,
     constant_pool::{LiteralConstant, Loadable, MemberRef},
 };
+use convert_case::{Case, Casing};
 use froglight_dependency::{
     container::DependencyContainer, dependency::minecraft::MinecraftCode, version::Version,
 };
+use tokio::sync::OnceCell;
 use tracing::warn;
 
 use super::Entities;
-use crate::class_helper::ClassHelper;
+use crate::{
+    class_helper::{ClassHelper, OwnedConstant},
+    ToolConfig,
+};
 
 impl Entities {
-    pub(super) async fn extract_entity_types(
+    /// Generate entity type unit structs.
+    pub(super) async fn generate_entity_types(
+        deps: &mut DependencyContainer,
+        path: &Path,
+    ) -> anyhow::Result<()> {
+        static ONCE: OnceCell<anyhow::Result<()>> = OnceCell::const_new();
+        ONCE.get_or_init(async || {
+            let mut sorted = Vec::new();
+
+            deps.get_or_retrieve::<ToolConfig>().await?;
+            deps.scoped_fut::<ToolConfig, anyhow::Result<()>>(async |config, deps| {
+                for version in &config.versions {
+                    for entity_type in Self::extract_entity_types(version, deps).await? {
+                        sorted.push(entity_type.identifier.to_case(Case::Pascal));
+                    }
+                }
+                Ok(())
+            })
+            .await?;
+
+            sorted.sort_unstable();
+            sorted.dedup();
+
+            let path = path.join("src/entity_type/generated/entity.rs");
+            let entities: String = sorted.into_iter().fold(String::new(), |mut acc, entity| {
+                acc.push_str("    pub struct ");
+                acc.push_str(&entity);
+                acc.push_str(";\n");
+                acc
+            });
+
+            tokio::fs::write(
+                path,
+                format!(
+                    r"//! This file is generated, do not modify it manually.
+//!
+//! TODO: Documentation
+#![allow(missing_docs)]
+
+froglight_macros::entity_types! {{
+    crate,
+{entities}}}
+"
+                ),
+            )
+            .await?;
+
+            Ok(())
+        })
+        .await
+        .as_ref()
+        .map_or_else(|e| Err(anyhow::anyhow!(e)), |()| Ok(()))
+    }
+
+    /// Generate entity trait implementations.
+    pub(super) async fn generate_entity_type_properties(
+        version: &Version,
+        deps: &mut DependencyContainer,
+        path: &Path,
+    ) -> anyhow::Result<()> {
+        let version_ident =
+            format!("froglight_common::version::V{}", version.to_long_string().replace('.', "_"));
+        let path = path.join(format!(
+            "src/entity_type/generated/v{}.rs",
+            version.to_long_string().replace('.', "_")
+        ));
+
+        let mut implementations = String::new();
+        for EntityType { identifier, spawn_group, fire_immune, dimensions, eye_height } in
+            Self::extract_entity_types(version, deps).await?
+        {
+            let entity_name = identifier.to_case(Case::Pascal);
+            let dimensions = format!("[{}f32, {}f32, {eye_height}f32]", dimensions.0, dimensions.1);
+            implementations
+                .push_str(&format!("    {entity_name} => {{ properties: {{ ident: \"minecraft:{identifier}\", group: \"minecraft:{spawn_group}\", dimensions: {dimensions}, fire_immune: {fire_immune} }} }},\n"));
+        }
+
+        tokio::fs::write(
+            path,
+            format!(
+                r"//! This file is generated, do not modify it manually.
+//!
+//! TODO: Documentation
+#![allow(missing_docs)]
+
+#[allow(clippy::wildcard_imports)]
+use super::entity::*;
+
+froglight_macros::entity_type_properties! {{
+    path = crate,
+    version = {version_ident},
+{implementations}}}
+",
+            ),
+        )
+        .await?;
+
+        Ok(())
+    }
+
+    async fn extract_entity_types(
         version: &Version,
         deps: &mut DependencyContainer,
     ) -> anyhow::Result<Vec<EntityType>> {
@@ -123,6 +230,8 @@ impl Entities {
     }
 }
 
+// -------------------------------------------------------------------------------------------------
+
 #[derive(Debug, Clone, PartialEq)]
 pub(super) struct EntityType {
     pub identifier: String,
@@ -150,30 +259,6 @@ impl From<EntityTypeBuilder> for EntityType {
             fire_immune: builder.fire_immune.unwrap_or(false),
             dimensions: builder.dimensions.expect("EntityTypeBuilder: Dimensions is None!"),
             eye_height: builder.eye_height.unwrap_or_else(|| builder.dimensions.unwrap().1 * 0.85),
-        }
-    }
-}
-
-#[expect(dead_code)]
-#[derive(Clone, Debug)]
-enum OwnedConstant {
-    Integer(i32),
-    Float(f32),
-    Long(i64),
-    Double(f64),
-    String(String),
-    StringBytes(Vec<u8>),
-}
-
-impl From<&LiteralConstant<'_>> for OwnedConstant {
-    fn from(constant: &LiteralConstant) -> Self {
-        match constant {
-            LiteralConstant::Integer(value) => OwnedConstant::Integer(*value),
-            LiteralConstant::Float(value) => OwnedConstant::Float(*value),
-            LiteralConstant::Long(value) => OwnedConstant::Long(*value),
-            LiteralConstant::Double(value) => OwnedConstant::Double(*value),
-            LiteralConstant::String(string) => OwnedConstant::String(string.clone().into_owned()),
-            LiteralConstant::StringBytes(bytes) => OwnedConstant::StringBytes(bytes.to_vec()),
         }
     }
 }
