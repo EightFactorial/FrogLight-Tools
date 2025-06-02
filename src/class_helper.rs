@@ -9,8 +9,12 @@ use cafebabe::{
 use froglight_dependency::dependency::minecraft::minecraft_code::CodeBundle;
 
 pub(crate) trait ClassHelper {
-    fn class_method_code(&self, method: &str) -> &CodeData<'_>;
     fn class_code(&self) -> &CodeData<'_> { self.class_method_code("<clinit>") }
+    fn class_method_code(&self, method: &str) -> &CodeData<'_> {
+        Self::class_optional_method_code(self, method)
+            .expect("Class method does not contain a `Code` attribute!")
+    }
+    fn class_optional_method_code(&self, method: &str) -> Option<&CodeData<'_>>;
 
     fn class_bootstrap_entries(&self) -> &[BootstrapMethodEntry<'_>];
     fn class_bootstrap_methods(&self, index: u16) -> impl Iterator<Item = &MethodHandle<'_>> {
@@ -32,11 +36,9 @@ pub(crate) trait ClassHelper {
             if let Some(class) = classes.get(&method.class_name) {
                 let code = class.class_method_code(&method.member_ref.name);
                 for (_, opcode) in &code.bytecode.as_ref().unwrap().opcodes {
-                    match opcode {
-                        Opcode::Invokedynamic(invoke) => {
-                            class.class_bootstrap_code(invoke.attr_index, classes, f);
-                        }
-                        other => f(other),
+                    f(opcode);
+                    if let Opcode::Invokedynamic(invoke) = opcode {
+                        self.class_bootstrap_code(invoke.attr_index, classes, f);
                     }
                 }
             }
@@ -50,31 +52,26 @@ pub(crate) trait ClassHelper {
         mut f: impl FnMut(&Opcode<'_>),
     ) {
         for opcode in initial {
-            match opcode {
-                Opcode::Invokedynamic(invoke) => {
-                    self.class_bootstrap_code(invoke.attr_index, classes, &mut f);
-                }
-                other => f(other),
+            f(opcode);
+            if let Opcode::Invokedynamic(invoke) = opcode {
+                self.class_bootstrap_code(invoke.attr_index, classes, &mut f);
             }
         }
     }
 }
 
 impl ClassHelper for ClassFile<'_> {
-    fn class_method_code(&self, method: &str) -> &CodeData<'_> {
-        self.methods
-            .iter()
-            .find_map(|m| {
-                if m.name == method {
-                    for attr in &m.attributes {
-                        if let AttributeInfo { data: AttributeData::Code(code), .. } = attr {
-                            return Some(code);
-                        }
+    fn class_optional_method_code(&self, method: &str) -> Option<&CodeData<'_>> {
+        self.methods.iter().find_map(|m| {
+            if m.name == method {
+                for attr in &m.attributes {
+                    if let AttributeInfo { data: AttributeData::Code(code), .. } = attr {
+                        return Some(code);
                     }
                 }
-                None
-            })
-            .expect("Class method does not contain a `Code` attribute!")
+            }
+            None
+        })
     }
 
     fn class_bootstrap_entries(&self) -> &[BootstrapMethodEntry<'_>] {

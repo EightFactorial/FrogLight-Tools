@@ -1,6 +1,7 @@
 use froglight_dependency::{container::DependencyContainer, version::Version};
 use froglight_extract::module::ExtractModule;
 
+mod attribute_values;
 mod attributes;
 mod effects;
 mod types;
