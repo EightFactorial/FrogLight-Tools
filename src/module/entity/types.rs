@@ -85,14 +85,35 @@ froglight_macros::entity_types! {{
             version.to_long_string().replace('.', "_")
         ));
 
+        let attribute_values = Self::extract_entity_attribute_values(version, deps).await?;
+
         let mut implementations = String::new();
         for EntityType { identifier, spawn_group, fire_immune, dimensions, eye_height } in
             Self::extract_entity_types(version, deps).await?
         {
             let entity_name = identifier.to_case(Case::Pascal);
             let dimensions = format!("[{}f32, {}f32, {eye_height}f32]", dimensions.0, dimensions.1);
+
+            let mut properties = format!("properties: {{ ident: \"minecraft:{identifier}\", group: \"minecraft:{spawn_group}\", dimensions: {dimensions}, fire_immune: {fire_immune} }}");
+
+            let mut attributes = String::new();
+            if let Some(attrs) = attribute_values.get(&identifier)
+                && !attrs.is_empty()
+            {
+                properties = format!("\n        {properties}");
+
+                attributes.push_str(",\n        attributes: [ ");
+                for (i, (attr, val)) in attrs.iter().enumerate() {
+                    if i > 0 {
+                        attributes.push_str(", ");
+                    }
+                    attributes.push_str(&format!("{attr}({val})"));
+                }
+                attributes.push_str(" ]");
+            }
+
             implementations
-                .push_str(&format!("    {entity_name} => {{ properties: {{ ident: \"minecraft:{identifier}\", group: \"minecraft:{spawn_group}\", dimensions: {dimensions}, fire_immune: {fire_immune} }} }},\n"));
+                .push_str(&format!("    {entity_name} => {{ {properties}{attributes} }},\n"));
         }
 
         tokio::fs::write(
@@ -104,7 +125,7 @@ froglight_macros::entity_types! {{
 #![allow(missing_docs)]
 
 #[allow(clippy::wildcard_imports)]
-use super::entity::*;
+use crate::{{entity_attribute::generated::*, entity_type::generated::*}};
 
 froglight_macros::entity_type_properties! {{
     path = crate,

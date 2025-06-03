@@ -44,7 +44,7 @@ impl Entities {
             let attributes: String = sorted.into_iter().fold(String::new(), |mut acc, attrib| {
                 acc.push_str("    pub struct ");
                 acc.push_str(&attrib);
-                acc.push_str("(f64);\n");
+                acc.push_str("(pub f64);\n");
                 acc
             });
 

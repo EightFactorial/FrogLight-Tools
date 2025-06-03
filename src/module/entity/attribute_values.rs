@@ -41,7 +41,6 @@ impl Entities {
     /// # Note
     /// Any entity attributes that do not have defined values
     /// are left with the value set to "DEFAULT".
-    #[expect(dead_code)]
     pub(super) async fn extract_entity_attribute_values(
         version: &Version,
         deps: &mut DependencyContainer,
@@ -88,9 +87,11 @@ impl Entities {
                     let mut collected = IndexMap::new();
                     for class in core::mem::take(&mut classes) {
                         debug!("[{}]: Parsing class \"{class}\"", name_and_type.name);
-                        collected.extend(Self::parse_class_attributes(&class, jar));
+                        for (attr, value) in Self::parse_class_attributes(&class, jar) {
+                            collected.insert(attr.to_case(Case::Pascal), value);
+                        }
                     }
-                    attributes.insert(name_and_type.name.to_string(), collected);
+                    attributes.insert(name_and_type.name.to_lowercase(), collected);
                 }
                 Opcode::Putstatic(..) => classes.clear(),
                 _ => {}
@@ -174,8 +175,8 @@ impl Entities {
                                     match constants.pop() {
                                         #[allow(unused_variables)]
                                         Some(OwnedConstant::String(s)) => {
-                                            trace!("    [{}]: Adding attribute \"{s}\" -> DEFAULT", class.this_class);
-                                            attributes.insert(s.to_string(), String::from("DEFAULT"));
+                                            trace!("    [{}]: Adding attribute \"{s}\" -> Default", class.this_class);
+                                            attributes.insert(s.to_string(), String::from("\"default\""));
                                         }
                                         a => {
                                             panic!("Expected a string for \"add\", got: {a:?}");
@@ -185,8 +186,10 @@ impl Entities {
                                 "add" if &name_and_type.descriptor == "(Lnet/minecraft/registry/entry/RegistryEntry;D)Lnet/minecraft/entity/attribute/DefaultAttributeContainer$Builder;" => {
                                     match (constants.pop(), constants.pop()) {
                                         (Some(OwnedConstant::Double(d)), Some(OwnedConstant::String(s))) => {
+                                            fn round(d: f64) -> f64 { (d * 10000.0).round() / 10000.0 }
+
                                             debug!("    [{}]: Adding attribute \"{s}\" -> {d}", class.this_class);
-                                            attributes.insert(s.to_string(), d.to_string());
+                                            attributes.insert(s.to_string(), format!("{}f64", round(d)));
                                         }
                                         (a, b) => {
                                             panic!("Expected a string and a double for \"add\", got: ({a:?}, {b:?})");
