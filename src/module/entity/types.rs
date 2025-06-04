@@ -13,8 +13,8 @@ use tracing::warn;
 
 use super::Entities;
 use crate::{
-    class_helper::{ClassHelper, OwnedConstant},
     ToolConfig,
+    class_helper::{ClassHelper, OwnedConstant},
 };
 
 impl Entities {
@@ -94,7 +94,9 @@ froglight_macros::entity_types! {{
             let entity_name = identifier.to_case(Case::Pascal);
             let dimensions = format!("[{}f32, {}f32, {eye_height}f32]", dimensions.0, dimensions.1);
 
-            let mut properties = format!("properties: {{ ident: \"minecraft:{identifier}\", group: \"minecraft:{spawn_group}\", dimensions: {dimensions}, fire_immune: {fire_immune} }}");
+            let mut properties = format!(
+                "properties: {{ ident: \"minecraft:{identifier}\", group: \"minecraft:{spawn_group}\", dimensions: {dimensions}, fire_immune: {fire_immune} }}"
+            );
 
             let mut attributes = String::new();
             if let Some(attrs) = attribute_values.get(&identifier)

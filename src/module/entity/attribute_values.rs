@@ -3,26 +3,26 @@
 use std::{borrow::Cow, path::Path};
 
 use cafebabe::{
+    ClassFile, MethodInfo,
     attributes::{AttributeData, AttributeInfo},
     bytecode::Opcode,
     constant_pool::{LiteralConstant, Loadable, MemberRef, ReferenceKind},
     descriptors::{FieldDescriptor, FieldType, ReturnDescriptor},
-    ClassFile, MethodInfo,
 };
 use convert_case::{Case, Casing};
 use froglight_dependency::{
     container::DependencyContainer,
-    dependency::minecraft::{minecraft_code::CodeBundle, MinecraftCode},
+    dependency::minecraft::{MinecraftCode, minecraft_code::CodeBundle},
     version::Version,
 };
-use indexmap::{map::Entry, IndexMap};
+use indexmap::{IndexMap, map::Entry};
 use tokio::sync::OnceCell;
 use tracing::{debug, error, trace};
 
 use super::Entities;
 use crate::{
-    class_helper::{ClassHelper, OwnedConstant},
     ToolConfig,
+    class_helper::{ClassHelper, OwnedConstant},
 };
 
 const BUILDER_TYPE: &str = "net/minecraft/entity/attribute/DefaultAttributeContainer$Builder";
@@ -88,7 +88,16 @@ impl Entities {
                     for class in core::mem::take(&mut classes) {
                         debug!("[{}]: Parsing class \"{class}\"", name_and_type.name);
                         for (attr, value) in Self::parse_class_attributes(&class, jar) {
-                            collected.insert(attr.to_case(Case::Pascal), value);
+                            match collected.entry(attr.to_case(Case::Pascal)) {
+                                Entry::Occupied(mut entry) => {
+                                    if &value != "\"default\"" {
+                                        *entry.get_mut() = value;
+                                    }
+                                }
+                                Entry::Vacant(entry) => {
+                                    entry.insert(value);
+                                }
+                            }
                         }
                     }
                     attributes.insert(name_and_type.name.to_lowercase(), collected);
@@ -161,9 +170,18 @@ impl Entities {
                     | Opcode::Invokeinterface(MemberRef { class_name, name_and_type }, ..)
                         if name_and_type.descriptor == BUILDER_DESCRIPTOR =>
                     {
-                        attributes.extend(
-                            Self::find_and_parse_class_method(class_name, &name_and_type.name, jar),
-                        );
+                        for (attr, value) in Self::find_and_parse_class_method(class_name, &name_and_type.name, jar) {
+                            match attributes.entry(attr.to_case(Case::Pascal)) {
+                                Entry::Occupied(mut entry) => {
+                                    if &value != "\"default\"" {
+                                        *entry.get_mut() = value;
+                                    }
+                                }
+                                Entry::Vacant(entry) => {
+                                    entry.insert(value);
+                                }
+                            }
+                        }
                     }
                     // Add attributes to the map when added to the builder
                     Opcode::Invokestatic(MemberRef { class_name, name_and_type })
@@ -176,7 +194,9 @@ impl Entities {
                                         #[allow(unused_variables)]
                                         Some(OwnedConstant::String(s)) => {
                                             trace!("    [{}]: Adding attribute \"{s}\" -> Default", class.this_class);
-                                            attributes.insert(s.to_string(), String::from("\"default\""));
+                                            if let Entry::Vacant(entry) = attributes.entry(s.to_string()) {
+                                                entry.insert(String::from("\"default\""));
+                                            }
                                         }
                                         a => {
                                             panic!("Expected a string for \"add\", got: {a:?}");
@@ -192,7 +212,7 @@ impl Entities {
                                             attributes.insert(s.to_string(), format!("{}f64", round(d)));
                                         }
                                         (a, b) => {
-                                            panic!("Expected a string and a double for \"add\", got: ({a:?}, {b:?})");
+                                            panic!("Expected a string and double for \"add\", got: ({a:?}, {b:?})");
                                         }
                                     }
                                 },
