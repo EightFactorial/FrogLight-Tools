@@ -89,7 +89,7 @@ impl ItemReports {
             }
             Opcode::Putstatic(MemberRef { class_name, name_and_type }) => {
                 if name_and_type.descriptor == "Lnet/minecraft/item/Item;"
-                    && class_name == &items.this_class
+                    && **class_name == *items.this_class
                 {
                     let name = name.take().expect("Could not find name!");
                     let rarity = std::mem::take(&mut rarity);

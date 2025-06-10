@@ -37,26 +37,26 @@ version = "0.1.0"
 
 [workspace.dependencies]
 anyhow = "1.0"
-cafebabe = { version = "0.8", features = ["threadsafe"] }
-clap = { version = "4.5", features = ["derive"] }
+cafebabe = { features = ["threadsafe"], version = "0.9" }
+clap = { features = ["derive"], version = "4.5" }
 convert_case = "0.8"
-derive_more = { version = "2.0", features = ["full"] }
+derive_more = { features = ["full"], version = "2.0" }
 downcast-rs = "2.0"
-froglight-dependency = { version = "0.1", path = "crates/froglight-dependency" }
-froglight-extract = { version = "0.1", path = "crates/froglight-extract" }
-froglight-tool-macros = { version = "0.1", path = "crates/froglight-tool-macros" }
-hashbrown = { version = "0.15", features = ["serde"] }
-indexmap = { version = "2.9", features = ["serde"] }
+froglight-dependency = { path = "crates/froglight-dependency", version = "0.1" }
+froglight-extract = { path = "crates/froglight-extract", version = "0.1" }
+froglight-tool-macros = { path = "crates/froglight-tool-macros", version = "0.1" }
+hashbrown = { features = ["serde"], version = "0.15" }
+indexmap = { features = ["serde"], version = "2.9" }
 inventory = "0.3"
-proptest = "1.6"
-quick-xml = { version = "0.37", features = ["async-tokio", "serialize"] }
-reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = { version = "1.0", features = ["preserve_order"] }
+proptest = "1.7"
+quick-xml = { features = ["async-tokio", "serialize"], version = "0.37" }
+reqwest = { features = ["json", "rustls-tls"], version = "0.12" }
+serde = { features = ["derive"], version = "1.0" }
+serde_json = { features = ["preserve_order"], version = "1.0" }
 tokio = "1.45"
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-zip = { version = "3.0", features = ["deflate"] }
+tracing-subscriber = { features = ["env-filter"], version = "0.3" }
+zip = { features = ["deflate"], version = "4.0" }
 
 [package]
 authors = { workspace = true }
@@ -85,8 +85,8 @@ froglight-extract = { workspace = true }
 indexmap = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
-toml_edit = { version = "0.22", features = ["serde"] }
+tokio = { features = ["full"], workspace = true }
+toml_edit = { features = ["serde"], version = "0.22" }
 tracing = { workspace = true }
 
 [features]
