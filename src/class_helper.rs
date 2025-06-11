@@ -38,7 +38,14 @@ pub(crate) trait ClassHelper {
                 for (_, opcode) in &code.bytecode.as_ref().unwrap().opcodes {
                     f(opcode);
                     if let Opcode::Invokedynamic(invoke) = opcode {
-                        self.class_bootstrap_code(invoke.attr_index, classes, f);
+                        if index == invoke.attr_index {
+                            tracing::warn!(
+                                "Breaking recursive bootstrap for class `{}`",
+                                class.this_class
+                            );
+                        } else {
+                            self.class_bootstrap_code(invoke.attr_index, classes, f);
+                        }
                     }
                 }
             }

@@ -1,7 +1,8 @@
 use froglight_dependency::{container::DependencyContainer, version::Version};
 use froglight_extract::module::ExtractModule;
 
-mod states;
+mod classes;
+mod codecs;
 
 #[derive(ExtractModule)]
 #[module(function = Packets::generate)]
@@ -16,7 +17,7 @@ impl Packets {
             anyhow::bail!("Could not find \"froglight-packet\" at \"{}\"", directory.display());
         }
 
-        let _ = Self::extract_packet_classes(version, deps).await?;
+        let _ = Self::extract_packet_codecs(version, deps).await?;
 
         Ok(())
     }

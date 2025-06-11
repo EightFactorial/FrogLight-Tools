@@ -19,7 +19,7 @@ impl Packets {
     pub(super) async fn extract_packet_classes(
         version: &Version,
         deps: &mut DependencyContainer,
-    ) -> anyhow::Result<HashMap<String, PacketState>> {
+    ) -> anyhow::Result<HashMap<String, NetworkState>> {
         const STATE_PATH: &str = "net/minecraft/network/state/";
 
         let mut states = HashMap::new();
@@ -33,8 +33,7 @@ impl Packets {
                     bundle.get_filter(|(c, _)| c.starts_with(STATE_PATH) && !c.contains('$'))
                 {
                     if class.methods.iter().any(|m| m.name == "<clinit>") {
-                        let (state, classes) = Self::state_packets(class, bundle).await?;
-                        states.insert(state, classes);
+                        states.extend_one(Self::extract_state_packets(class, bundle).await?);
                     }
                 }
 
@@ -46,19 +45,24 @@ impl Packets {
         Ok(states)
     }
 
-    async fn state_packets(
+    async fn extract_state_packets(
         class: ClassFile<'_>,
         classes: &CodeBundle,
-    ) -> anyhow::Result<(String, PacketState)> {
+    ) -> anyhow::Result<(String, NetworkState)> {
         const NETWORK_PHASE: &str = "net/minecraft/network/NetworkPhase";
 
+        // -= 1.21.4
         const NETWORK_STATE_BUILDER_OLD: &str = "net/minecraft/network/NetworkStateBuilder";
+        // += 1.21.5
         const NETWORK_STATE_BUILDER: &str = "net/minecraft/network/state/NetworkStateBuilder";
 
+        // -= 1.21.4
         const NETWORK_STATE_FACTORY_DESCRIPTOR_OLD: &str =
             "Lnet/minecraft/network/NetworkState$Factory;";
+        // += 1.21.5
         const NETWORK_STATE_FACTORY_DESCRIPTOR: &str =
             "Lnet/minecraft/network/state/NetworkStateFactory;";
+        // += 1.21.5
         const AWARE_NETWORK_STATE_FACTORY_DESCRIPTOR: &str =
             "Lnet/minecraft/network/state/ContextAwareNetworkStateFactory;";
 
@@ -66,7 +70,7 @@ impl Packets {
         const PACKET_TYPE_DESCRIPTOR: &str = "Lnet/minecraft/network/packet/PacketType;";
 
         let mut state_name = Option::None;
-        let mut state = PacketState::default();
+        let mut state = NetworkState::default();
 
         let mut dir_name = Option::None;
         let mut packet_name = Option::None;
@@ -101,7 +105,10 @@ impl Packets {
                 match core::mem::take(&mut packet_name) {
                     Some(name) => packets.insert(
                         format!("minecraft:{name}"),
-                        (class_name.to_string(), Some(name_and_type.name.to_string())),
+                        PacketClass {
+                            class: class_name.to_string(),
+                            codec: Some(name_and_type.name.to_string()),
+                        },
                     ),
                     None => panic!("PacketStateBuilder: Could not find packet name!"),
                 };
@@ -110,7 +117,10 @@ impl Packets {
                 if class_name
                     == "net/minecraft/network/packet/s2c/play/BundleDelimiterS2CPacket" =>
             {
-                packets.insert(String::from("minecraft:bundle"), (class_name.to_string(), None));
+                packets.insert(
+                    String::from("minecraft:bundle"),
+                    PacketClass { class: class_name.to_string(), codec: None },
+                );
             }
             Opcode::Putstatic(MemberRef { name_and_type, .. })
                 if (name_and_type.descriptor == NETWORK_STATE_FACTORY_DESCRIPTOR_OLD
@@ -172,7 +182,13 @@ impl Packets {
 // -------------------------------------------------------------------------------------------------
 
 #[derive(Debug, Default)]
-pub(super) struct PacketState {
-    pub(super) c2s: IndexMap<String, (String, Option<String>)>,
-    pub(super) s2c: IndexMap<String, (String, Option<String>)>,
+pub(super) struct NetworkState {
+    pub(super) c2s: IndexMap<String, PacketClass>,
+    pub(super) s2c: IndexMap<String, PacketClass>,
+}
+
+#[derive(Debug)]
+pub(super) struct PacketClass {
+    pub(super) class: String,
+    pub(super) codec: Option<String>,
 }
