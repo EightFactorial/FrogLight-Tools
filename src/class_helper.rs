@@ -17,15 +17,10 @@ pub(crate) trait ClassHelper {
     fn class_optional_method_code(&self, method: &str) -> Option<&CodeData<'_>>;
 
     fn class_bootstrap_entries(&self) -> &[BootstrapMethodEntry<'_>];
-    fn class_bootstrap_methods(&self, index: u16) -> impl Iterator<Item = &MethodHandle<'_>> {
-        self.class_bootstrap_entries()[index as usize].arguments.iter().filter_map(|arg| {
-            if let BootstrapArgument::MethodHandle(handle) = arg {
-                Some(handle)
-            } else {
-                None
-            }
-        })
-    }
+    fn class_bootstrap_methods(
+        &self,
+        index: u16,
+    ) -> Box<dyn Iterator<Item = &MethodHandle<'_>> + '_>;
     fn class_bootstrap_code(
         &self,
         index: u16,
@@ -34,17 +29,18 @@ pub(crate) trait ClassHelper {
     ) {
         for method in self.class_bootstrap_methods(index) {
             if let Some(class) = classes.get(&method.class_name) {
-                let code = class.class_method_code(&method.member_ref.name);
-                for (_, opcode) in &code.bytecode.as_ref().unwrap().opcodes {
-                    f(opcode);
-                    if let Opcode::Invokedynamic(invoke) = opcode {
-                        if index == invoke.attr_index {
-                            tracing::warn!(
-                                "Breaking recursive bootstrap for class `{}`",
-                                class.this_class
-                            );
-                        } else {
-                            self.class_bootstrap_code(invoke.attr_index, classes, f);
+                if let Some(code) = class.class_optional_method_code(&method.member_ref.name) {
+                    for (_, opcode) in &code.bytecode.as_ref().unwrap().opcodes {
+                        f(opcode);
+                        if let Opcode::Invokedynamic(invoke) = opcode {
+                            if index == invoke.attr_index {
+                                tracing::warn!(
+                                    "Breaking recursive bootstrap for class `{}`",
+                                    class.this_class
+                                );
+                            } else {
+                                self.class_bootstrap_code(invoke.attr_index, classes, f);
+                            }
                         }
                     }
                 }
@@ -92,6 +88,26 @@ impl ClassHelper for ClassFile<'_> {
                 }
             })
             .expect("Class does not contain a `BootstrapMethods` attribute!")
+    }
+    fn class_bootstrap_methods(
+        &self,
+        index: u16,
+    ) -> Box<dyn Iterator<Item = &MethodHandle<'_>> + '_> {
+        if let Some(entry) = self.class_bootstrap_entries().get(index as usize) {
+            Box::new(entry.arguments.iter().filter_map(|arg| {
+                if let BootstrapArgument::MethodHandle(handle) = arg {
+                    Some(handle)
+                } else {
+                    None
+                }
+            }))
+        } else {
+            tracing::error!(
+                "Class \"{}\" does not contain bootstrap method at index {index}",
+                self.this_class,
+            );
+            Box::new(core::iter::empty())
+        }
     }
 }
 
