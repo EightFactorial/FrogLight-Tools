@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use cafebabe::{
     bytecode::Opcode,
     constant_pool::{LiteralConstant, Loadable, MemberRef},
@@ -19,10 +17,10 @@ impl Packets {
     pub(super) async fn extract_packet_classes(
         version: &Version,
         deps: &mut DependencyContainer,
-    ) -> anyhow::Result<HashMap<String, NetworkState>> {
+    ) -> anyhow::Result<IndexMap<String, NetworkState>> {
         const STATE_PATH: &str = "net/minecraft/network/state/";
 
-        let mut states = HashMap::new();
+        let mut states = IndexMap::new();
 
         deps.get_or_retrieve::<MinecraftCode>().await?;
         deps.scoped_fut::<MinecraftCode, anyhow::Result<()>>(

@@ -1,33 +1,63 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use cafebabe::{
     bytecode::Opcode,
     constant_pool::{InvokeDynamic, MemberRef},
     ClassFile,
 };
+use derive_more::Deref;
 use froglight_dependency::{
-    container::DependencyContainer,
+    container::{Dependency, DependencyContainer},
     dependency::minecraft::{minecraft_code::CodeBundle, MinecraftCode},
     version::Version,
 };
 use indexmap::IndexMap;
 
 use super::Packets;
-use crate::{class_helper::ClassHelper, module::packet::classes::NetworkState};
+use crate::{class_helper::ClassHelper, module::packet::classes::NetworkState, ToolConfig};
+
+#[derive(Clone, PartialEq, Dependency)]
+#[dep(retrieve = VersionCodecs::generate)]
+pub(crate) struct VersionCodecs(Arc<HashMap<Version, NetworkCodecs>>);
+
+#[derive(Clone, PartialEq, Deref)]
+pub(crate) struct NetworkCodecs(IndexMap<String, NetworkPackets>);
+
+impl VersionCodecs {
+    /// Iterate over all versions and add all version's codecs to the set.
+    async fn generate(deps: &mut DependencyContainer) -> anyhow::Result<Self> {
+        let mut codecs = HashMap::new();
+
+        for version in deps.get::<ToolConfig>().unwrap().versions.clone() {
+            let network = Packets::extract_packet_codecs(&version, deps).await?;
+            codecs.insert(version, NetworkCodecs(network));
+        }
+
+        Ok(Self(Arc::new(codecs)))
+    }
+
+    /// Get the [`NetworkCodecs`] for the given version.
+    ///
+    /// Returns `None` if no codecs are available for the version.
+    #[inline]
+    #[must_use]
+    pub(crate) fn version(&self, version: &Version) -> Option<&NetworkCodecs> {
+        self.0.get(version)
+    }
+}
+// -------------------------------------------------------------------------------------------------
 
 impl Packets {
     pub(super) async fn extract_packet_codecs(
         version: &Version,
         deps: &mut DependencyContainer,
-    ) -> anyhow::Result<HashMap<String, NetworkPackets>> {
+    ) -> anyhow::Result<IndexMap<String, NetworkPackets>> {
         let classes = Self::extract_packet_classes(version, deps).await?;
-        let mut codecs = HashMap::with_capacity(classes.len());
+        let mut codecs = IndexMap::with_capacity(classes.len());
 
         for (name, state) in classes {
             codecs.insert(name, Self::parse_state_classes(state, version, deps).await?);
         }
-
-        // println!("{codecs:#?}");
 
         Ok(codecs)
     }
@@ -413,20 +443,20 @@ enum CodecDirection {
 
 // -------------------------------------------------------------------------------------------------
 
-#[derive(Debug, Default, PartialEq)]
-pub(super) struct NetworkPackets {
-    pub(super) c2s: IndexMap<String, PacketInfo>,
-    pub(super) s2c: IndexMap<String, PacketInfo>,
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub(crate) struct NetworkPackets {
+    pub(crate) c2s: IndexMap<String, PacketInfo>,
+    pub(crate) s2c: IndexMap<String, PacketInfo>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub(super) struct PacketInfo {
-    pub(super) class: String,
-    pub(super) fields: IndexMap<String, PacketField>,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PacketInfo {
+    pub(crate) class: String,
+    pub(crate) fields: IndexMap<String, PacketField>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub(super) enum PacketField {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum PacketField {
     Boolean,
     Byte,
     Short,
