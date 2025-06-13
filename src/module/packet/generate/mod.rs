@@ -1,12 +1,18 @@
-use std::path::Path;
+use std::{io::Write, path::Path, process::Stdio};
 
+use convert_case::{Case, Casing};
 use froglight_dependency::container::DependencyContainer;
-use tokio::sync::OnceCell;
+use tokio::{io::AsyncReadExt, process::Command, sync::OnceCell};
+use tracing::trace;
 
 use super::Packets;
-use crate::{module::packet::VersionCodecs, ToolConfig};
+use crate::{
+    module::packet::{codecs::PacketInfo, VersionCodecs},
+    ToolConfig,
+};
 
 mod module;
+mod packet;
 
 impl Packets {
     pub(super) async fn generate_packets(
@@ -43,4 +49,46 @@ impl Packets {
         .as_ref()
         .map_or_else(|e| Err(anyhow::anyhow!(e)), |()| Ok(()))
     }
+}
+
+/// Get the enum variant name for a packet.
+fn packet_variant(packet: &PacketInfo) -> String {
+    let mut class = packet.class.split('/').last().unwrap().to_case(Case::Pascal);
+    if let Some((head, tail)) = class.split_once('$') {
+        let head = head.split_inclusive(char::is_uppercase).take(2).collect::<String>();
+        trace!("Packet: Renaming \"{class}\" to ~\"{head}{tail}\"");
+        class = head[..head.len().saturating_sub(1)].to_string() + &tail.to_case(Case::Pascal);
+    }
+    class.replace("S2C", "").replace("C2S", "").trim_end_matches("Packet").to_string()
+}
+
+/// Get the struct name for a packet.
+fn packet_struct(packet: &PacketInfo, direction: &str) -> String {
+    packet_variant(packet) + &direction.to_uppercase() + "Packet"
+}
+
+/// Get the file name for a packet.
+fn packet_file(id: usize, packet: &str, direction: &str) -> String {
+    format!("{direction}_{id:#04x}_{}.rs", packet.trim_start_matches("minecraft:"))
+}
+
+/// Call `rustfmt` and write the contents to the specified path.
+async fn write_formatted(contents: &str, path: &Path) -> anyhow::Result<()> {
+    // Create a `stdin` with the contents to be formatted
+    let stdin = {
+        let (reader, mut writer) = std::io::pipe()?;
+        writer.write_all(contents.as_bytes())?;
+        Stdio::from(reader)
+    };
+
+    // Call `rustfmt` to format the contents
+    let mut cmd = Command::new("rustfmt");
+    let mut cmd = cmd.stdin(stdin).stdout(Stdio::piped()).spawn()?;
+
+    // Write the formatted contents to a file
+    let mut formatted = String::new();
+    cmd.stdout.as_mut().unwrap().read_to_string(&mut formatted).await?;
+    tokio::fs::write(path, formatted).await?;
+
+    Ok(())
 }

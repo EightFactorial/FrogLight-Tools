@@ -20,6 +20,7 @@ impl Packets {
             anyhow::bail!("Could not find \"froglight-packet\" at \"{}\"", directory.display());
         }
 
+        // Generate the packet structs and implementations
         Self::generate_packets(deps, &directory.join("src")).await?;
 
         Ok(())
