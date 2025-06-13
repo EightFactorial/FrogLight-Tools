@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::module::{packet::codecs::PacketInfo, Packets};
+use crate::module::{Packets, packet::codecs::PacketInfo};
 
 impl Packets {
     const PACKET_TEMPLATE: &str = r#"//! This file is auto-generated. Disable this by adding an `@manual` tag.
@@ -28,7 +28,7 @@ pub struct {STRUCT} {}
         let file_path = path.join(&file_name);
 
         // Skip packet generation if the file already exists and contains `@manual`
-        if let Ok(existing) = tokio::fs::read_to_string(path).await {
+        if let Ok(existing) = tokio::fs::read_to_string(&file_path).await {
             if existing.contains("@manual @generated") {
                 return Ok(());
             }
