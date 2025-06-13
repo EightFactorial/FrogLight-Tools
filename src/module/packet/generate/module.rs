@@ -164,7 +164,7 @@ pub enum Serverbound{STATE}Packets {
         let (mut c2s, mut s2c) = (String::new(), String::new());
 
         for (id, (name, packet)) in state.c2s.iter().enumerate() {
-            let pstruct = super::packet_struct(packet, "c2s");
+            let pstruct = super::packet_ident(packet, "c2s");
             c2s.push_str(&format!(
                 "    {}({pstruct}) = {id:#04x},\n",
                 super::packet_variant(packet)
@@ -179,7 +179,7 @@ pub enum Serverbound{STATE}Packets {
             }
         }
         for (id, (name, packet)) in state.s2c.iter().enumerate() {
-            let pstruct = super::packet_struct(packet, "s2c");
+            let pstruct = super::packet_ident(packet, "s2c");
             s2c.push_str(&format!(
                 "    {}({pstruct}) = {id:#04x},\n",
                 super::packet_variant(packet)
@@ -271,7 +271,7 @@ pub enum Serverbound{STATE}Packets {
                     .filter_map(|(_, p1)| later.c2s.iter().find(|(_, p2)| p1 == *p2))
                 {
                     if !inherit_c2s.contains(name) {
-                        inherited_packets.push(super::packet_struct(packet, "c2s"));
+                        inherited_packets.push(super::packet_ident(packet, "c2s"));
                         inherit_c2s.insert(name.to_string());
                     }
                 }
@@ -282,7 +282,7 @@ pub enum Serverbound{STATE}Packets {
                     .filter_map(|(_, p1)| later.s2c.iter().find(|(_, p2)| p1 == *p2))
                 {
                     if !inherit_s2c.contains(name) {
-                        inherited_packets.push(super::packet_struct(packet, "s2c"));
+                        inherited_packets.push(super::packet_ident(packet, "s2c"));
                         inherit_s2c.insert(name.to_string());
                     }
                 }

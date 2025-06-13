@@ -63,7 +63,7 @@ fn packet_variant(packet: &PacketInfo) -> String {
 }
 
 /// Get the struct name for a packet.
-fn packet_struct(packet: &PacketInfo, direction: &str) -> String {
+fn packet_ident(packet: &PacketInfo, direction: &str) -> String {
     packet_variant(packet) + &direction.to_uppercase() + "Packet"
 }
 

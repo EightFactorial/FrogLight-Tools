@@ -1,20 +1,20 @@
 use std::{collections::HashMap, sync::Arc};
 
 use cafebabe::{
+    ClassFile,
     bytecode::Opcode,
     constant_pool::{InvokeDynamic, MemberRef},
-    ClassFile,
 };
 use derive_more::Deref;
 use froglight_dependency::{
     container::{Dependency, DependencyContainer},
-    dependency::minecraft::{minecraft_code::CodeBundle, MinecraftCode},
+    dependency::minecraft::{MinecraftCode, minecraft_code::CodeBundle},
     version::Version,
 };
 use indexmap::IndexMap;
 
 use super::Packets;
-use crate::{class_helper::ClassHelper, module::packet::classes::NetworkState, ToolConfig};
+use crate::{ToolConfig, class_helper::ClassHelper, module::packet::classes::NetworkState};
 
 #[derive(Clone, PartialEq, Dependency)]
 #[dep(retrieve = VersionCodecs::generate)]
@@ -251,10 +251,7 @@ impl Packets {
                         fields.insert(field_name, PacketField::Byte);
                     }
                     "writeBytes" | "writeByteArray" => {
-                        fields.insert(
-                            field_name,
-                            PacketField::Vec(Box::new(PacketField::Byte)),
-                        );
+                        fields.insert(field_name, PacketField::Vec(Box::new(PacketField::Byte)));
                     }
                     "writeShort" => {
                         fields.insert(field_name, PacketField::Short);
@@ -265,11 +262,8 @@ impl Packets {
                     "writeInt" => {
                         fields.insert(field_name, PacketField::Int);
                     }
-                    "writeIntArray" | "writeIntList"  => {
-                        fields.insert(
-                            field_name,
-                            PacketField::Vec(Box::new(PacketField::Int)),
-                        );
+                    "writeIntArray" | "writeIntList" => {
+                        fields.insert(field_name, PacketField::Vec(Box::new(PacketField::Int)));
                     }
                     "writeSyncId" | "writeVarInt" => {
                         fields.insert(field_name, PacketField::VarInt);
@@ -278,10 +272,7 @@ impl Packets {
                         fields.insert(field_name, PacketField::Long);
                     }
                     "writeLongArray" => {
-                        fields.insert(
-                            field_name,
-                            PacketField::Vec(Box::new(PacketField::Long)),
-                        );
+                        fields.insert(field_name, PacketField::Vec(Box::new(PacketField::Long)));
                     }
                     "writeVarLong" => {
                         fields.insert(field_name, PacketField::VarLong);
@@ -323,10 +314,8 @@ impl Packets {
                         );
                     }
                     "writeOptional" | "writeNullable" => {
-                        fields.insert(
-                            field_name,
-                            PacketField::Option(Box::new(PacketField::String)),
-                        );
+                        fields
+                            .insert(field_name, PacketField::Option(Box::new(PacketField::String)));
                     }
                     ty @ ("writeBlockPos"
                     | "writeBlockHitResult"
@@ -338,7 +327,10 @@ impl Packets {
                             PacketField::Other(ty.trim_start_matches("write").to_string()),
                         );
                     }
-                    "encode" if name_and_type.descriptor == "(Ljava/util/function/ToIntFunction;Ljava/lang/Object;)Lnet/minecraft/network/PacketByteBuf;" => {}
+                    "encode"
+                        if name_and_type.descriptor
+                            == "(Ljava/util/function/ToIntFunction;Ljava/lang/Object;)Lnet/minecraft/network/PacketByteBuf;" =>
+                        {}
                     unk => {
                         panic!("PacketCodec: Unknown PacketByteBuf encode method \"{unk}\"")
                     }
@@ -455,6 +447,31 @@ pub(crate) struct PacketInfo {
     pub(crate) fields: IndexMap<String, PacketField>,
 }
 
+impl PacketInfo {
+    /// Create an iterator over all fields in the packet.
+    pub(crate) fn fields(&self) -> impl Iterator<Item = (&String, &PacketField)> {
+        self.fields.iter()
+    }
+
+    /// Create an iterator over all fields in the packet, recursively.
+    pub(crate) fn fields_recursive(&self) -> impl Iterator<Item = (&String, &PacketField)> {
+        self.fields.iter().flat_map(|(n, f)| -> Box<dyn Iterator<Item = (&String, &PacketField)>> {
+            match f {
+                // Recurse into structs to get their fields
+                PacketField::Struct(info) => Box::new(info.fields_recursive()),
+                // Get the inner fields of `Option`s
+                PacketField::Option(inner) => Box::new(std::iter::once((n, inner.as_ref()))),
+                // Get the `Vec` itself and its inner type
+                f @ PacketField::Vec(inner) => Box::new([(n, f), (n, inner.as_ref())].into_iter()),
+                // Use all other fields as-is
+                other => Box::new(std::iter::once((n, other))),
+            }
+        })
+    }
+}
+
+// -------------------------------------------------------------------------------------------------
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum PacketField {
     Boolean,
@@ -476,4 +493,50 @@ pub(crate) enum PacketField {
     Option(Box<PacketField>),
     Vec(Box<PacketField>),
     Other(String),
+}
+
+impl PacketField {
+    /// Print the field as a tuple of `(imports, attributes, type)`.
+    #[must_use]
+    pub(crate) fn print_field(&self) -> (String, String, String) {
+        match self {
+            PacketField::Boolean => (String::new(), String::new(), String::from("bool")),
+            PacketField::Byte => (String::new(), String::new(), String::from("i8")),
+            PacketField::Short => (String::new(), String::new(), String::from("u16")),
+            PacketField::VarShort => (String::new(), String::from("var"), String::from("u16")),
+            PacketField::Int => (String::new(), String::new(), String::from("u32")),
+            PacketField::VarInt => (String::new(), String::from("var"), String::from("u32")),
+            PacketField::Long => (String::new(), String::new(), String::from("u64")),
+            PacketField::VarLong => (String::new(), String::from("var"), String::from("u64")),
+            PacketField::Float => (String::new(), String::new(), String::from("f32")),
+            PacketField::Double => (String::new(), String::new(), String::from("f64")),
+            PacketField::String => (String::new(), String::new(), String::from("String")),
+            PacketField::Identifier => (
+                String::from("froglight_common::prelude::Identifier"),
+                String::new(),
+                String::from("Identifier"),
+            ),
+            PacketField::Nbt => (
+                String::from("froglight_nbt::prelude::NbtTag"),
+                String::new(),
+                String::from("NbtTag"),
+            ),
+            PacketField::Struct(..) => (String::new(), String::new(), String::from("()")),
+            PacketField::Enum(..) => (String::new(), String::new(), String::from("()")),
+            PacketField::Map() => (
+                String::from("bevy_platform::collections::HashMap"),
+                String::new(),
+                String::from("HashMap<(), ()>"),
+            ),
+            PacketField::Option(field) => {
+                let (import, attr, field) = field.print_field();
+                (import, attr, format!("Option<{field}>"))
+            }
+            PacketField::Vec(field) => {
+                let (import, attr, field) = field.print_field();
+                (import, attr, format!("Vec<{field}>"))
+            }
+            PacketField::Other(..) => (String::new(), String::new(), String::from("()")),
+        }
+    }
 }
