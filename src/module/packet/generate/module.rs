@@ -6,11 +6,11 @@ use froglight_dependency::{
 };
 
 use crate::{
-    module::{
-        packet::{codecs::NetworkPackets, NetworkCodecs, VersionCodecs},
-        Packets,
-    },
     ToolConfig,
+    module::{
+        Packets,
+        packet::{NetworkCodecs, VersionCodecs, codecs::NetworkPackets},
+    },
 };
 
 impl Packets {
@@ -118,14 +118,14 @@ use derive_more::{From, TryInto, TryUnwrap};
 
 {INHERITED}
 {GENERATED}
-{C2S_REPR}
+{CLIENTBOUND_REPR}
 #[derive(Debug, Clone, PartialEq, From, TryInto, TryUnwrap)]
 #[cfg_attr(feature = "bevy", derive(Reflect), reflect(Debug, Clone, PartialEq))]
 #[cfg_attr(feature = "io", derive(froglight_macros::FrogPackets))]
 pub enum Clientbound{STATE}Packets {
 {CLIENTBOUND}}
 
-{S2C_REPR}
+{SERVERBOUND_REPR}
 #[derive(Debug, Clone, PartialEq, From, TryInto, TryUnwrap)]
 #[cfg_attr(feature = "bevy", derive(Reflect), reflect(Debug, Clone, PartialEq))]
 #[cfg_attr(feature = "io", derive(froglight_macros::FrogPackets))]
@@ -228,8 +228,10 @@ pub enum Serverbound{STATE}Packets {
         let contents = Self::STATE_TEMPLATE.replace("{STATE}", &state_name);
         let contents = contents.replace("{INHERITED}", &inherited);
         let contents = contents.replace("{GENERATED}", &generated);
-        let contents = contents.replace("{C2S_REPR}", &c2s_repr).replace("{S2C_REPR}", &s2c_repr);
-        let contents = contents.replace("{CLIENTBOUND}", &c2s).replace("{SERVERBOUND}", &s2c);
+        let contents = contents
+            .replace("{CLIENTBOUND_REPR}", &s2c_repr)
+            .replace("{SERVERBOUND_REPR}", &c2s_repr);
+        let contents = contents.replace("{CLIENTBOUND}", &s2c).replace("{SERVERBOUND}", &c2s);
 
         super::write_formatted(&contents, &mod_path).await
     }
